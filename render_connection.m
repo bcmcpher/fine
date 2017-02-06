@@ -54,6 +54,8 @@ switch cleaned
         error(['Invalid type of fibers selected: ' cleaned ' is not an option. Please check you input for the ''clean'' argument.']);
 end
 
+display(['Rednering ' fgName]);
+
 % if an emtpy fg is requested
 if isempty(ind1)
     error('The connection requested contains no streamlines at this parameter.');
@@ -103,8 +105,6 @@ fg_pnplot.fibers = fg_pnplot.fibers(fibs_indx);
 fg{2} = fg_pnplot;
 
 %% plot the requested connection / view / fg
-
-display(['Rednering ' fgName]);
 
 % switch statement to define the plots perspective
 switch persp
