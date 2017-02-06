@@ -130,24 +130,20 @@ switch conn
     case{'path'}
         [fh, light_h] = mbaDisplayConnectome(fg{1}.fibers, fh, colors{1}, 'single');
         delete(light_h);
-        view(viewCoords);
-        camlight right
-        lighting phong
     case{'neighborhood'}
         [fh, light_h] = mbaDisplayConnectome(fg{2}.fibers, fh, colors{2}, 'single');
         delete(light_h);
-        view(viewCoords);
-        camlight right
-        lighting phong
     case{'both'}
         [fh, light_h1] = mbaDisplayConnectome(fg{1}.fibers, fh, colors{1}, 'single');
         delete(light_h1);
         [fh, light_h2] = mbaDisplayConnectome(fg{2}.fibers, fh, colors{2}, 'single');
         delete(light_h2);
-        view(viewCoords);
-        camlight right
-        lighting phong
 end
+
+% plot this way every time
+view(viewCoords);
+camlight right
+lighting phong
 
 % save images? - don't run, this breaks the session
 %feSavefig(fhNum, 'verbose', 'yes', 'figName', fig.names{iview}, 'figDir', fullFigureOutDir, 'figType', 'jpg');
