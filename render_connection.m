@@ -149,8 +149,8 @@ switch conn
         lighting phong
 end
 
-% save images?
+% save images? - don't run, this breaks the session
 %feSavefig(fhNum, 'verbose', 'yes', 'figName', fig.names{iview}, 'figDir', fullFigureOutDir, 'figType', 'jpg');
-print(fh, '-cmyk', '-painters', '-depsc2', '-tiff', '-r500' , '-noui', './renders/test.eps');
+%print(fh, '-cmyk', '-painters', '-depsc2', '-tiff', '-r500' , '-noui', './renders/test.eps');
 
 end
