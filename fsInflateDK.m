@@ -1,4 +1,4 @@
-function [ fh, ilabs, wm ] = fsInflateDK(aparc, infl, nlog)
+function [ fh, ilabs, wm ] = fsInflateDK(aparc, infl, nlog, outfile)
 %% 
 % currently assigns mode value of neighbors
 % can repeat inflation, unsure of ideal optimum
@@ -164,7 +164,7 @@ end
 
 % create inflated labels nifti
 ilabs = olabs;
-ilabs.fname = 'inflated_labels.nii.gz';
+ilabs.fname = outfile;
 ilabs.data = out;
 
 display(['Saving inflated ROIs in: ' ilabs.fname '...']);

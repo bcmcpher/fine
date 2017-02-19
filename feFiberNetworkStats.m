@@ -108,7 +108,9 @@ fns.nrm.modz = module_degree_zscore(fdat.nrm, fns.nrm.asgn);
 fns.nrm.mcoef = mean(fns.nrm.ccoef);
 [ fns.nrm.dens, fns.nrm.dvrt, fns.nrm.dedg ] = density_und(fdat.nrm);
 fns.nrm.trans = transitivity_wu(fdat.nrm);
-fns.nrm.glEff = efficiency_wei(fdat.nrm, 0);
+%fns.nrm.glEff = efficiency_wei(fdat.nrm, 0);
+fns.nrm.glEff = efficiency_wei(-log(fdat.nrm), 0);
+%fns.nrm.glEff = efficiency_wei(1 ./ fdat.nrm, 0);
 [ fns.nrm.chpl, ~ ] = charpath(fdat.nrm);
 fns.nrm.rcc = rich_club_wu(fdat.nrm);
 
