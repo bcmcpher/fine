@@ -1,4 +1,4 @@
-function [ fh, ilabs, wm ] = fsInflateDK(aparc, infl, nlog, outfile)
+function [ fh, ilabs, wm, dbout ] = fsInflateDK(aparc, infl, nlog, outfile)
 %% 
 % currently assigns mode value of neighbors
 % can repeat inflation, unsure of ideal optimum
@@ -61,13 +61,14 @@ olabs.data(olabs.data == 1000 | olabs.data == 2000) = 0;
 
 % compute centroids of ROIs
 % find unique labels / isolate voxels, averaged x/y/z to return
+% should I do this after inflation?
 
 %% probably drop labels mask...
 
-% make orig label mask
-mlabs = olabs;
-mlabs.fname = 'orig_labels_mask.nii.gz';
-mlabs.data(mlabs.data > 0) = 1;
+% % make orig label mask
+% mlabs = olabs;
+% mlabs.fname = 'orig_labels_mask.nii.gz';
+% mlabs.data(mlabs.data > 0) = 1;
 
 %% create local neighborhood logicals
 
@@ -106,8 +107,23 @@ display(['Inflating ' num2str(length(unique(olabs.data(:)))-1) ' ROIs...']);
 % catch data in empty array of original size
 out = olabs.data;
 
+%% create debug counter for ROIs to determine when they stop growing
+
+% process to get count of each label
+dbcnt = sort(out(out > 0));
+p = find([numel(dbcnt); diff(dbcnt); numel(dbcnt)]);
+label = dbcnt(p(1:end-1))';
+count = diff(p)';
+
+% intitialize returned counter
+dbout = zeros(infl + 1, length(label));
+dbout(1, :) = label;
+dbout(2, :) = count;
+
+%% resume fxn
+
 % padded original dataset for first iteration
-pdat = padarray(olabs.data, [1, 1, 1]);
+pdat = padarray(out, [1, 1, 1]);
 
 % loop for number of inflations
 for hh = 1:infl
@@ -130,7 +146,7 @@ for hh = 1:infl
                 pkk = kk + 1;
                 
                 % if plabs is labeled skip b/c I don't change labels
-                if pdat(pii, pjj, pkk) > 0 % and if it's not labeled...
+                if pdat(pii, pjj, pkk) > 0 % if it's not labeled...
                     continue;
                 end
                                 
@@ -141,13 +157,16 @@ for hh = 1:infl
                 neigh = neigh(nmsk == 1);
                 
                 % only keep neighbors > 0
+                % check how many that is...
                 neigh = neigh(neigh > 0);
+                
+                % probably need more than 1 nonzero
                 
                 % figure out the most popular neighbor
                 lab = mode(neigh);
                 
-                % assign label based on mode if voxel is 0 and not assigning 0
-                if out(ii, jj, kk) == 0 && lab ~= 0
+                % assign label based on mode if voxel is 0 is still white matter
+                if out(ii, jj, kk) == 0 && wm.data(ii, jj, kk) == 1
                     
                     % output label is assigned
                     out(ii, jj, kk) = lab;
@@ -159,6 +178,15 @@ for hh = 1:infl
     
     % recompute search space after every iteration
     pdat = padarray(out, [1, 1, 1]);
+    
+    % process to get count of each label
+    dbcnt = sort(out(out > 0));
+    p = find([numel(dbcnt); diff(dbcnt); numel(dbcnt)]);
+    label = dbcnt(p(1:end-1))';
+    count = diff(p)';
+    
+    % update debug out count
+    dbout(hh+2,:) = count;
     
 end
 
@@ -178,14 +206,29 @@ niftiWrite(ilabs, ilabs.fname);
 x = olabs.data(:,:,78);
 y = ilabs.data(:,:,78);
 z = y - x;
-a = (ilabs.data(:,:,78) > 0) + (mask.data(:,:,78) > 0);
+%a = (ilabs.data(:,:,78) > 0) + (mask.data(:,:,78) > 0);
 wmOverlap1 = wm.data(:,:,78);
 wmOverlap2 = z > 0;
 wmOverlap = wmOverlap1 + wmOverlap2;
 
 fh = figure; 
-subplot(3, 2, 1); imagesc(x); title('Original Labels'); subplot(3, 2, 2); imagesc(y); title('Inflated Labels'); 
-subplot(3, 2, 3); imagesc(a); title('Labels + Mask'); subplot(3, 2, 4); imagesc(mask.data(:,:,78)>0); title('Mask');
-subplot(3, 2, 5); imagesc(z); title('Label Expansion'); subplot(3, 2, 6); imagesc(wmOverlap); title('WM Intersect');
+
+subplot(3, 2, 1); imagesc(x); 
+title('Original Labels'); colorbar;
+
+subplot(3, 2, 2); imagesc(y); 
+title('Inflated Labels'); colorbar;
+
+subplot(3, 2, 3); imagesc((wm.data(:,:,78) > 0) + (x > 0)); 
+title('Original Labels + WM'); colorbar;
+
+subplot(3, 2, 4); imagesc(wm.data(:,:,78) > 0); 
+title('WM Mask'); colorbar;
+
+subplot(3, 2, 5); imagesc(z); 
+title('Label Expansion'); colorbar;
+
+subplot(3, 2, 6); imagesc(wmOverlap); 
+title('WM Intersect'); colorbar;
 
 end
