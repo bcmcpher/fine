@@ -1,9 +1,9 @@
-function [ emat, pconn, out ] = feConnectomeSummary(feFile, rois)
+function [ emat, pconn, out ] = feConnectomeSummary(fe, aparc)
 %feConnectomeSummary create adjacency matrices from a fit fe structure and a
 %    parcellation of cortical regions. 
 %   
 %   TODO:
-%   - too many streamlines are unassigned
+%   - too many streamlines are unassigned - maybe I suck?
 %   - add computations for other matrices
 %   - add cleaning
 %   - parallelize virtual lesion
@@ -15,17 +15,24 @@ function [ emat, pconn, out ] = feConnectomeSummary(feFile, rois)
 
 %% load data
 
-display('Loading data...');
+% if string is passed, assume it's a path and load it
+if isstring(fe) 
+    display('Loading fe data...');
+    load(fe);
+end
 
-% load the arguments - build checks to use structures if provided
-load(feFile);
-aparc = niftiRead(rois);
+% if string is passed, assume it's a path and load it
+if isstring(aparc)
+    aparc = niftiRead(aparc);
+end
+
+%% extract fibers to acpc space and identify endpoint coordinates
+
+display('Coverting streamlines and ROIs to ACPC space...')
 
 % catch xform matrices for aparc
 aparc_img2acpc = aparc.qto_xyz;
 %aparc_acpc2img = aparc.qto_ijk;
-
-%% extract fibers to acpc space and identify endpoint coordinates
 
 % convert fibers to acpc space
 fg = feGet(fe, 'fg acpc');
@@ -47,6 +54,13 @@ fibLength = fefgGet(fg, 'length');
 % fe.life.M.Phi = fe.life.M.Phi(:,:,find(lindx));
 %
 % the rest of the cleaning is in plot_path_neighborhood
+
+% compute offset between label images space and fe image space
+offset = aparc_img2acpc - fe.life.xform.img2acpc;
+offset = offset(1:3, 4);
+offset = offset';
+%offset = round(offset') + 1;
+%offset = [offset(1) offset(2) offset(3)];
 
 % initialize endpoint outputs
 ep1 = zeros(length(fg.fibers), 3);
@@ -71,6 +85,10 @@ ep2 = round(ep2) + 1;
 % % round down
 % ep1 = floor(ep1) + floor( (ep1 - floor(ep1)) / 0.25) * 0.25;
 % ep2 = floor(ep2) + floor( (ep2 - floor(ep2)) / 0.25) * 0.25;
+
+% apply offset to enpoints
+%ep1 = ep1 + repmat(offset, length(ep1), 1);
+%ep2 = ep2 + repmat(offset, length(ep2), 1); 
 
 %% assign fiber endpoints to labels
 

@@ -28,8 +28,11 @@ img = zeros(fe.life.imagedim(1:3));
 % THIS IS NOT THE SAME SIZE AS APARC
 % IN REGISTER, BUT NOT THE SAME SHAPE
 
-% does this represent the translation offset?
-aparc.qto_xyz - fe.life.xform.img2acpc;
+% this represents the translation offset
+offset = aparc.qto_xyz - fe.life.xform.img2acpc;
+offset = offset(1:3, 4);
+offset = round(offset') + 1;
+% apply this to endpoints for perfect alignment to image acpc space
 
 % for every endpoint, create a density map of rois
 for ii = 1:length(ep)

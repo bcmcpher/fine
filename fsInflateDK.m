@@ -63,13 +63,6 @@ olabs.data(olabs.data == 1000 | olabs.data == 2000) = 0;
 % find unique labels / isolate voxels, averaged x/y/z to return
 % should I do this after inflation?
 
-%% probably drop labels mask...
-
-% % make orig label mask
-% mlabs = olabs;
-% mlabs.fname = 'orig_labels_mask.nii.gz';
-% mlabs.data(mlabs.data > 0) = 1;
-
 %% create local neighborhood logicals
 
 % can probably streamline these better...
@@ -158,12 +151,17 @@ for hh = 1:infl
                 
                 % only keep neighbors > 0
                 % check how many that is...
-                neigh = neigh(neigh > 0);
+                %neigh = neigh(neigh > 0);
                 
                 % probably need more than 1 nonzero
                 
                 % figure out the most popular neighbor
                 lab = mode(neigh);
+                
+                % don't assign zero
+                if lab == 0 
+                    continue;
+                end
                 
                 % assign label based on mode if voxel is 0 is still white matter
                 if out(ii, jj, kk) == 0 && wm.data(ii, jj, kk) == 1
@@ -182,7 +180,6 @@ for hh = 1:infl
     % process to get count of each label
     dbcnt = sort(out(out > 0));
     p = find([numel(dbcnt); diff(dbcnt); numel(dbcnt)]);
-    label = dbcnt(p(1:end-1))';
     count = diff(p)';
     
     % update debug out count
@@ -198,7 +195,7 @@ ilabs.data = out;
 display(['Saving inflated ROIs in: ' ilabs.fname '...']);
 
 % save inflated labels
-niftiWrite(ilabs, ilabs.fname);
+%niftiWrite(ilabs, ilabs.fname);
 
 %% debug figure
 
