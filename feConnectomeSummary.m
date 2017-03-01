@@ -6,7 +6,6 @@ function [ emat, pconn, out ] = feConnectomeSummary(fe, aparc)
 %   - too many streamlines are unassigned - maybe I suck?
 %   - add computations for other matrices
 %   - add cleaning
-%   - parallelize virtual lesion
 %   - add tract profiles if cell array of labels / files provided
 %
 % feFile = 'test/fe_structure_105115_STC_run01_SD_PROB_lmax10_connNUM01.mat';
@@ -72,6 +71,8 @@ for ii = 1:length(fg.fibers)
     ep2(ii,:) = fg.fibers{ii}(:,end)';
 end
 
+clear ii
+
 % round all the endpoints
 ep1 = round(ep1) + 1;
 ep2 = round(ep2) + 1;
@@ -119,16 +120,13 @@ for ii = 1:length(labels)
     imgCoords = [ x, y, z ];
     
     % convert label indices to ACPC coordinates
-    %acpcCoords = mrAnatXformCoords(fe.life.xform.img2acpc, imgCoords); % rely on fe structure
     acpcCoords = mrAnatXformCoords(aparc_img2acpc, imgCoords); % rely on file header
     acpcCoords = round(acpcCoords) + 1;
    
     % catch size 
     out{ii}.size = size(unique(acpcCoords, 'rows'), 1);
     
-    % test - other out - do I find more streamlines w/o limiting to fe_roi intersection?
-    % just find intersections of all fiber end points directly w/ ROIs -
-    % just as fast, but finds more
+    % find streamline endpoints in ROI acpc coordinates
     roi_ep1 = ismember(ep1, acpcCoords, 'rows');
     roi_ep2 = ismember(ep2, acpcCoords, 'rows');
     
@@ -137,7 +135,7 @@ for ii = 1:length(labels)
     out{ii}.end.fibers = fibers;
     out{ii}.end.length = fibLength(out{ii}.end.fibers);
     out{ii}.end.weight = fe.life.fit.weights(out{ii}.end.fibers);
-    
+   
     if isempty(out{ii}.end.fibers)
         warning(['ROI label ' num2str(labels(ii)) ' has no streamline terminations.']);
     end
@@ -193,7 +191,7 @@ for ii = 1:length(labels)
     
     % total fibers assigned to an endpoint
     tfib(ii) = length(out{ii}.end.fibers);
-    %wfib(ii) = length(out{ii}.feroi.end);
+    %wfib(ii) = length(out{ii}.img.fibers);
     
 end
 time = toc; 
@@ -212,6 +210,7 @@ pairs = nchoosek(1:length(labels), 2);
 % preallocate paired connection object
 pconn = cell(length(pairs), 1);
 tcon = zeros(length(pairs), 1);
+%wcon = zeros(length(pairs), 1);
 
 % for every pair of nodes, estimate the connection
 for ii = 1:length(pairs)
@@ -235,10 +234,12 @@ for ii = 1:length(pairs)
     
     % keep running total of total streamlines assigned a connection
     tcon(ii) = size(pconn{ii}.indices, 1);
+    %wcon(ii) = size(pconn{ii}.img.indices, 1);
     
 end
 
 display(['Build paired connections object with ' num2str(sum(tcon)) ' fibers.']);
+%display(['Build paired connections object with ' num2str(sum(wcon)) ' fibers.']);
 
 clear ii roi1 roi2 
 
@@ -248,11 +249,49 @@ clear ii roi1 roi2
 
 %% run parallelized virtural lesion
 
-% parfor ii = 1:length(pconn)
+vlout = cell(length(pconn), 1);
+vlcnt = 0;
+
+tic;
+parfor ii = 1:length(pconn)
+    
+    if sum(pconn{ii}.weights > 0) == 0
+        
+        % set to zero and continue
+        vlout{ii}.s.mean  = 0;
+        vlout{ii}.em.mean = 0;
+        vlout{ii}.j.mean  = 0;
+        vlout{ii}.kl.mean = 0;
+        continue
+                
+    else
+        % compute a virtual lesion
+        [ ewVL, ewoVL ] = feComputeVirtualLesion(fe, pconn{ii}.indices);
+        vlout{ii} = feComputeEvidence(ewoVL, ewVL);
+        vlcnt = vlcnt + 1;
+
+    end
+    
+end
+time = toc;
+
+display(['Computed ' num2str(vlcnt) ' vitual lesions in ' num2str(round(time)) ' seconds.']);
+
+% add virtual lesion output to pconn
+for ii = 1:length(pconn)
+    pconn{ii}.vl = vlout{ii};
+    pconn{ii}.matrix.s = vlout{ii}.s.mean;
+    pconn{ii}.matrix.em = vlout{ii}.em.mean;
+    pconn{ii}.matrix.kl = mean(vlout{ii}.kl.mean);
+    pconn{ii}.matrix.j = mean(vlout{ii}.j.mean);
+end
+
+clear ii vlout vlcnt time
 
 %% build tract profiles
 
 % for ii = 1:length(ms_files)
+%     msprop = niftiRead(ms_files{ii});
 %     parfor jj = 1:length(pconn)
 
 %% build matrices from pconn
@@ -260,7 +299,7 @@ clear ii roi1 roi2
 display('Building Adjacency Matrices...');
 
 % initialize output
-emat = zeros(length(labels), length(labels), 4);
+emat = zeros(length(labels), length(labels), 12);
 
 % for every paired connection
 for ii = 1:length(pconn)
@@ -269,6 +308,13 @@ for ii = 1:length(pconn)
     cnt = size(pconn{ii}.indices, 1);
     psz = pconn{ii}.roi1sz + pconn{ii}.roi2sz;
     len = mean(pconn{ii}.lengths);
+    
+    % redo the traditional count measures w/ non-zero weighted streamlines
+    nzw = pconn{ii}.weights > 0;
+    nzcnt = size(pconn{ii}.indices(nzw), 1);
+    nzlen = mean(pconn{ii}.lengths(nzw));
+    
+    % build adjacency matrices
     
     % 1. count of streamlines
     emat(pairs(ii, 1), pairs(ii, 2), 1) = cnt;
@@ -292,11 +338,56 @@ for ii = 1:length(pconn)
     emat(pairs(ii, 2), pairs(ii, 1), 4) = dln;
     pconn{ii}.matrix.dnleng = dln;
     
-    % add non-zero weighted counts
+    % 5. non-zero count
+    emat(pairs(ii, 1), pairs(ii, 2), 5) = nzcnt;
+    emat(pairs(ii, 2), pairs(ii, 1), 5) = nzcnt;
+    pconn{ii}.matrix.nzcnt = nzcnt;
+    
+    % 6. non-zero density
+    nzdns = (2 * nzcnt) / psz;
+    emat(pairs(ii, 1), pairs(ii, 2), 6) = nzdns;
+    emat(pairs(ii, 2), pairs(ii, 1), 6) = nzdns;
+    pconn{ii}.matrix.nzdns = nzdns;
+    
+    % 7. non-zero length
+    emat(pairs(ii, 1), pairs(ii, 2), 7) = nzlen;
+    emat(pairs(ii, 2), pairs(ii, 1), 7) = nzlen;
+    pconn{ii}.matrix.nzlen = nzlen;
+    
+    % 8. non-zero denstiy * length
+    if isempty(pconn{ii}.lengths(nzw)) % if there are no nz lengths
+        nzdln = 0;
+    else
+        nzdln = (2 / psz) * sum(1 / pconn{ii}.lengths(nzw));
+    end
+    emat(pairs(ii, 1), pairs(ii, 2), 8) = nzdln;
+    emat(pairs(ii, 2), pairs(ii, 1), 8) = nzdln;
+    pconn{ii}.matrix.nzdln = nzdln;
+    
+    % 9. strength of evidence
+    emat(pairs(ii, 1), pairs(ii, 2), 9) = pconn{ii}.matrix.s;
+    emat(pairs(ii, 2), pairs(ii, 1), 9) = pconn{ii}.matrix.s;
+    
+    % 10. strength of evidence
+    emat(pairs(ii, 1), pairs(ii, 2), 10) = pconn{ii}.matrix.em;
+    emat(pairs(ii, 2), pairs(ii, 1), 10) = pconn{ii}.matrix.em;
+    
+    % 11. kullback-liebler
+    emat(pairs(ii, 1), pairs(ii, 2), 11) = pconn{ii}.matrix.kl;
+    emat(pairs(ii, 2), pairs(ii, 1), 11) = pconn{ii}.matrix.kl;
+    
+    % 12. jefferies divergence
+    emat(pairs(ii, 1), pairs(ii, 2), 12) = pconn{ii}.matrix.j;
+    emat(pairs(ii, 2), pairs(ii, 1), 12) = pconn{ii}.matrix.j;
     
 end
 
-clear ii
+clear ii cnt psz len nzw nzcnt nzlen dns dln nzdns nzdln
+
+% fix impossible values
+emat(isnan(emat)) = 0;
+emat(isinf(emat)) = 0;
+emat(emat < 0) = 0;
 
 end
 
