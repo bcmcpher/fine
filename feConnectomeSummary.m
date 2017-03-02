@@ -3,8 +3,7 @@ function [ emat, pconn, out ] = feConnectomeSummary(fe, aparc)
 %    parcellation of cortical regions. 
 %   
 %   TODO:
-%   - too many streamlines are unassigned - maybe I suck?
-%   - add computations for other matrices
+%   - split into multiple functions - create pconn and add to that anything I need 
 %   - add cleaning
 %   - add tract profiles if cell array of labels / files provided
 %
@@ -39,28 +38,6 @@ fg = feGet(fe, 'fg acpc');
 % get fiber lengths
 fibLength = fefgGet(fg, 'length');
 
-% % cleaning can start here, but I need with and without - move to
-% %     individual connections w/ other steps later...
-% % cleaning argument - minimum fiber length
-% minLength = 10;
-% 
-% % go ahead and filter by length - cleaning
-% lindx = fibLength > minLength;
-% 
-% % subset minimum length filtered fibers
-% fg.fibers = fg.fibers(lindx);
-% fe.life.fit.weights = fe.life.fit.weights(lindx);
-% fe.life.M.Phi = fe.life.M.Phi(:,:,find(lindx));
-%
-% the rest of the cleaning is in plot_path_neighborhood
-
-% % compute offset between label images space and fe image space
-% offset = aparc_img2acpc - fe.life.xform.img2acpc;
-% offset = offset(1:3, 4);
-% offset = offset';
-% %offset = round(offset') + 1;
-% %offset = [offset(1) offset(2) offset(3)];
-
 % initialize endpoint outputs
 ep1 = zeros(length(fg.fibers), 3);
 ep2 = zeros(length(fg.fibers), 3);
@@ -77,20 +54,6 @@ clear ii
 ep1 = round(ep1) + 1;
 ep2 = round(ep2) + 1;
 
-% round the fiber endpoints to align w/ ROIs exactly - bad idea, useful code
-% 
-% % round up
-% ep1 = floor(ep1) + ceil( (ep1 - floor(ep1)) / 0.25) * 0.25;
-% ep2 = floor(ep2) + ceil( (ep2 - floor(ep2)) / 0.25) * 0.25;
-% 
-% % round down
-% ep1 = floor(ep1) + floor( (ep1 - floor(ep1)) / 0.25) * 0.25;
-% ep2 = floor(ep2) + floor( (ep2 - floor(ep2)) / 0.25) * 0.25;
-
-% apply offset to enpoints
-%ep1 = ep1 + repmat(offset, length(ep1), 1);
-%ep2 = ep2 + repmat(offset, length(ep2), 1); 
-
 %% assign fiber endpoints to labels
 
 % % pull fe.roi.coords and convert to acpc coords - do I even need this?
@@ -106,7 +69,6 @@ display(['Matching streamlines to ' num2str(length(labels)) ' nodes...']);
 % preallocate outputs
 out = cell(length(labels), 1);
 tfib = zeros(length(labels), 1);
-%wfib = zeros(length(labels), 1);
 
 % for every label, assign endpoints
 tic;
@@ -135,6 +97,9 @@ for ii = 1:length(labels)
     out{ii}.end.fibers = fibers;
     out{ii}.end.length = fibLength(out{ii}.end.fibers);
     out{ii}.end.weight = fe.life.fit.weights(out{ii}.end.fibers);
+    
+    % create endpoint density ROI object
+    % create ROI centroid points for glass brain
    
     if isempty(out{ii}.end.fibers)
         warning(['ROI label ' num2str(labels(ii)) ' has no streamline terminations.']);
@@ -191,16 +156,13 @@ for ii = 1:length(labels)
     
     % total fibers assigned to an endpoint
     tfib(ii) = length(out{ii}.end.fibers);
-    %wfib(ii) = length(out{ii}.img.fibers);
     
 end
 time = toc; 
 
 display(['Successfully assigned ' num2str(sum(tfib)) ' of ' num2str(2*size(fe.life.M.Phi, 3)) ' endpoints in ' num2str(round(time)) ' seconds.']);
-%display(['Successfully assigned ' num2str(sum(wfib)) ' of ' num2str(2*size(fe.life.M.Phi, 3)) ' endpoints in ' num2str(round(time)) ' seconds.']);
 
-clear ii x y z imgCoords acpcCoords roi_ep1 roi_ep2 fibers time
-%clear roi_wmi inds feroi_ep1 feroi_ep2 frst last
+clear ii x y z imgCoords acpcCoords roi_ep1 roi_ep2 fibers tfib time
 
 %% build  paired connections object
 
@@ -210,7 +172,6 @@ pairs = nchoosek(1:length(labels), 2);
 % preallocate paired connection object
 pconn = cell(length(pairs), 1);
 tcon = zeros(length(pairs), 1);
-%wcon = zeros(length(pairs), 1);
 
 % for every pair of nodes, estimate the connection
 for ii = 1:length(pairs)
@@ -228,34 +189,146 @@ for ii = 1:length(pairs)
     pconn{ii}.roi2sz = roi2.size;
     
     % assign intersections of terminating streamlines
-    pconn{ii}.indices = intersect(roi1.end.fibers, roi2.end.fibers);
-    pconn{ii}.lengths = fibLength(pconn{ii}.indices);
-    pconn{ii}.weights = fe.life.fit.weights(pconn{ii}.indices);
+    pconn{ii}.all.indices = intersect(roi1.end.fibers, roi2.end.fibers);
+    pconn{ii}.all.lengths = fibLength(pconn{ii}.all.indices);
+    pconn{ii}.all.weights = fe.life.fit.weights(pconn{ii}.all.indices);
+    
+    % build matrix weights here
     
     % keep running total of total streamlines assigned a connection
-    tcon(ii) = size(pconn{ii}.indices, 1);
-    %wcon(ii) = size(pconn{ii}.img.indices, 1);
+    tcon(ii) = size(pconn{ii}.all.indices, 1);
     
 end
 
 display(['Build paired connections object with ' num2str(sum(tcon)) ' fibers.']);
-%display(['Build paired connections object with ' num2str(sum(wcon)) ' fibers.']);
 
-clear ii roi1 roi2 
+clear ii roi1 roi2 tcon
 
 %% create cleaned version of each connection
 
-% parfor ii = 1:length(pconn)
+% preallocate cleaned edge structure
+cln = cell(length(pconn), 1);
+clncnt = 0;
+
+% cleaning arguments - set up as arguments?
+%maxVolDist = 3;
+minLength = 10;
+maxDist = 3;
+maxLengthStd = 3;
+numNodes = 100;
+maxIter = 10;
+
+tic;
+parfor ii = 1:length(pconn)
+    
+    if ~isempty(pconn{ii}.all.indices)
+        
+        % pull indices of connection
+        cln{ii}.indices = pconn{ii}.all.indices;
+        cln{ii}.lengths = pconn{ii}.all.lengths;
+        cln{ii}.weights = pconn{ii}.all.weights;
+        
+        % drop indices less than a particular length
+        cln{ii}.lenindx = cln{ii}.lengths > minLength;
+        cln{ii}.indices = cln{ii}.indices(cln{ii}.lenindx);
+        cln{ii}.lengths = cln{ii}.lengths(cln{ii}.lenindx);
+        cln{ii}.weights = cln{ii}.weights(cln{ii}.lenindx);
+        
+        % create an fg group of the connection
+        cln{ii}.connfib = fgExtract(fg, cln{ii}.indices, 'keep');
+        
+        % for all streamlines, compute outliers
+        [ cln{ii}.afg, cln{ii}.all ] = mbaComputeFibersOutliers(cln{ii}.connfib, maxDist, maxLengthStd, numNodes, 'mean', 0, maxIter);
+
+        % catch image coords for link network
+        %cln{ii}.aroi = fefgGet(cln{ii}.afg, 'unique image coords');
+        
+        % create an fg group for the non-zero weighted fibers
+        cln{ii}.nzindx = cln{ii}.weights > 0;
+        cln{ii}.nzwfibs = cln{ii}.indices(cln{ii}.nzindx);
+        cln{ii}.nzwleng = cln{ii}.lengths(cln{ii}.nzindx);
+        cln{ii}.nzwwght = cln{ii}.weights(cln{ii}.nzindx);
+        
+        % if all streamlines are removed, skip
+        if (sum(cln{ii}.nzwfibs > 0) == 0)
+            cln{ii}.nzwfibs = double.empty();
+            cln{ii}.nzwleng = double.empty();
+            cln{ii}.nzwwght = double.empty();
+            cln{ii}.nzcnfib = {};
+            cln{ii}.nzw = [];
+            continue
+        end
+        
+        % pull non-zero streamlines and remove outliers
+        cln{ii}.nzcnfib = fgExtract(fg, cln{ii}.nzwfibs, 'keep');
+        [ cln{ii}.zfg, cln{ii}.nzw ] = mbaComputeFibersOutliers(cln{ii}.nzcnfib, maxDist, maxLengthStd, numNodes, 'mean', 0, maxIter);
+
+        % catch image coords for link network
+        %cln{ii}.zroi = fefgGet(cln{ii}.zfg, 'unique image coords');
+        
+%         % create connection fg structure
+%         cln{ii}.connfib = fgExtract(fg, cln{ii}.indices, 'keep');
+%         
+%         % pull path neighborhood connection and ROI
+%         cln{ii}.pnfibs = feGet(fe, 'Path Neighborhood', cln{ii}.indices);
+%         cln{ii}.indroi = feGet(fe, 'coords from fibers', cln{ii}.pnfibs);
+%         
+%         % initial cleaning
+%         cln{ii}.clip = feClipFibersToVolume(cln{ii}.pnfibs, cln{ii}.indroi, maxVolDist);
+%         cln{ii}.clip.fibers = mbaFiberSplitLoops(cln{ii}.clip.fibers);
+%         
+%         % remove fibers below a certain length
+%         % how can I keep indices tracked through here?
+%         
+%         % compute outliers
+%         [ ~, keep ] = mbaComputeFibersOutliers(tafg, 3, 3, 100, 'mean', 0, 10);
+
+        % keep count of cleaned connections
+        clncnt = clncnt + 1;
+        
+    else 
+        % fill in empty cells and skip to next connection
+        cln{ii}.indices = [];
+        cln{ii}.lengths = [];
+        cln{ii}.weights = [];
+        cln{ii}.nzwfibs = [];
+        cln{ii}.nzwleng = [];
+        cln{ii}.nzwwght = [];
+        continue
+    end
+    
+end
+time = toc;
+
+display(['Cleaned outlier fibers from ' num2str(clncnt) ' edges in ' num2str(round(time)/60) ' minutes.']);
+
+% add cleaned streamlines to pconn
+for jj = 1:length(pconn)
+    
+    % catch all cleaned indices
+    pconn{jj}.cln.indices = cln{jj}.indices;
+    pconn{jj}.cln.lengths = cln{jj}.lengths;
+    pconn{jj}.cln.weights = cln{jj}.weights;
+
+    % catch non-zero cleaned indices
+    pconn{jj}.cln.nzwfibs = cln{jj}.nzwfibs;
+    pconn{jj}.cln.nzwleng = cln{jj}.nzwleng;
+    pconn{jj}.cln.nzwwght = cln{jj}.nzwwght;
+    
+end
+    
+clear ii jj cln clncnt time
 
 %% run parallelized virtural lesion
 
+% preallocate virtual lesion output
 vlout = cell(length(pconn), 1);
 vlcnt = 0;
 
 tic;
 parfor ii = 1:length(pconn)
     
-    if sum(pconn{ii}.weights > 0) == 0
+    if sum(pconn{ii}.all.weights > 0) == 0
         
         % set to zero and continue
         vlout{ii}.s.mean  = 0;
@@ -272,18 +345,20 @@ parfor ii = 1:length(pconn)
 
     end
     
+    % add cleaned connections?
+    
 end
 time = toc;
 
-display(['Computed ' num2str(vlcnt) ' vitual lesions in ' num2str(round(time)) ' seconds.']);
+display(['Computed ' num2str(vlcnt) ' vitual lesions in ' num2str(round(time)/60) ' minutes.']);
 
 % add virtual lesion output to pconn
 for ii = 1:length(pconn)
-    pconn{ii}.vl = vlout{ii};
-    pconn{ii}.matrix.s = vlout{ii}.s.mean;
-    pconn{ii}.matrix.em = vlout{ii}.em.mean;
-    pconn{ii}.matrix.kl = mean(vlout{ii}.kl.mean);
-    pconn{ii}.matrix.j = mean(vlout{ii}.j.mean);
+    pconn{ii}.all.vl = vlout{ii};
+    pconn{ii}.all.matrix.s  = vlout{ii}.s.mean;
+    pconn{ii}.all.matrix.em = vlout{ii}.em.mean;
+    pconn{ii}.all.matrix.kl = mean(vlout{ii}.kl.mean);
+    pconn{ii}.all.matrix.j  = mean(vlout{ii}.j.mean);
 end
 
 clear ii vlout vlcnt time
@@ -305,54 +380,56 @@ emat = zeros(length(labels), length(labels), 12);
 for ii = 1:length(pconn)
     
     % values that can be reused - count, combined voxel size, average length
-    cnt = size(pconn{ii}.indices, 1);
+    cnt = size(pconn{ii}.all.indices, 1);
     psz = pconn{ii}.roi1sz + pconn{ii}.roi2sz;
-    len = mean(pconn{ii}.lengths);
+    len = mean(pconn{ii}.all.lengths);
     
     % redo the traditional count measures w/ non-zero weighted streamlines
-    nzw = pconn{ii}.weights > 0;
-    nzcnt = size(pconn{ii}.indices(nzw), 1);
-    nzlen = mean(pconn{ii}.lengths(nzw));
+    nzw = pconn{ii}.all.weights > 0;
+    nzcnt = size(pconn{ii}.all.indices(nzw), 1);
+    nzlen = mean(pconn{ii}.all.lengths(nzw));
+    
+    % add cleaned connections
     
     % build adjacency matrices
     
     % 1. count of streamlines
     emat(pairs(ii, 1), pairs(ii, 2), 1) = cnt;
     emat(pairs(ii, 2), pairs(ii, 1), 1) = cnt;
-    pconn{ii}.matrix.count = cnt;
+    pconn{ii}.all.matrix.count = cnt;
     
     % 2. density of streamlines
     dns = (2 * cnt) / psz;
     emat(pairs(ii, 1), pairs(ii, 2), 2) = dns;
     emat(pairs(ii, 2), pairs(ii, 1), 2) = dns;
-    pconn{ii}.matrix.density = dns;
+    pconn{ii}.all.matrix.density = dns;
     
     % 3. length of streamlines
     emat(pairs(ii, 1), pairs(ii, 2), 3) = len;
     emat(pairs(ii, 2), pairs(ii, 1), 3) = len;
-    pconn{ii}.matrix.length = len;
+    pconn{ii}.all.matrix.length = len;
     
     % 4. density controlling for length (Hagmann, 2008)
     dln = (2 / psz) * sum(1 / pconn{ii}.lengths);
     emat(pairs(ii, 1), pairs(ii, 2), 4) = dln;
     emat(pairs(ii, 2), pairs(ii, 1), 4) = dln;
-    pconn{ii}.matrix.dnleng = dln;
+    pconn{ii}.all.matrix.dnleng = dln;
     
     % 5. non-zero count
     emat(pairs(ii, 1), pairs(ii, 2), 5) = nzcnt;
     emat(pairs(ii, 2), pairs(ii, 1), 5) = nzcnt;
-    pconn{ii}.matrix.nzcnt = nzcnt;
+    pconn{ii}.all.matrix.nzcnt = nzcnt;
     
     % 6. non-zero density
     nzdns = (2 * nzcnt) / psz;
     emat(pairs(ii, 1), pairs(ii, 2), 6) = nzdns;
     emat(pairs(ii, 2), pairs(ii, 1), 6) = nzdns;
-    pconn{ii}.matrix.nzdns = nzdns;
+    pconn{ii}.all.matrix.nzdns = nzdns;
     
     % 7. non-zero length
     emat(pairs(ii, 1), pairs(ii, 2), 7) = nzlen;
     emat(pairs(ii, 2), pairs(ii, 1), 7) = nzlen;
-    pconn{ii}.matrix.nzlen = nzlen;
+    pconn{ii}.all.matrix.nzlen = nzlen;
     
     % 8. non-zero denstiy * length
     if isempty(pconn{ii}.lengths(nzw)) % if there are no nz lengths
@@ -362,7 +439,7 @@ for ii = 1:length(pconn)
     end
     emat(pairs(ii, 1), pairs(ii, 2), 8) = nzdln;
     emat(pairs(ii, 2), pairs(ii, 1), 8) = nzdln;
-    pconn{ii}.matrix.nzdln = nzdln;
+    pconn{ii}.all.matrix.nzdln = nzdln;
     
     % 9. strength of evidence
     emat(pairs(ii, 1), pairs(ii, 2), 9) = pconn{ii}.matrix.s;
