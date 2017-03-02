@@ -1,4 +1,4 @@
-function [ pconn, out ] = feCreatePairedConnections(fe, aparc)
+function [ pconn, rois ] = feCreatePairedConnections(fe, aparc)
 %feCreatePairedConnections creates pconn object of every possible unique pair of 
 % of labels in aparc w/ streamlines from fe object. 
 %   
@@ -65,7 +65,7 @@ labels = labels(labels > 0);
 display(['Matching streamlines to ' num2str(length(labels)) ' nodes...']);
 
 % preallocate outputs
-out = cell(length(labels), 1);
+rois = cell(length(labels), 1);
 tfib = zeros(length(labels), 1);
 
 % for every label, assign endpoints
@@ -73,7 +73,7 @@ tic;
 parfor ii = 1:length(labels)
     
     % catch label info
-    out{ii}.label = labels(ii);
+    rois{ii}.label = labels(ii);
     
     % pull indices for a label in image space
     [ x, y, z ] = ind2sub(size(aparc.data), find(aparc.data == labels(ii)));
@@ -84,7 +84,7 @@ parfor ii = 1:length(labels)
     acpcCoords = round(acpcCoords) + 1;
    
     % catch size 
-    out{ii}.size = size(unique(acpcCoords, 'rows'), 1);
+    rois{ii}.size = size(unique(acpcCoords, 'rows'), 1);
     
     % find streamline endpoints in ROI acpc coordinates
     roi_ep1 = ismember(ep1, acpcCoords, 'rows');
@@ -92,19 +92,19 @@ parfor ii = 1:length(labels)
     
     % for fibers that end in rois, catch indices / lengths / weights 
     fibers = [ find(roi_ep1); find(roi_ep2) ];
-    out{ii}.end.fibers = fibers;
-    out{ii}.end.length = fibLength(out{ii}.end.fibers);
-    out{ii}.end.weight = fe.life.fit.weights(out{ii}.end.fibers);
+    rois{ii}.end.fibers = fibers;
+    rois{ii}.end.length = fibLength(rois{ii}.end.fibers);
+    rois{ii}.end.weight = fe.life.fit.weights(rois{ii}.end.fibers);
     
     % create endpoint density ROI object
     % create ROI centroi
    
-    if isempty(out{ii}.end.fibers)
+    if isempty(rois{ii}.end.fibers)
         warning(['ROI label ' num2str(labels(ii)) ' has no streamline terminations.']);
     end
     
     % total fibers assigned to an endpoint
-    tfib(ii) = length(out{ii}.end.fibers);
+    tfib(ii) = length(rois{ii}.end.fibers);
     
 end
 time = toc; 
@@ -128,8 +128,8 @@ display('Building paired connections...');
 parfor ii = 1:length(pairs)
     
     % create shortcut names
-    roi1 = out{pairs(ii, 1)};
-    roi2 = out{pairs(ii, 2)};
+    roi1 = rois{pairs(ii, 1)};
+    roi2 = rois{pairs(ii, 2)};
     
     % catch shortcut names
     pconn{ii}.roi1 = roi1.label;
