@@ -1,8 +1,16 @@
 function [ pconn, vlout ] = feVirtualLesionPairedConnections(fe, pconn, label)
-%feVirtualLesionPairedConnections runs virtual lesion on a field of pconn indices 
-%   
-% feFile = 'test/fe_structure_105115_STC_run01_SD_PROB_lmax10_connNUM01.mat';
-% rois = 'test/inflated_labels.nii.gz';
+%feVirtualLesionPairedConnections runs virtual lesion on a field of pconn indices.
+%
+% INPUTS:
+% - 'fe' is a fit fe structure that is used to build pconn
+% - 'pconn' is the paired connection structure that stores fiber indices
+%   between each unique pair of connections in the 
+% - 'label' is the set of indices in pconn to perform virtual lesions for
+%
+% OUTPUTS:
+% - 'pconn' is the paired connections object with VL data stored and added
+%   to the matrix field for generating networks
+% - 'vlout' is the virtual lesion output only as a cell array. For debugging.
 %
 
 % run parallelized virtural lesion

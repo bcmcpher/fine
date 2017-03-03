@@ -54,10 +54,6 @@ ep2 = round(ep2) + 1;
 
 %% assign fiber endpoints to labels
 
-% % pull fe.roi.coords and convert to acpc coords - do I even need this?
-% fe_roi = mrAnatXformCoords(fe.life.xform.img2acpc, fe.roi.coords);
-% fe_roi = round(fe_roi) + 1;
-
 % pull all labels (non-zero)
 labels = unique(aparc.data);
 labels = labels(labels > 0);
@@ -70,7 +66,7 @@ tfib = zeros(length(labels), 1);
 
 % for every label, assign endpoints
 tic;
-parfor ii = 1:length(labels)
+for ii = 1:length(labels)
     
     % catch label info
     rois{ii}.label = labels(ii);
@@ -97,8 +93,8 @@ parfor ii = 1:length(labels)
     rois{ii}.end.weight = fe.life.fit.weights(rois{ii}.end.fibers);
         
     % create ROI centroid
-    rois{ii}.centroid.acpc = mean(acpcCoords);
-    rois{ii}.centroid.img = mean(imgCoords);
+    rois{ii}.centroid.acpc = round(mean(acpcCoords) + 1);
+    rois{ii}.centroid.img = round(mean(imgCoords)) + 1;
     
     % create endpoint density ROI object
     
@@ -128,7 +124,7 @@ tcon = zeros(length(pairs), 1);
 display('Building paired connections...');
 
 % for every pair of nodes, estimate the connection
-parfor ii = 1:length(pairs)
+for ii = 1:length(pairs)
     
     % create shortcut names
     roi1 = rois{pairs(ii, 1)};
@@ -188,6 +184,6 @@ parfor ii = 1:length(pairs)
     
 end
 
-display(['Build paired connections object with ' num2str(sum(tcon)) ' streamlines.']);
+display(['Built paired connections object with ' num2str(sum(tcon)) ' streamlines.']);
 
 end

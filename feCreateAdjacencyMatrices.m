@@ -1,5 +1,6 @@
 function [ omat, connLabels ] = feCreateAdjacencyMatrices(pconn, label)
-%feCreateAdjacencyMatrices create adjacency matrices from a pconn list
+%feCreateAdjacencyMatrices create adjacency matrices from a pconn list and
+% returns the labels for each matrix along the third dimension.
 %   
 
 % build matrices from pconn

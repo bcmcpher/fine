@@ -9,8 +9,11 @@ function [ pconn, cln ] = feCleanPairedConnections(fe, pconn, label)
 %   
 % OUTPUTS:
 % - 'pconn' is the paired connections object wiht the cleaned streamline
-%   indices added in a new field appended with '_clean'
-% - 'cln' is the cell array of length(pconn) that is created in the 
+%   indices added in a new field appended with '_clean'.
+%
+% - 'cln' is the cell array of length(pconn) that is created in the fxn and
+%   added to pconn. It is for debugging - no different information is
+%   stored here.
 %
 
 display('Converting streamlines to ACPC space...');
@@ -23,7 +26,7 @@ cln = cell(length(pconn), 1);
 clncnt = 0;
 clntot = 0;
 
-% cleaning arguments - set up as arguments?
+% cleaning arguments - set up as arguments
 %maxVolDist = 3;
 minLength = 10;
 maxDist = 4;
