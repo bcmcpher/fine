@@ -95,10 +95,13 @@ parfor ii = 1:length(labels)
     rois{ii}.end.fibers = fibers;
     rois{ii}.end.length = fibLength(rois{ii}.end.fibers);
     rois{ii}.end.weight = fe.life.fit.weights(rois{ii}.end.fibers);
+        
+    % create ROI centroid
+    rois{ii}.centroid.acpc = mean(acpcCoords);
+    rois{ii}.centroid.img = mean(imgCoords);
     
     % create endpoint density ROI object
-    % create ROI centroi
-   
+    
     if isempty(rois{ii}.end.fibers)
         warning(['ROI label ' num2str(labels(ii)) ' has no streamline terminations.']);
     end
