@@ -14,7 +14,7 @@ function [ pconn, tprof ] = feTractProfilePairedConnections(fe, pconn, label, ms
 % - 'tprof' is the cell array of profiled output only as a cell array. For debugging.
 %
 
-% load msvol if it's not already loaded
+% load msvol if it'smsv not already loaded
 if isstring(msvol)
     msvol = niftiRead(msvol);
 end
@@ -39,12 +39,13 @@ tpcnt = 0;
 display(['Computing tract profiles on ' num2str(length(pconn)) ' connections...']);
 
 tic;
-for ii = 1:length(pconn)
+parfor ii = 1:length(pconn)
     
     % pull field requested
     tmp = getfield(pconn{ii}, label);
     
-    if size(tmp.indices, 1) > 2
+    % in testing, need minimum of 4 streamlines to compute profile
+    if size(tmp.indices, 1) > 3
         
         % create tract-wise fg
         tract = fgCreate('fibers', fg.fibers(tmp.indices));
@@ -52,19 +53,24 @@ for ii = 1:length(pconn)
         % compute tract profile
         tprof{ii} = dtiComputeDiffusionPropertiesAlongFG(tract, msvol, [], [], nnodes);
         
+        % track how many connections are profiled
+        tpcnt = tpcnt + 1;
+        
     else
         
         % skip empty connection
         tprof{ii} = [];
         continue
     end
-    
+        
 end
 time = toc;
 
-display(['Computed ' num2str(tpcnt) ' tract profiles in ' num2str(round(time)/60) ' minutes.']);
+display(['Computed ' num2str(tpcnt) ' tract profiles in ' num2str(round(time)) ' seconds.']);
 
 clear ii time
+
+% TODO: add logic to prevent overwriting an existing field
 
 % add virtual lesion to pconn object
 for ii = 1:length(pconn)
@@ -73,22 +79,23 @@ for ii = 1:length(pconn)
     tmp = getfield(pconn{ii}, label);
     
     % look for an existing profile field
-    if ~isempty(getfield(tmp, 'profile')) % if there is one
+    % NEED TO FIX SO WHEN IT'S FOUND, THIS IS TRUE
+    if isempty(strfind(fieldnames(tmp), 'profile')) % if there is one
         
         % pull the existing fields and add the new one
-        profile = getfield(tmp, 'profile');
-        profile = setfield(mlab, tprof{ii});
+        prof = getfield(tmp, 'profile');
+        prof = setfield(mlab, tprof{ii});
         
     else
         
-        % create the profile field and add the 
-        profile = struct(mslab, tprof{ii});
+        % create the profile field and add the data
+        prof = struct(mslab, tprof{ii});
     end
         
-    % add whole vl output
-    tmp = setfield(pconn{ii}, 'profile', profile);
+    % add tract profile(s) to tmp
+    tmp = setfield(tmp, 'profile', prof);
        
-    % reassign virtual lesions to paired connection array
+    % reassign tmp to a paired connection cell array
     pconn{ii} = setfield(pconn{ii}, label, tmp);
     
 end

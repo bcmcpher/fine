@@ -171,13 +171,13 @@ for ii = 1:length(pairs)
     pconn{ii}.all.matrix.count = cnt;
     pconn{ii}.all.matrix.density = (2 * cnt) / psz;
     pconn{ii}.all.matrix.length = len;
-    pconn{ii}.all.matrix.denlen = (2 / psz) * dln;
+    pconn{ii}.all.matrix.denlen = (2 / psz) * cnt * dln;
         
     % create non-zero weighted streamline counts
     pconn{ii}.nzw.matrix.count = nzcnt;
     pconn{ii}.nzw.matrix.density = (2 * nzcnt) / psz;
     pconn{ii}.nzw.matrix.length = nzlen;
-    pconn{ii}.nzw.matrix.denlen = (2 / psz) * nzdln;
+    pconn{ii}.nzw.matrix.denlen = (2 / psz) * nzcnt * nzdln;
     
     % keep running total of total streamlines assigned a connection
     tcon(ii) = size(pconn{ii}.all.indices, 1);
