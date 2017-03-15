@@ -84,10 +84,13 @@ iface(1, 1, 2) = 0; iface(1, 3, 2) = 0; iface(3, 1, 2) = 0; iface(3, 3, 2) = 0;
 switch nlog
     case{'vert'}
         nmsk = ivert;
+        prop = 7;
     case{'edge'}
         nmsk = iedge;
+        prop = 6;
     case{'face'}
         nmsk = iface;
+        prop = 2;
     otherwise
         nmsk = ivert;
         warning('Invalid neighborhood logical requested. Can either select: ''vert'', ''edge'', or ''face''. Defaulting to ''vert''');
@@ -149,14 +152,21 @@ for hh = 1:infl
                 % logical index of face / edge / vert
                 neigh = neigh(nmsk == 1);
                 
-                % only keep neighbors > 0
+                % only keep of prop # of neighbors > 0
+                
+                if sum(neigh > 0) > prop
+                    lab = mode(neigh(neigh > 0));
+                else
+                    lab = 0;
+                end
+                
                 % check how many that is...
                 %neigh = neigh(neigh > 0);
                 
-                % probably need more than 1 nonzero
+                % need more than 1 nonzero, but can't rely on a majority
                 
                 % figure out the most popular neighbor
-                lab = mode(neigh);
+                
                 
                 % don't assign zero
                 if lab == 0 
