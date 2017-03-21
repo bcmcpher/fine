@@ -12,8 +12,8 @@ TODO:
 - build GLASSER w/ volume and surface
 
 
-FiNE - Fiber Network Evlaution, fn
-FiNT - Fibers, Networks, and Tracts, fn
+FiNE - Fascicle Network Evaluation / ENCODE, fn
+
 
 
 
