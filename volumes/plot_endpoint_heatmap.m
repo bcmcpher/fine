@@ -1,12 +1,13 @@
 function [ hmap ] = plot_endpoint_heatmap(fe, outfile)
 %% end point density plot
+%
+% creates a heatmap of the streamline terminations in DWI image space
+% matches ACPC alignment, in register w/ anat
+%
+% add ability to get specific ROIs?
+% create reliced count in anat space?
+%
 
-%load('test/fe_structure_105115_STC_run01_SD_PROB_lmax10_connNUM01.mat');
-
-
-%fg = feGet(fe, 'fg acpc');
-
-% reload image space ep - save those down
 % initialize endpoint outputs
 iep1 = zeros(length(fe.fg.fibers), 3);
 iep2 = zeros(length(fe.fg.fibers), 3);
@@ -29,24 +30,17 @@ ep = [ iep1; iep2 ];
 
 % create empty data space
 img = zeros(fe.life.imagedim(1:3));
-% THIS IS NOT THE SAME SIZE AS APARC
-% IN REGISTER, BUT NOT THE SAME SHAPE
-
-% this represents the translation offset
-%offset = aparc.qto_xyz - fe.life.xform.img2acpc;
-%offset = offset(1:3, 4);
-%offset = round(offset') + 1;
-% apply this to endpoints for perfect alignment to image acpc space
 
 % for every endpoint, create a density map of rois
 for ii = 1:length(ep)
     img(ep(ii,1), ep(ii, 2), ep(ii, 3)) = img(ep(ii,1), ep(ii, 2), ep(ii, 3)) + 1;
 end
 
-% create output .nii
-hmap = niftiCreate('data', img, 'fname', 'hmap/fe_out.nii.gz', ...
+% create output nifti
+hmap = niftiCreate('data', img, 'fname', outfile, ...
                    'qto_xyz', fe.life.xform.img2acpc, ...
                    'qto_ijk', fe.life.xform.acpc2img);
+% any additional parameters?
                
 % save file
 niftiWrite(hmap, outfile);
