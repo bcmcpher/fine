@@ -3,6 +3,15 @@ function [ omat, out, fh ] = fnCreateLinkNetwork(fe, pconn, label)
 % Brent McPherson
 % 20170212
 % 
+% Add other measures?
+% Cosine Similarity - pdist2(ld1, ld2, 'cosine') of node indices or
+% dictionary orientations? both?
+%
+% https://en.wikipedia.org/wiki/Diversity_index#Simpson_index
+% Simpson's Index: probability that 2 random voxels are part of intersection
+% Richness: how many links does an intersection contain
+% Shannon Diversity Index: global measure of intersections between links 
+%
 
 %% generate link network
 
@@ -74,13 +83,11 @@ parfor ii = 1:length(pairs)
     
 end
 
-clear ii ti1 ti2 esize csize eint cint enum cnum
-
 %% assemble matrix
 
 display('Creating link network...');
 
-for ii = 1:length(out)
+for ii = 1:length(pairs)
     
     % simple index for each 
     ti1 = pairs(ii, 1);
@@ -97,7 +104,7 @@ clear ii ti1 ti2
 % fix nan/inf values to zero
 omat(isinf(omat)) = 0;
 omat(isnan(omat)) = 0;
-omat(omat < 0) = 0;
+%omat(omat < 0) = 0;
 
 %% simple plot    
 
@@ -113,10 +120,6 @@ colorbar;
 set(gca, 'XTickLabel', '', 'YTickLabel', '', 'XTick', [], 'YTick', []);
 
 end
-%caxis(cmap);
-%line([34.5 34.5], [0.5 68.5], 'Color', [0 0 1]);
-%line([0.5 68.5], [34.5 34.5], 'Color', [0 0 1]);
-%line([68.5 0.5], [68.5 0.5], 'Color', [0 0 1]);
     
 %% cosine similarity metric development
 
