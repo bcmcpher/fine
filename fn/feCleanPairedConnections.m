@@ -33,6 +33,7 @@ maxDist = 4;
 maxLengthStd = 4;
 numNodes = 100;
 maxIter = 10;
+minNum = 3;
 
 display(['Started cleaning ' num2str(length(pconn)) ' paired connections...']);
 
@@ -55,6 +56,14 @@ parfor ii = 1:length(pconn)
         cln{ii}.lengths = cln{ii}.lengths(cln{ii}.lenindx);
         cln{ii}.weights = cln{ii}.weights(cln{ii}.lenindx);
         
+        % if there are too few streamlines, fill in empty and move on
+        if(size(cln{ii}.indices, 1) < minNum)
+            cln{ii}.out.indices = [];
+            cln{ii}.out.lengths = [];
+            cln{ii}.out.weights = [];
+            continue
+        end
+        
         % create an fg group of the connection
         cln{ii}.connfib = fgExtract(fg, cln{ii}.indices, 'keep');
         
@@ -65,41 +74,19 @@ parfor ii = 1:length(pconn)
         cln{ii}.out.indices = cln{ii}.indices(cln{ii}.all);
         cln{ii}.out.lengths = cln{ii}.lengths(cln{ii}.all);
         cln{ii}.out.weights = cln{ii}.weights(cln{ii}.all);
-                
-        % catch image coords for link network
-        %cln{ii}.croi = fefgGet(cln{ii}.afg, 'unique image coords');
-
-%         % I don't clip fibers or split loops - but do I really need to?
-%         % I've already got the end point indices, do I have to clean this way?
-%         % That approach is more targeted AFQ, not end point operations
-%        
-%         % create connection fg structure
-%         cln{ii}.connfib = fgExtract(fg, cln{ii}.indices, 'keep');
-%         
-%         % pull path neighborhood connection and ROI
-%         cln{ii}.pnfibs = feGet(fe, 'Path Neighborhood', cln{ii}.indices);
-%         cln{ii}.indroi = feGet(fe, 'coords from fibers', cln{ii}.pnfibs);
-%         
-%         % initial cleaning
-%         cln{ii}.clip = feClipFibersToVolume(cln{ii}.pnfibs, cln{ii}.indroi, maxVolDist);
-%         cln{ii}.clip.fibers = mbaFiberSplitLoops(cln{ii}.clip.fibers);
-%         
-%         % remove fibers below a certain length
-%         % how can I keep indices tracked through here?
-%         
-%         % compute outliers
-%         [ ~, keep ] = mbaComputeFibersOutliers(tafg, 3, 3, 100, 'mean', 0, 10);
      
         % keep count of cleaned connections
         clncnt = clncnt + 1;
         clntot(ii) = sum(cln{ii}.all);
         
     else 
+        
         % fill in empty cells and skip to next connection
         cln{ii}.out.indices = [];
         cln{ii}.out.lengths = [];
         cln{ii}.out.weights = [];
         continue
+        
     end
     
 end

@@ -29,8 +29,10 @@ fg = feGet(fe, 'fg acpc');
 % number of nodes to resample ms values along
 nnodes = 100;
 
+% minimum number of streamlines
+minNum = 3;
+
 % check if average length is long enough for a profile to be reasonable?
-% do I need a minimum number of streamlines to reasonable create a profile?
 
 % preallocate tract profile output
 tprof = cell(length(pconn), 1);
@@ -45,7 +47,7 @@ parfor ii = 1:length(pconn)
     tmp = getfield(pconn{ii}, label);
     
     % in testing, need minimum of 4 streamlines to compute profile
-    if size(tmp.indices, 1) > 3
+    if size(tmp.indices, 1) > minNum
         
         % create tract-wise fg
         tract = fgCreate('fibers', fg.fibers(tmp.indices));
@@ -66,7 +68,7 @@ parfor ii = 1:length(pconn)
 end
 time = toc;
 
-display(['Computed ' num2str(tpcnt) ' tract profiles in ' num2str(round(time)) ' seconds.']);
+display(['Computed ' num2str(tpcnt) ' tract profiles in ' num2str(round(time)/60) ' minutes.']);
 
 clear ii time
 
@@ -79,12 +81,11 @@ for ii = 1:length(pconn)
     tmp = getfield(pconn{ii}, label);
     
     % look for an existing profile field
-    % NEED TO FIX SO WHEN IT'S FOUND, THIS IS TRUE
-    if isempty(strfind(fieldnames(tmp), 'profile')) % if there is one
+    if any(cell2mat(strfind(fieldnames(tmp), 'profile'))) % if there is one
         
-        % pull the existing fields and add the new one
+        % pull the existing profiles and add the new one
         prof = getfield(tmp, 'profile');
-        prof = setfield(mlab, tprof{ii});
+        prof = setfield(prof, msslab, tprof{ii});
         
     else
         

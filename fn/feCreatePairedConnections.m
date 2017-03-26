@@ -108,7 +108,7 @@ for ii = 1:length(labels)
 end
 time = toc; 
 
-display(['Successfully assigned ' num2str(sum(tfib)) ' of ' num2str(2*size(fe.life.M.Phi, 3)) ' endpoints in ' num2str(round(time)) ' seconds.']);
+display(['Successfully assigned ' num2str(sum(tfib)) ' of ' num2str(2*size(fe.life.M.Phi, 3)) ' endpoints in ' num2str(round(time)/60) ' minutes.']);
 
 clear ii x y z imgCoords acpcCoords roi_ep1 roi_ep2 fibers tfib time
 

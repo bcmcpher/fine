@@ -205,7 +205,7 @@ ilabs.data = out;
 display(['Saving inflated ROIs in: ' ilabs.fname '...']);
 
 % save inflated labels
-%niftiWrite(ilabs, ilabs.fname);
+niftiWrite(ilabs, ilabs.fname);
 
 %% debug figure
 

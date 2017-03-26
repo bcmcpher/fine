@@ -9,10 +9,10 @@
 
 %% generate link network
 
-% link nodes
-lnodes = length(pconn);
+% number of edges; link nodes
+lnodes = size(pconn, 1);
 
-% create indices for every pair of connections
+% create indices for every pair of link connections
 pairs = nchoosek(1:lnodes, 2);
 
 % build an update list based on percentiles through length of pairs

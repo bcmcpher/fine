@@ -1,4 +1,4 @@
-function [ pconn, rois ] = feCreateSurfacePairedConnections(fe, aparc)
+%function [ pconn, rois ] = feCreateSurfacePairedConnections(fe, aparc)
 %feCreatePairedConnections creates pconn object of every possible unique pair of 
 % of labels on a labeled cortical surface. 
 %   
@@ -17,12 +17,22 @@ if isstring(fe)
 end
 
 % load surfaces - x/y/z vertex in acpc, face data
-[ lcoord, lface ] = read_surf('test/lh.white');
-[ rcoord, rface ] = read_surf('test/rh.white');
+%[ lcoord, lface ] = read_surf('test/lh.white');
+%[ rcoord, rface ] = read_surf('test/rh.white');
 
 % load labels - vertex index, region label, labeled color structure
-[ lvert, ltab, lcol ] = read_annotation('test/lh.aparc.DKTatlas40.annot');
-[ rvert, rtab, rcol ] = read_annotation('test/rh.aparc.DKTatlas40.annot');
+%[ lvert, ltab, lcol ] = read_annotation('test/lh.aparc.DKTatlas40.annot');
+%[ rvert, rtab, rcol ] = read_annotation('test/rh.aparc.DKTatlas40.annot');
+
+% NOW GO FROM HCP SURFS / GLASSER SURF LABELS
+% THEY CATCH THE LABELS, OH MY GOD!!!!
+
+% from gifti, import geometry and labels
+lhshape = gifti('test/lh.white.surf.gii');
+rhshape = gifti('test/rh.white.surf.gii');
+
+lhlabel = gifti('test/lh.aparc.DKTatlas40.label.gii');
+rhlabel = gifti('test/rh.aparc.DKTatlas40.label.gii');
 
 %% extract fibers to acpc space and identify endpoint coordinates
 
@@ -44,104 +54,105 @@ for ii = 1:length(fg.fibers)
     ep2(ii,:) = fg.fibers{ii}(:,end)';
 end
 
-clear ii
+% merge endpoints into one large vector
+ep = [ ep1; ep2 ];
+
+clear ii ep1 ep2
 
 %% assign fiber endpoints to labels
 
-% find number of end points
-nep = length(fg.fibers);
+% find number of streamlines
+nep = size(fg.fibers, 1);
 
-% combine left and right coordinates / labels
-% make sure left/right labels are separated
-surf_coord = [ lcoord; rcoord ];
-surf_label = [ ltab; rtab + 1 ];
+% combine left and right coordinates
+surf_coord = [ lhshape.vertices; rhshape.vertices ];
+
+% combine and make sure left/right labels are separated
+%surf_label = [ lhlabel.cdata + 999; rhlabel.cdata + 1999 ]; % HCP data didn't like this
+surf_label = [ lhlabel.cdata; rhlabel.cdata ];
 
 % define search radius around streamline termination
-radius = 3;
+radius = 4;
 
-% combine unique label indices
-%labels = [ unique(ltab(ltab > 0)); unique(rtab(rtab > 0)) + 1 ];
+% define bounding box around streamline endpoints that will be searched
+bbox = 6;
 
 % preallocate output for parallelized run
-out = cell(nep, 1);
+out = zeros(nep * 2, 1);
 
-% by endpoint
-parfor ii = 1:nep
+% for every streamline endpoint
+tic;
+parfor ii = 1:size(ep, 1)
     
-    % catch first terminations
-    pt1 = ep1(ii, :);
-    pt2 = ep2(ii, :);
+    % catch streamline termination
+    pt = ep(ii, :);
     
-    % create bounding box of + / - 5mm for faster search
-    pt1_upper = pt1 + 5;
-    pt1_lower = pt1 - 5;
+    % create bounding box of + / - bbox mm for faster search
+    pt_upper = pt + bbox;
+    pt_lower = pt - bbox;
     
-    pt2_upper = pt2 + 5;
-    pt2_lower = pt2 - 5;
+    % apply bounding box to search space - creates logical index of all
+    % vertices in the surfaces that can be sampled for labels.
+    surf_logic = surf_coord(:, 1) < pt_upper(1) & surf_coord(:, 1) > pt_lower(1) & ...
+                 surf_coord(:, 2) < pt_upper(2) & surf_coord(:, 2) > pt_lower(2) & ...
+                 surf_coord(:, 3) < pt_upper(3) & surf_coord(:, 3) > pt_lower(3);
     
-    % apply bounding box to search space
-    % DO IN 1 STATEMENT FOR SINGLE LOGICAL INDEX - NEED TO NOT BREAK LABELS
-    surf_space1 = surf_coord(surf_coord(:, 1) < pt1_upper(1) & surf_coord(:, 1) > pt1_lower(1), :);
-    surf_space1 = surf_space1(surf_space1(:, 2) < pt1_upper(2) & surf_space1(:, 2) > pt1_lower(2), :);
-    surf_space1 = surf_space1(surf_space1(:, 3) < pt1_upper(3) & surf_space1(:, 3) > pt1_lower(3), :);
+    % if there's nothing in the bounding box, move on
+    if (sum(surf_logic) == 0)
+        continue
+    end
+             
+    % create bound box of coordinates and matching labels
+    tmp_space = surf_coord(surf_logic, :);
+    tmp_label = surf_label(surf_logic);
     
-    surf_space2 = surf_coord(surf_coord(:, 1) < pt2_upper(1) & surf_coord(:, 1) > pt2_lower(1), :);
-    surf_space2 = surf_space2(surf_space2(:, 2) < pt2_upper(2) & surf_space2(:, 2) > pt2_lower(2), :);
-    surf_space2 = surf_space2(surf_space2(:, 3) < pt2_upper(3) & surf_space2(:, 3) > pt2_lower(3), :);
+    % find the tmp vertices within the space
+    tmp_srchs = rangesearch(tmp_space, ep(ii, :), radius);
     
-    % THIS BREAKS THE INDICES OF THE LABELS - HAVE TO PERFORM EQUIVALENT
-    % SUBSET OR RE-INDEX INTO THE ENTIRE LIST
-    
-%     % find vertices within radius of cortex node 
-%     out{ii}.rsrch1 = rangesearch(surf_coord, ep1(ii, :), radius);
-%     out{ii}.rsrch2 = rangesearch(surf_coord, ep2(ii, :), radius);
-
-    % find vertices within bounding box of space
-    out{ii}.rsrch1 = rangesearch(surf_space1, ep1(ii, :), radius);
-    out{ii}.rsrch2 = rangesearch(surf_space2, ep2(ii, :), radius);
-    
-    
-    % for end points with vertices, find the mode of vertex labels
-    if ~isempty(out{ii}.rsrch1{:})
-        lab1 = mode(surf_label(out{ii}.rsrch1{:}));
-    else
-        lab1 = nan;
+    % if there's nothing within the search radius, move on
+    if isempty(tmp_srchs{:})
+        out(ii) = nan;
+        continue
     end
     
-    if ~isempty(out{ii}.rsrch2{:})
-        lab2 = mode(surf_label(out{ii}.rsrch2{:}));
-    else
-        lab2 = nan;
-    end
+    % find the mode of the found vertices labels as the streamline termination
+    lab = mode(tmp_label(tmp_srchs{:}));
     
-    % catch the label in a matrix to create the roi summary I want
-    out{ii}.label1 = lab1;
-    out{ii}.label2 = lab2;
+    % assign label to output
+    out(ii) = lab;
     
 end
-    
-epout = zeros(nep, 2);
-% create matrix of all labels for fast creation
-for ii = 1:length(out)
-    epout(ii, 1) = out{ii}.label1; 
-    epout(ii, 2) = out{ii}.label2;
-end
+time = toc;
+
+display(['Successfully assigned labels from the surface for ' num2str(2*size(fe.life.M.Phi, 3)) ' endpoints in ' num2str(round(time)/60) ' minutes.']);
+
+% recreate an indexed structure so streamline indices can be assigned
+epout = reshape(out, [nep 2]);
+
+% create the unique list of labels on the surface
+labels = unique(surf_label);
 
 % create rois cell array for each label in surface vertices
 rois = cell(length(labels), 1);
 tfib = zeros(length(labels), 1);
 
+display('Sorting assigned streamlines by surface labels...');
+
 tic;
-for ii = 1:length(labels)
+for ii = 1:size(labels, 1)
     
     % catch label info
     rois{ii}.label = labels(ii);
+    
+    % what do I do about ROI size?
+    % for now it is the number of vertices - breaks density estimate
+    rois{ii}.size = sum(surf_label == labels(ii));
     
     % assign labels to endpoint indices
     x1 = find(epout(:, 1) == labels(ii));
     x2 = find(epout(:, 2) == labels(ii));
     
-    % campture properties I'm interested in
+    % capture properties I'm interested in
     rois{ii}.indices = unique([ x1; x2 ]);
     rois{ii}.lengths = fibLength(rois{ii}.indices);
     rois{ii}.weights = fe.life.fit.weights(rois{ii}.indices);
@@ -162,97 +173,9 @@ for ii = 1:length(labels)
 end
 time = toc;
 
-display(['Successfully assigned ' num2str(sum(tfib)) ' of ' num2str(2*size(fe.life.M.Phi, 3)) ' endpoints in ' num2str(round(time)) ' seconds.']);
-% no rh rois and 4 lh rois are not assigned terminations despite assigning
-% over 420000 streamlines. Figure out why after maintenance.
+display(['Successfully assigned ' num2str(sum(tfib)) ' of ' num2str(2*size(fe.life.M.Phi, 3)) ' endpoints in ' num2str(round(time)/60) ' minutes.']);
 
-% % for every unique label, find endpoint vertices within minimum distance of labeled surface vertex
-% for ii = 1:length(labels)
-%     
-%     % pull the vertices for the label
-%     labVerts = lcoord(ltab == labels(ii), :);
-%     labIndex = find(ltab == labels(ii));
-%     
-%     % preallocate vertice catcher
-%     circaVert1 = cell(nep, 1);
-%     circaVert2 = cell(nep, 1);
-%     
-%     % check for each end point if it's within distance
-%     parfor jj = 1:nep
-%         circaVert1{jj} = rangesearch(labVerts, ep1(jj, :), 3);
-%         circaVert2{jj} = rangesearch(labVerts, ep2(jj, :), 3);
-%     end
-%     
-%     % find indices that are not empty
-%     for jj = 1:nep
-%         circaIndx1(jj) = ~isempty(circaVert1{jj, 1}{:});
-%         circaIndx2(jj) = ~isempty(circaVert2{jj, 1}{:}); 
-%     end
-%     
-%     % how many are found - reasonable...
-%     %sum(circaIndx1) + sum(circaIndx2)
-%     
-%     % catch indices
-%     out{ii}.indices = [ find(circaIndx1) find(circaIndx2) ];
-%     
-%     % THIS DOES NOT STOP DOUBLE COUNTING
-%     
-% end
-
-% % ORIGINAL END POINT ASSIGNMENT
-% display(['Matching streamlines to ' num2str(length(labels)) ' nodes...']);
-% 
-% % preallocate outputs
-% rois = cell(length(labels), 1);
-% tfib = zeros(length(labels), 1);
-% 
-% % for every label, assign endpoints
-% tic;
-% for ii = 1:length(labels)
-%     
-%     % catch label info
-%     rois{ii}.label = labels(ii);
-%     
-%     % pull indices for a label in image space
-%     [ x, y, z ] = ind2sub(size(aparc.data), find(aparc.data == labels(ii)));
-%     imgCoords = [ x, y, z ];
-%     
-%     % convert label indices to ACPC coordinates
-%     acpcCoords = mrAnatXformCoords(aparc_img2acpc, imgCoords); % rely on file header
-%     acpcCoords = round(acpcCoords) + 1;
-%    
-%     % catch size 
-%     rois{ii}.size = size(unique(acpcCoords, 'rows'), 1);
-%     
-%     % find streamline endpoints in ROI acpc coordinates
-%     roi_ep1 = ismember(ep1, acpcCoords, 'rows');
-%     roi_ep2 = ismember(ep2, acpcCoords, 'rows');
-%     
-%     % for fibers that end in rois, catch indices / lengths / weights 
-%     fibers = [ find(roi_ep1); find(roi_ep2) ];
-%     rois{ii}.end.fibers = fibers;
-%     rois{ii}.end.length = fibLength(rois{ii}.end.fibers);
-%     rois{ii}.end.weight = fe.life.fit.weights(rois{ii}.end.fibers);
-%         
-%     % create ROI centroid
-%     rois{ii}.centroid.acpc = round(mean(acpcCoords) + 1);
-%     rois{ii}.centroid.img = round(mean(imgCoords)) + 1;
-%     
-%     % create endpoint density ROI object
-%     
-%     if isempty(rois{ii}.end.fibers)
-%         warning(['ROI label ' num2str(labels(ii)) ' has no streamline terminations.']);
-%     end
-%     
-%     % total fibers assigned to an endpoint
-%     tfib(ii) = length(rois{ii}.end.fibers);
-%     
-% end
-% time = toc; 
-% 
-% display(['Successfully assigned ' num2str(sum(tfib)) ' of ' num2str(2*size(fe.life.M.Phi, 3)) ' endpoints in ' num2str(round(time)) ' seconds.']);
-% 
-% clear ii x y z imgCoords acpcCoords roi_ep1 roi_ep2 fibers tfib time
+%% CHECK THAT THIS LOOP MATCHES THE VOLUME VERSION
 
 %% build  paired connections object
 
@@ -281,7 +204,7 @@ for ii = 1:length(pairs)
     pconn{ii}.roi2sz = roi2.size;
     
     % assign intersections of terminating streamlines
-    pconn{ii}.all.indices = intersect(roi1.end.fibers, roi2.end.fibers);
+    pconn{ii}.all.indices = intersect(roi1.indices, roi2.indices);
     pconn{ii}.all.lengths = fibLength(pconn{ii}.all.indices);
     pconn{ii}.all.weights = fe.life.fit.weights(pconn{ii}.all.indices);
     
@@ -328,4 +251,4 @@ end
 
 display(['Built paired connections object with ' num2str(sum(tcon)) ' streamlines.']);
 
-end
+%end
