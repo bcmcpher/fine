@@ -5,46 +5,53 @@ function [ VLmap ] = fnPlotVirtualLesion(fe, pconn, tract, label, outfile)
 % Brent McPherson, (c) 2017
 %
 
+%% extract data
+
 % pull streamline indices for a particular connection
-ind_tract = getfield(pconn{tract}, label, 'indices');
+indices = getfield(pconn{tract}, label, 'indices');
 
 % dummy check if the connection is empty
-if isempty(ind_tract)
-    error('This connection has no streamlines. There is no Virtual Lesion output.');
+if isempty(indices)
+    error('This connection has no streamlines. Nothing can be done.');
 end
 
-%% plotting VL data
+% pull precomputed virtual lesion data
+vl = getfield(pconn{tract}, label, 'vl');
 
-% pull subtensor of the connection
-[ inds, ~ ] = find(fe.life.M.Phi(:, :, ind_tract));
+% dummy check if virtual lesion is there
+if isempty(vl)
+    error('No virtual lesion field found. Make sure virtual lesion has been run.');
+end
 
-% pull the unique voxels of the connection
-voxel_ind = unique(inds(:, 2));
+%% create plot of VL data
 
 % pull image coordinates of tensor indexed voxels
-coords = feGet(fe, 'coordsfromfibers', ind_tract);
+coords = feGet(fe, 'coordsfromfibers', indices);
 
 % pull the voxelwise rmse coords for the tract
-vals = feGet(fe, 'voxrmse', coords);
+rmse = feGet(fe, 'voxrmse', coords);
 
-% make sure this is the right value...
+% pull all rmse value for lesioned and unlesioned data
+vlo = vl.lesion.rmse.all;
+vlw = vl.nolesion.rmse.all;
 
-% total R^2 explained
-%z = feGet(fe, 'totalr2');
-%z = feGet(fe, 'totpve');
+% find the difference - is this sensical?
+vld = vlo - vlw;
 
-% broke...
-%z = feGet(fe, 'voxelvarianceexplainedvoxelwise', fibNodes); % i think this will return the whole volume
+% make sure these are the right values...
 
 % create image size
 imgsize = fe.life.imagedim(1:3);
 
 % create empty image of zeros that matches coordinate space
-imgOut = zeros(imgsize);
+imgOut = zeros([ imgsize 4 ]);
 
 % store wvl and ovl data into volumes
 for ii = 1:size(coords, 1)
-    imgOut(coords(ii, 1), coords(ii, 2), coords(ii, 3)) = vals(ii);
+    imgOut(coords(ii, 1), coords(ii, 2), coords(ii, 3), 1) = rmse(ii);
+    imgOut(coords(ii, 1), coords(ii, 2), coords(ii, 3), 2) = vlo(ii);
+    imgOut(coords(ii, 1), coords(ii, 2), coords(ii, 3), 3) = vlw(ii);
+    imgOut(coords(ii, 1), coords(ii, 2), coords(ii, 3), 4) = vld(ii);
 end
 
 % create output nifti
@@ -58,3 +65,31 @@ niftiWrite(VLmap, outfile);
 
 end
 
+%% other useful measures to pull?
+
+% relative estimation error for a particular edge
+%x = feGet(fe, 'relativeerror', coords);
+
+% would be virtual lesion if it worked - 'psigfibertest' isn't an feGet option
+%x = feGet(fe, 'voxrmsevoxelwise', coords);
+%y = feGet(fe, 'voxrmsetest', ind_tract, coords);
+
+% path neighborhood indices
+%x = feGet(fe, 'pathneighborhood', coords);
+
+% fiber density of each coordinate - fg needs to be path neighborhood?
+%x = fefgGet(fe.fg, 'fiberdensity', coords);
+
+% cell array of unique fiber indices in each voxel (path neighborhood)
+%x = fefgGet(fe.fg, 'uniquefibersinvox', coords);
+
+% I should understand Westin Shapes - useful extra parameter?
+%dtiComputeWestinShapes
+
+% total R^2 explained
+%z = feGet(fe, 'totalr2');
+%z = feGet(fe, 'totpve');
+%z = feGet(fe, 'totalrmse');
+
+% broke...
+%z = feGet(fe, 'voxelvarianceexplainedvoxelwise', fibNodes); % i think this will return the whole volume
