@@ -2,8 +2,8 @@ function [ omat, out ] = fnCreateLinkNetwork(pconn, label)
 %% create link network
 % Brent McPherson
 % 20170212
-% 
-% add fe structure as argument to compute image space indices.
+%
+% Need to figure out tensor indice to ROI coords mapping
 %
 % Add other measures?
 % Cosine Similarity - pdist(ld, 'cosine'); or pdist2(ld1, ld2, 'cosine'); 
@@ -32,9 +32,6 @@ out = cell(length(pairs), 1);
 % build empty matrices
 omat = zeros(lnodes, lnodes);
 
-% grap acpc to image xform
-%acpc2img = fe.life.xform.acpc2img;
-
 display('Computing edge intersections...');
 
 % for every connections overlap
@@ -51,19 +48,18 @@ parfor ii = 1:length(pairs)
     
     % if either connection is empty, fill in 0 and move on
     if isempty(li1) || isempty(li2)
-        out{ii}.acpc_ind = [];
-        %out{ii}.img_ind = [];
+        out{ii}.indices = [];
         out{ii}.dice = 0;
         continue
     end
     
     % find the link intersection
-    indices = intersect(li1, li2, 'rows');
+    %indices = intersect(li1, li2, 'rows');
+    indices = intersect(li1, li2);
     
     % if the intersection is empty, move on
     if isempty(indices)
-        out{ii}.acpc_ind = [];
-        %out{ii}.img_ind = [];
+        out{ii}.indices = [];
         out{ii}.dice = 0;
         continue
     end
@@ -79,8 +75,7 @@ parfor ii = 1:length(pairs)
     val = (2 * num) / den;
     
     % catch output
-    out{ii}.acpc_ind = indices;
-    %out{ii}.img_ind = mrAnatXformCoords(acpc2img, indices);
+    out{ii}.indices = indices;
     out{ii}.dice = val;
     
 end

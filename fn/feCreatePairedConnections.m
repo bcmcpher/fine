@@ -152,12 +152,17 @@ parfor ii = 1:length(pairs)
     
     else
         
-        % otherwise, create a fiber group for the connection
-        afg = fgExtract(fg, pconn{ii}.all.indices, 'keep');
+        %         % otherwise, create a fiber group for the connection
+        %         afg = fgExtract(fg, pconn{ii}.all.indices, 'keep');
+        %         % grab the unique voxels of the path
+        %         pconn{ii}.all.pvoxels = fefgGet(afg, 'unique acpc coords');
         
-        % grab the unique voxels of the path
-        pconn{ii}.all.pvoxels = fefgGet(afg, 'unique acpc coords');
-    
+        % pull subtensor of the connection
+        [ inds, ~ ] = find(fe.life.M.Phi(:, :, pconn{ii}.all.indices));
+        
+        % pull the unique voxel indices of the connection
+        pconn{ii}.all.pvoxels = unique(inds(:, 2));
+        
     end
     
     % find all weighted fibers
@@ -173,15 +178,20 @@ parfor ii = 1:length(pairs)
         
         % fill in empty voxel coords
         pconn{ii}.nzw.pvoxels = [];
-    
+        
     else
         
-        % otherwise, create a fiber group for the connection
-        nfg = fgExtract(fg, pconn{ii}.nzw.indices, 'keep');
+        %         % otherwise, create a fiber group for the connection
+        %         nfg = fgExtract(fg, pconn{ii}.nzw.indices, 'keep');
+        %         % grab the unique voxels of the path
+        %         pconn{ii}.nzw.pvoxels = fefgGet(nfg, 'unique acpc coords');
         
-        % grab the unique voxels of the path
-        pconn{ii}.nzw.pvoxels = fefgGet(nfg, 'unique acpc coords');
-    
+        % pull subtensor of the connection
+        [ inds, ~ ] = find(fe.life.M.Phi(:, :, pconn{ii}.nzw.indices));
+        
+        % pull the unique voxel indices of the connection
+        pconn{ii}.nzw.pvoxels = unique(inds(:, 2));
+        
     end
     
     % calculate combined size of ROI

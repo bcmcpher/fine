@@ -36,6 +36,7 @@ parfor ii = 1:length(pconn)
         continue
         
     else
+        % CHECK ORDER OF weVL / ewoVL WITH CESAR
         % compute a virtual lesion
         [ ewVL, ewoVL ] = feComputeVirtualLesion(fe, tmp.indices);
         vlout{ii} = feComputeEvidence(ewoVL, ewVL);

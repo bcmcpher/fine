@@ -69,7 +69,7 @@ parfor ii = 1:length(pconn)
         cln{ii}.connfib = fgExtract(fg, cln{ii}.indices, 'keep');
         
         % for all streamlines, compute outliers
-        [ clnfg, cln{ii}.all ] = mbaComputeFibersOutliers(cln{ii}.connfib, maxDist, maxLengthStd, numNodes, 'mean', 0, maxIter);
+        [ ~, cln{ii}.all ] = mbaComputeFibersOutliers(cln{ii}.connfib, maxDist, maxLengthStd, numNodes, 'mean', 0, maxIter);
 
         % catch outputs
         cln{ii}.out.indices = cln{ii}.indices(cln{ii}.all);
@@ -86,8 +86,14 @@ parfor ii = 1:length(pconn)
         else
                        
             % grab the unique voxels of the cleaned path
-            cln{ii}.out.pvoxels = fefgGet(clnfg, 'unique acpc coords');
+            %cln{ii}.out.pvoxels = fefgGet(clnfg, 'unique acpc coords');
+        
+            % pull subtensor of the connection
+            [ inds, ~ ] = find(fe.life.M.Phi(:, :, cln{ii}.out.indices));
             
+            % pull the unique voxels of the connection
+            cln{ii}.out.pvoxels = unique(inds(:, 2));
+        
         end
         
         % keep count of cleaned connections
