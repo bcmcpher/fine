@@ -1,13 +1,14 @@
-function [ omat, out, fh ] = fnCreateLinkNetwork(fe, pconn, label)
+function [ omat, out ] = fnCreateLinkNetwork(pconn, label)
 %% create link network
 % Brent McPherson
 % 20170212
 % 
-% compute image space indices?
+% add fe structure as argument to compute image space indices.
 %
 % Add other measures?
-% Cosine Similarity - pdist2(ld1, ld2, 'cosine') of node indices or
-% dictionary orientations? both?
+% Cosine Similarity - pdist(ld, 'cosine'); or pdist2(ld1, ld2, 'cosine'); 
+% where ld is matrix of node indices, counts, and/or dictionary orientations.
+% some of these? all of these?
 %
 % https://en.wikipedia.org/wiki/Diversity_index#Simpson_index
 % Simpson's Index: probability that 2 random voxels are part of intersection
@@ -32,7 +33,7 @@ out = cell(length(pairs), 1);
 omat = zeros(lnodes, lnodes);
 
 % grap acpc to image xform
-acpc2img = fe.life.xform.acpc2img;
+%acpc2img = fe.life.xform.acpc2img;
 
 display('Computing edge intersections...');
 
@@ -51,7 +52,7 @@ parfor ii = 1:length(pairs)
     % if either connection is empty, fill in 0 and move on
     if isempty(li1) || isempty(li2)
         out{ii}.acpc_ind = [];
-        out{ii}.img_ind = [];
+        %out{ii}.img_ind = [];
         out{ii}.dice = 0;
         continue
     end
@@ -62,7 +63,7 @@ parfor ii = 1:length(pairs)
     % if the intersection is empty, move on
     if isempty(indices)
         out{ii}.acpc_ind = [];
-        out{ii}.img_ind = [];
+        %out{ii}.img_ind = [];
         out{ii}.dice = 0;
         continue
     end
@@ -71,14 +72,15 @@ parfor ii = 1:length(pairs)
     num = size(indices, 1);
     
     % combine the voxel indices for denominator of Dice coeff
-    den = size(unique([ li1; li2 ]), 1);
+    %den = size(unique([ li1; li2 ]), 1); % values greater than 1
+    den = size(li1, 1) + size(li2, 1); % values less than 1
     
     % build Dice coeff values for assignment
     val = (2 * num) / den;
     
     % catch output
     out{ii}.acpc_ind = indices;
-    out{ii}.img_ind = mrAnatXformCoords(acpc2img, indices);
+    %out{ii}.img_ind = mrAnatXformCoords(acpc2img, indices);
     out{ii}.dice = val;
     
 end
@@ -88,7 +90,7 @@ display(['Created link network from ' num2str(length(pairs)) ' unique edge combi
 
 %% assemble matrix
 
-display('Creating link network...');
+display('Creating link network matrix...');
 
 for ii = 1:length(pairs)
     
@@ -108,18 +110,5 @@ clear ii ti1 ti2
 omat(isinf(omat)) = 0;
 omat(isnan(omat)) = 0;
 omat(omat < 0) = 0;
-
-%% simple plot    
-
-% plt = log10(omat);
-% %plt = cfdat.agree;
-% 
-% fh = figure();
-% title('Link Network');
-% colormap('hot');
-% imagesc(plt);
-% axis('square'); axis('equal'); axis('tight');
-% colorbar;
-% set(gca, 'XTickLabel', '', 'YTickLabel', '', 'XTick', [], 'YTick', []);
 
 end
