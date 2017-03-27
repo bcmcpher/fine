@@ -61,6 +61,7 @@ parfor ii = 1:length(pconn)
             cln{ii}.out.indices = [];
             cln{ii}.out.lengths = [];
             cln{ii}.out.weights = [];
+            cln{ii}.out.pvoxels = [];
             continue
         end
         
@@ -68,13 +69,27 @@ parfor ii = 1:length(pconn)
         cln{ii}.connfib = fgExtract(fg, cln{ii}.indices, 'keep');
         
         % for all streamlines, compute outliers
-        [ ~, cln{ii}.all ] = mbaComputeFibersOutliers(cln{ii}.connfib, maxDist, maxLengthStd, numNodes, 'mean', 0, maxIter);
+        [ clnfg, cln{ii}.all ] = mbaComputeFibersOutliers(cln{ii}.connfib, maxDist, maxLengthStd, numNodes, 'mean', 0, maxIter);
 
         % catch outputs
         cln{ii}.out.indices = cln{ii}.indices(cln{ii}.all);
         cln{ii}.out.lengths = cln{ii}.lengths(cln{ii}.all);
         cln{ii}.out.weights = cln{ii}.weights(cln{ii}.all);
-     
+        
+        % add unique voxel coordinates of cleaned edge streamlines - for link networks
+        % if the connection is empty
+        if isempty(cln{ii}.out.indices)
+            
+            % fill in empty voxel coords
+            cln{ii}.out.pvoxels = [];
+            
+        else
+                       
+            % grab the unique voxels of the cleaned path
+            cln{ii}.out.pvoxels = fefgGet(clnfg, 'unique acpc coords');
+            
+        end
+        
         % keep count of cleaned connections
         clncnt = clncnt + 1;
         clntot(ii) = sum(cln{ii}.all);
@@ -85,6 +100,7 @@ parfor ii = 1:length(pconn)
         cln{ii}.out.indices = [];
         cln{ii}.out.lengths = [];
         cln{ii}.out.weights = [];
+        cln{ii}.out.pvoxels = [];
         continue
         
     end
@@ -122,6 +138,7 @@ for ii = 1:length(pconn)
     tmp = struct('indices', cln{ii}.out.indices, ...
                  'lengths', cln{ii}.out.lengths, ...
                  'weights', cln{ii}.out.weights, ...
+                 'pvoxels', cln{ii}.out.pvoxels, ...
                  'matrix', matrix);
         
     % assign cleaned count matrix

@@ -66,7 +66,7 @@ tfib = zeros(length(labels), 1);
 
 % for every label, assign endpoints
 tic;
-for ii = 1:length(labels)
+parfor ii = 1:length(labels)
     
     % catch label info
     rois{ii}.label = labels(ii);
@@ -124,7 +124,7 @@ tcon = zeros(length(pairs), 1);
 display('Building paired connections...');
 
 % for every pair of nodes, estimate the connection
-for ii = 1:length(pairs)
+parfor ii = 1:length(pairs)
     
     % create shortcut names
     roi1 = rois{pairs(ii, 1)};
@@ -143,12 +143,46 @@ for ii = 1:length(pairs)
     pconn{ii}.all.lengths = fibLength(pconn{ii}.all.indices);
     pconn{ii}.all.weights = fe.life.fit.weights(pconn{ii}.all.indices);
     
+    % add unique voxel coordinates of edge streamlines - for link networks
+    % if the connection is empty
+    if isempty(pconn{ii}.all.indices)
+        
+        % fill in empty voxel coords
+        pconn{ii}.all.pvoxels = [];
+    
+    else
+        
+        % otherwise, create a fiber group for the connection
+        afg = fgExtract(fg, pconn{ii}.all.indices, 'keep');
+        
+        % grab the unique voxels of the path
+        pconn{ii}.all.pvoxels = fefgGet(afg, 'unique acpc coords');
+    
+    end
+    
     % find all weighted fibers
     nzw = pconn{ii}.all.weights > 0;
     
     pconn{ii}.nzw.indices = pconn{ii}.all.indices(nzw);
     pconn{ii}.nzw.lengths = pconn{ii}.all.lengths(nzw);
     pconn{ii}.nzw.weights = pconn{ii}.all.weights(nzw);
+    
+    % add unique voxel coordinates of edge streamlines - for link networks
+    % if the connection is empty
+    if isempty(pconn{ii}.nzw.indices)
+        
+        % fill in empty voxel coords
+        pconn{ii}.nzw.pvoxels = [];
+    
+    else
+        
+        % otherwise, create a fiber group for the connection
+        nfg = fgExtract(fg, pconn{ii}.nzw.indices, 'keep');
+        
+        % grab the unique voxels of the path
+        pconn{ii}.nzw.pvoxels = fefgGet(nfg, 'unique acpc coords');
+    
+    end
     
     % calculate combined size of ROI
     psz = pconn{ii}.roi1sz + pconn{ii}.roi2sz;

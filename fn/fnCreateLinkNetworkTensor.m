@@ -1,10 +1,8 @@
-function [ omat, out, fh ] = fnCreateLinkNetwork(fe, pconn, label)
+function [ omat, out, fh ] = fnCreateLinkNetworkTensor(fe, pconn, label)
 %% create link network
 % Brent McPherson
 % 20170212
 % 
-% compute image space indices?
-%
 % Add other measures?
 % Cosine Similarity - pdist2(ld1, ld2, 'cosine') of node indices or
 % dictionary orientations? both?
@@ -31,38 +29,42 @@ out = cell(length(pairs), 1);
 % build empty matrices
 omat = zeros(lnodes, lnodes);
 
-% grap acpc to image xform
-acpc2img = fe.life.xform.acpc2img;
-
 display('Computing edge intersections...');
 
 % for every connections overlap
 tic;
-parfor ii = 1:length(pairs)
+parfor ii = 1:25935% this is 1 percent of total % length(pairs)
     
     % simple index for each edge combination
     ti1 = pairs(ii, 1);
     ti2 = pairs(ii, 2);
     
-    % grab the unique voxels of each edge
-    li1 = getfield(pconn{ti1}, label, 'pvoxels');
-    li2 = getfield(pconn{ti2}, label, 'pvoxels');
+    % grab the streamline indices of each edge
+    li1 = getfield(pconn{ti1}, label, 'indices');
+    li2 = getfield(pconn{ti2}, label, 'indices');
     
     % if either connection is empty, fill in 0 and move on
     if isempty(li1) || isempty(li2)
-        out{ii}.acpc_ind = [];
-        out{ii}.img_ind = [];
+        out{ii}.indices = [];
         out{ii}.dice = 0;
         continue
     end
     
+    % create indices of edge subtensors
+    ln1 = fe.life.M.Phi(:,:,li1);
+    ln2 = fe.life.M.Phi(:,:,li2);
+    
+    % grab unique voxel indices from each edge - 
+    % the unique 2nd dimension of the subtensors
+    vxln1 = unique(ln1.subs(:, 2));
+    vxln2 = unique(ln2.subs(:, 2));
+    
     % find the link intersection
-    indices = intersect(li1, li2, 'rows');
+    indices = intersect(vxln1, vxln2);
     
     % if the intersection is empty, move on
     if isempty(indices)
-        out{ii}.acpc_ind = [];
-        out{ii}.img_ind = [];
+        out{ii}.indices = [];
         out{ii}.dice = 0;
         continue
     end
@@ -71,20 +73,21 @@ parfor ii = 1:length(pairs)
     num = size(indices, 1);
     
     % combine the voxel indices for denominator of Dice coeff
-    den = size(unique([ li1; li2 ]), 1);
+    den = size(unique([ vxln1; vxln2 ]), 1);
     
     % build Dice coeff values for assignment
     val = (2 * num) / den;
     
     % catch output
-    out{ii}.acpc_ind = indices;
-    out{ii}.img_ind = mrAnatXformCoords(acpc2img, indices);
+    out{ii}.indices = indices;
     out{ii}.dice = val;
     
 end
 time = toc;
 
-display(['Created link network from ' num2str(length(pairs)) ' unique edge combinations in ' num2str(round(time)/60) ' minutes.']);
+% estimated runtime in days
+% the fact that I'm worried about days estimation means this is DOA
+ert = (time * 100) / (3600*24);
 
 %% assemble matrix
 
@@ -104,22 +107,35 @@ end
 
 clear ii ti1 ti2 
 
-% fix nan/inf/neg values to zero
+% fix nan/inf values to zero
 omat(isinf(omat)) = 0;
 omat(isnan(omat)) = 0;
-omat(omat < 0) = 0;
+%omat(omat < 0) = 0;
 
 %% simple plot    
 
-% plt = log10(omat);
-% %plt = cfdat.agree;
-% 
-% fh = figure();
-% title('Link Network');
-% colormap('hot');
-% imagesc(plt);
-% axis('square'); axis('equal'); axis('tight');
-% colorbar;
-% set(gca, 'XTickLabel', '', 'YTickLabel', '', 'XTick', [], 'YTick', []);
+plt = log10(omat);
+%plt = cfdat.agree;
+
+fh = figure();
+title('Link Network');
+colormap('hot');
+imagesc(plt);
+axis('square'); axis('equal'); axis('tight');
+colorbar;
+set(gca, 'XTickLabel', '', 'YTickLabel', '', 'XTick', [], 'YTick', []);
 
 end
+    
+%% cosine similarity metric development
+
+% % the data values
+% x = pconn{2}.vxend;
+% y = pconn{15}.vxend;
+% 
+% % manually?
+% theta = (x * y') / (norm(x, 2) * norm(y, 2));
+% theta = acos((x * y') / (norm(x, 2) * norm(y, 2)));
+% 
+% % with built-in?
+% theta = pdist([x; y], 'cosine'); % what do I do with the vector?
