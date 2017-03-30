@@ -29,7 +29,7 @@ display('Coverting streamlines and ROIs to ACPC space...')
 
 % catch xform matrices for aparc
 parc_img2acpc = parc.qto_xyz;
-parc_acpc2img = parc.qto_ijk;
+%parc_acpc2img = parc.qto_ijk;
 
 % convert fibers to acpc space
 fg = feGet(fe, 'fg acpc');
