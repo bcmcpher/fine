@@ -67,6 +67,15 @@ display('Loading data...');
 % load fe structure
 load(fullfile(files.fedir, subj, files.fe));
 
+% extract all needed out of FE
+fg               = feGet(fe,   'fg acpc'); 
+fascicle_length  = fefgGet(fg, 'length');
+fascicle_weights = feGet(fe,   'fiber weights');
+nTheta           = feGet(fe,   'nbvals');
+M                = feGet(fe,   'model');
+measured_dsig    = feGet(fe,   'dsigdemeaned by voxel');
+clear fe
+
 % load labeled aparc+aseg volume
 parc = niftiRead(files.labels);
 
@@ -103,34 +112,26 @@ clear tmpdir OK
 
 % assign streamline endpoints to labeled volume
 
-% extract all needed out of FE
-fg            = feGet(fe, 'fg acpc'); 
-fiber_length  = fefgGet(fg, 'length');
-fiber_weights = feGet(fe, 'fiber weights');
-
-% Start parpool
-
 % Run operations
-[ pconn, rois ] = feCreatePairedConnections(parc, fg.fibers, fiber_length, fiber_weights);
+[ pconn, rois ] = feCreatePairedConnections(parc, fg.fibers, fascicle_length, fascicle_weights);
 
 % workspace cleaning
-save(files.output, 'rois');
+%save(files.output, 'rois');
 clear parc rois
 
 % clean networks
-tic, pconn = feCleanPairedConnections(fg, pconn, 'all');toc
-tic, pconn = feCleanPairedConnections(fg, pconn, 'nzw');toc
+%tic, pconn = feCleanPairedConnections(fg, pconn, 'all');toc
+%tic, pconn = feCleanPairedConnections(fg, pconn, 'nzw');toc
 
 % compute tract profiles
-favol = niftiRead(files.favol);
+%favol = niftiRead(files.favol);
 
-tic, pconn = feTractProfilePairedConnections(fg, pconn, 'nzw', favol, 'fa');toc
-tic, pconn = feTractProfilePairedConnections(fg, pconn, 'nzw_clean', favol, 'fa');toc
+%tic, pconn = feTractProfilePairedConnections(fg, pconn, 'nzw', favol, 'fa');toc
+%tic, pconn = feTractProfilePairedConnections(fg, pconn, 'nzw_clean', favol, 'fa');toc
 
-% run virtual lesion
-tic,pconn = feVirtualLesionPairedConnections(fe, pconn, 'nzw');toc
-tic,pconn = feVirtualLesionPairedConnections(fe, pconn, 'nzw_clean');toc
-
+% virtual lesion matrix
+tic,pconn = feVirtualLesionPairedConnections(M, fascicle_weights, measured_dsig, nTheta, pconn, 'nzw');toc
+%tic,pconn = feVirtualLesionPairedConnections(M, fascicle_weights, measured_dsig, nTheta, pconn, 'nzw_clean');toc
 
 clear favol
 
