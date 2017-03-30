@@ -1,8 +1,12 @@
-function [ pconn, tprof ] = feTractProfilePairedConnections(fe, pconn, label, msvol, mslab)
+function [ pconn, tprof ] = feTractProfilePairedConnections(fg, pconn, label, msvol, mslab)
 %feTractProfilePairedConnections runs virtual lesion on a field of pconn indices.
 %
 % INPUTS:
-% - 'fe' is a fit fe structure that is used to build pconn
+% - 'fg' is the optimized connectome returned by LiFE
+%          fg = feGet(fe,'fibers acpc'); 
+%           w = feGet(fe,'fiber weights');
+%          fg = fgExtract(fg, 'keep', w > 0);
+%
 % - 'pconn' is the paired connection structure that stores fiber indices
 %   between each unique pair of connections in the 
 % - 'label' is the set of indices in pconn to perform virtual lesions for
@@ -21,9 +25,6 @@ end
 
 display('Converting streamlines to ACPC space...');
 
-% create fiber group
-fg = feGet(fe, 'fg acpc');
-
 % run parallelized tract profiles
 
 % number of nodes to resample ms values along
@@ -40,17 +41,19 @@ tpcnt = 0;
 
 display(['Computing tract profiles on ' num2str(length(pconn)) ' connections...']);
 
-tic;
+tic;    
+fibers = fg.fibers;
 parfor ii = 1:length(pconn)
-    
+
     % pull field requested
-    tmp = getfield(pconn{ii}, label);
+    tmp = pconn{ii}.(label);
     
     % in testing, need minimum of 4 streamlines to compute profile
     if size(tmp.indices, 1) > minNum
         
         % create tract-wise fg
-        tract = fgCreate('fibers', fg.fibers(tmp.indices));
+        
+        tract = fgCreate('fibers', fibers(tmp.indices));
         
         % compute tract profile
         tprof{ii} = dtiComputeDiffusionPropertiesAlongFG(tract, msvol, [], [], nnodes);
@@ -72,32 +75,33 @@ display(['Computed ' num2str(tpcnt) ' tract profiles in ' num2str(round(time)/60
 
 clear ii time
 
-% TODO: add logic to prevent overwriting an existing field
+% %%%%
+% %%%%  TODO: add logic to prevent overwriting an existing field %%%
+% %%%%
 
 % add virtual lesion to pconn object
-for ii = 1:length(pconn)
+parfor ii = 1:length(pconn)
         
     % pull subset field
-    tmp = getfield(pconn{ii}, label);
+    tmp = pconn{ii}.(label);
     
     % look for an existing profile field
-    if any(cell2mat(strfind(fieldnames(tmp), 'profile'))) % if there is one
+    if isfiled(tmp, 'profile') % if there is one
         
         % pull the existing profiles and add the new one
-        prof = getfield(tmp, 'profile');
-        prof = setfield(prof, msslab, tprof{ii});
+        prof        = tmp.profile;
+        prof.msslab = tprof{ii};
         
     else
-        
         % create the profile field and add the data
         prof = struct(mslab, tprof{ii});
     end
         
     % add tract profile(s) to tmp
-    tmp = setfield(tmp, 'profile', prof);
+    tmp.profile = prof;
        
     % reassign tmp to a paired connection cell array
-    pconn{ii} = setfield(pconn{ii}, label, tmp);
+    pconn{ii}.label = tmp;
     
 end
 

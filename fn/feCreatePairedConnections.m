@@ -1,4 +1,4 @@
-function [ pconn, rois ] = feCreatePairedConnections(fe, parc)
+function [ pconn, rois ] = feCreatePairedConnections(parc, fibers, fibLength, weights)
 %feCreatePairedConnections creates pconn object of every possible unique pair of 
 % of labels in parc w/ streamlines from fe object. 
 %   
@@ -12,11 +12,11 @@ function [ pconn, rois ] = feCreatePairedConnections(fe, parc)
 
 %% load data
 
-% if string is passed, assume it's a path and load it
-if isstring(fe) 
-    display('Loading fe data...');
-    load(fe);
-end
+% % if string is passed, assume it's a path and load it
+% if isstring(fe) 
+%     display('Loading fe data...');
+%     load(fe);
+% end
 
 % if string is passed, assume it's a path and load it
 if isstring(parc)
@@ -28,28 +28,31 @@ end
 display('Coverting streamlines and ROIs to ACPC space...')
 
 % catch xform matrices for aparc
-parc_img2acpc = parc.qto_xyz;
-%parc_acpc2img = parc.qto_ijk;
+parc_img2acpc = niftiGet(parc,'qto_xyz');
+%parc_acpc2img = niftiGet(parc,'qto_ijk');
 
-% convert fibers to acpc space
-fg = feGet(fe, 'fg acpc');
-
-% get fiber lengths
-fibLength = fefgGet(fg, 'length');
+% % convert fibers to acpc space
+% fg = feGet(fe, 'fg acpc');
+% 
+% % get fiber lengths
+% fibLength = fefgGet(fg, 'length');
 
 % initialize endpoint outputs
-ep1 = zeros(length(fg.fibers), 3);
-ep2 = zeros(length(fg.fibers), 3);
+ep1 = zeros(length(fibers), 3);
+ep2 = zeros(length(fibers), 3);
 
 % for every fiber, pull the end points
-parfor ii = 1:length(fg.fibers)
-    ep1(ii,:) = fg.fibers{ii}(:,1)';
-    ep2(ii,:) = fg.fibers{ii}(:,end)';
+% fibers = fg.fibers; clear fg
+if size(fibers{1},1)~=3; error('Expected fibers with size(3,N)'); end
+parfor ii = 1:length(fibers)
+    ep1(ii,:) = fibers{ii}(:,1)';
+    ep2(ii,:) = fibers{ii}(:,end)';
 end
+fibers_size = size(fibers, 1);
+clear ii fibers
 
-clear ii
-
-% round all the endpoints
+% Trasform from AC-PC mm coordinates to correspodning voxel (in AC-PC T1w
+% anatomy)
 ep1 = round(ep1) + 1;
 ep2 = round(ep2) + 1;
 
@@ -66,17 +69,19 @@ rois = cell(length(labels), 1);
 tfib = zeros(length(labels), 1);
 
 parcsz = size(parc.data);
+% weights = feGet(fe, 'fiber weights');
 
 % for every label, assign endpoints
 tic;
+parc_data = parc.data;
 parfor ii = 1:length(labels)
     
     % catch label info
     rois{ii}.label = labels(ii);
     
     % pull indices for a label in image space
-    [ x, y, z ] = ind2sub(parcsz, find(parc.data == labels(ii)));
-    imgCoords = [ x, y, z ];
+    [ x, y, z ] = ind2sub(parcsz, find(parc_data == labels(ii)));
+    imgCoords   = [ x, y, z ];
     
     % convert label indices to ACPC coordinates
     acpcCoords = mrAnatXformCoords(parc_img2acpc, imgCoords); % rely on file header
@@ -93,11 +98,11 @@ parfor ii = 1:length(labels)
     fibers = [ find(roi_ep1); find(roi_ep2) ];
     rois{ii}.end.fibers = fibers;
     rois{ii}.end.length = fibLength(rois{ii}.end.fibers);
-    rois{ii}.end.weight = fe.life.fit.weights(rois{ii}.end.fibers);
+    rois{ii}.end.weight = weights(rois{ii}.end.fibers);
     
     % create ROI centroid
     rois{ii}.centroid.acpc = round(mean(acpcCoords) + 1);
-    rois{ii}.centroid.img = round(mean(imgCoords)) + 1;
+    rois{ii}.centroid.img  = round(mean(imgCoords)) + 1;
     
 %     % create endpoint density ROI object
 % 
@@ -133,7 +138,7 @@ parfor ii = 1:length(labels)
 end
 time = toc;
 
-display(['Successfully assigned ' num2str(sum(tfib)) ' of ' num2str(2*size(fe.life.M.Phi, 3)) ' endpoints in ' num2str(round(time)/60) ' minutes.']);
+display(['Successfully assigned ' num2str(sum(tfib)) ' of ' num2str(2*fibers_size) ' endpoints in ' num2str(round(time)/60) ' minutes.']);
 
 clear ii x y z imgCoords acpcCoords roi_ep1 roi_ep2 fibers tfib time
 
@@ -167,7 +172,7 @@ parfor ii = 1:length(pairs)
     % assign intersections of terminating streamlines
     pconn{ii}.all.indices = intersect(roi1.end.fibers, roi2.end.fibers);
     pconn{ii}.all.lengths = fibLength(pconn{ii}.all.indices);
-    pconn{ii}.all.weights = fe.life.fit.weights(pconn{ii}.all.indices);
+    pconn{ii}.all.weights = weights(pconn{ii}.all.indices);
     
     % add unique voxel coordinates of edge streamlines - 
     % for creating microstructure and link networks
@@ -220,7 +225,7 @@ parfor ii = 1:length(pairs)
     % values used to calculate different edge weights for non-zero weighted streamlines
     nzcnt = size(pconn{ii}.all.indices(nzw), 1);
     nzlen = mean(pconn{ii}.all.lengths(nzw));
-    if isempty(pconn{ii}.nzw.lengths) % if there are no nz lengths
+    if isempty(  pconn{ii}.nzw.lengths) % if there are no nz lengths
         nzdln = 0;
     else
         nzdln = sum(1 / pconn{ii}.nzw.lengths);

@@ -1,9 +1,14 @@
-function [ pconn, cln ] = feCleanPairedConnections(fe, pconn, label)
+function [ pconn, cln ] = feCleanPairedConnections(fg, pconn, label)
 %feCleanPairedConnections cleans the outlier fibers from a pconn cell
 % array. 
 %
 % INPUTS:
-% - 'fe' is the fit fe structure that generated the paired connections object
+% - 'fg' is the optimized connectome returned by LiFE
+%          fg = feGet(fe,'fibers acpc'); 
+%           w = feGet(fe,'fiber weights');
+%          fg = fgExtract(fg, 'keep', w > 0);
+%
+% structure that generated the paired connections object
 % - 'pconn' is the paired connections object that has the field to be cleaned
 % - 'label' is the is the field of indices that will be cleaned.
 %   
@@ -17,9 +22,6 @@ function [ pconn, cln ] = feCleanPairedConnections(fe, pconn, label)
 %
 
 display('Converting streamlines to ACPC space...');
-
-% create fiber group
-fg = feGet(fe, 'fg acpc');
 
 % preallocate cleaned edge structure
 cln = cell(length(pconn), 1);
@@ -41,7 +43,7 @@ tic;
 parfor ii = 1:length(pconn)
     
     % get the requested field
-    tmp = getfield(pconn{ii}, label);
+    tmp = pconn{ii}.(label);
     
     if ~isempty(tmp.indices)
         
@@ -76,26 +78,6 @@ parfor ii = 1:length(pconn)
         cln{ii}.out.lengths = cln{ii}.lengths(cln{ii}.all);
         cln{ii}.out.weights = cln{ii}.weights(cln{ii}.all);
         
-        % add unique voxel coordinates of cleaned edge streamlines - for link networks
-        % if the connection is empty
-        if isempty(cln{ii}.out.indices)
-            
-            % fill in empty voxel coords
-            cln{ii}.out.pvoxels = [];
-            
-        else
-                       
-            % grab the unique voxels of the cleaned path
-            %cln{ii}.out.pvoxels = fefgGet(clnfg, 'unique acpc coords');
-        
-            % pull subtensor of the connection
-            [ inds, ~ ] = find(fe.life.M.Phi(:, :, cln{ii}.out.indices));
-            
-            % pull the unique voxels of the connection
-            cln{ii}.out.pvoxels = unique(inds(:, 2));
-        
-        end
-        
         % keep count of cleaned connections
         clncnt = clncnt + 1;
         clntot(ii) = sum(cln{ii}.all);
@@ -122,7 +104,7 @@ clear ii tmp
 newout = strcat(label, '_clean');
 
 % add cleaned streamlines to pconn
-for ii = 1:length(pconn)
+parfor ii = 1:length(pconn)
 
     % values used to calculate newly cleaned connections
     psz = pconn{ii}.roi1sz + pconn{ii}.roi2sz;
@@ -134,22 +116,18 @@ for ii = 1:length(pconn)
         dln = sum(1 / cln{ii}.out.lengths);
     end
     
-    % create all cleaned streamline counts
-    matrix.count = cnt;
-    matrix.density = (2 * cnt) / psz;
-    matrix.length = len;
-    matrix.denlen = (2 / psz) * dln;
-    
     % create structure with all the cleaned field data
     tmp = struct('indices', cln{ii}.out.indices, ...
                  'lengths', cln{ii}.out.lengths, ...
                  'weights', cln{ii}.out.weights, ...
-                 'pvoxels', cln{ii}.out.pvoxels, ...
-                 'matrix', matrix);
-        
+                 'pvoxels', cln{ii}.out.pvoxels);
+             
     % assign cleaned count matrix
-    pconn{ii} = setfield(pconn{ii}, newout, tmp);
-    
+    pconn{ii}.(newout) = tmp;
+    pconn{ii}.(newout).matrix.count = cnt;
+    pconn{ii}.(newout).matrix.density = (2 * cnt) / psz;
+    pconn{ii}.(newout).matrix.length = len;
+    pconn{ii}.(newout).matrix.denlen = (2 / psz) * dln;
 end
     
 end
