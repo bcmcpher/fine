@@ -1,9 +1,10 @@
-function [ pconn, rois ] = feCreatePairedConnections(fe, aparc)
+function [ pconn, rois ] = feCreatePairedConnections(fe, parc)
 %feCreatePairedConnections creates pconn object of every possible unique pair of 
-% of labels in aparc w/ streamlines from fe object. 
+% of labels in parc w/ streamlines from fe object. 
 %   
-%   TODO:
-%   - split into multiple functions - create pconn and add to that anything I need 
+% TODO:
+% - make sure this is as fast as possible without having to run too many extra steps for more basic tasks
+% - catch endpoint ROI data - potential cosine similarity comparison between ROIs
 %
 % feFile = 'test/fe_structure_105115_STC_run01_SD_PROB_lmax10_connNUM01.mat';
 % rois = 'test/inflated_labels.nii.gz';
@@ -18,8 +19,8 @@ if isstring(fe)
 end
 
 % if string is passed, assume it's a path and load it
-if isstring(aparc)
-    aparc = niftiRead(aparc);
+if isstring(parc)
+    parc = niftiRead(parc);
 end
 
 %% extract fibers to acpc space and identify endpoint coordinates
@@ -27,8 +28,8 @@ end
 display('Coverting streamlines and ROIs to ACPC space...')
 
 % catch xform matrices for aparc
-aparc_img2acpc = aparc.qto_xyz;
-%aparc_acpc2img = aparc.qto_ijk;
+parc_img2acpc = parc.qto_xyz;
+parc_acpc2img = parc.qto_ijk;
 
 % convert fibers to acpc space
 fg = feGet(fe, 'fg acpc');
@@ -55,7 +56,7 @@ ep2 = round(ep2) + 1;
 %% assign fiber endpoints to labels
 
 % pull all labels (non-zero)
-labels = unique(aparc.data);
+labels = unique(parc.data);
 labels = labels(labels > 0);
 
 display(['Matching streamlines to ' num2str(length(labels)) ' nodes...']);
@@ -63,6 +64,8 @@ display(['Matching streamlines to ' num2str(length(labels)) ' nodes...']);
 % preallocate outputs
 rois = cell(length(labels), 1);
 tfib = zeros(length(labels), 1);
+
+parcsz = size(parc.data);
 
 % for every label, assign endpoints
 tic;
@@ -72,32 +75,54 @@ parfor ii = 1:length(labels)
     rois{ii}.label = labels(ii);
     
     % pull indices for a label in image space
-    [ x, y, z ] = ind2sub(size(aparc.data), find(aparc.data == labels(ii)));
+    [ x, y, z ] = ind2sub(parcsz, find(parc.data == labels(ii)));
     imgCoords = [ x, y, z ];
     
     % convert label indices to ACPC coordinates
-    acpcCoords = mrAnatXformCoords(aparc_img2acpc, imgCoords); % rely on file header
+    acpcCoords = mrAnatXformCoords(parc_img2acpc, imgCoords); % rely on file header
     acpcCoords = round(acpcCoords) + 1;
-   
-    % catch size 
+    
+    % catch size
     rois{ii}.size = size(unique(acpcCoords, 'rows'), 1);
     
     % find streamline endpoints in ROI acpc coordinates
     roi_ep1 = ismember(ep1, acpcCoords, 'rows');
     roi_ep2 = ismember(ep2, acpcCoords, 'rows');
     
-    % for fibers that end in rois, catch indices / lengths / weights 
+    % for fibers that end in rois, catch indices / lengths / weights
     fibers = [ find(roi_ep1); find(roi_ep2) ];
     rois{ii}.end.fibers = fibers;
     rois{ii}.end.length = fibLength(rois{ii}.end.fibers);
     rois{ii}.end.weight = fe.life.fit.weights(rois{ii}.end.fibers);
-        
+    
     % create ROI centroid
     rois{ii}.centroid.acpc = round(mean(acpcCoords) + 1);
     rois{ii}.centroid.img = round(mean(imgCoords)) + 1;
     
     % create endpoint density ROI object
+
+    % combine found acpc endpoints
+    all_acpc_ep = [ ep1(roi_ep1, :); ep2(roi_ep2, :) ];
     
+    % convert acpc points back to image space
+    all_img_ep = round(mrAnatXformCoords(parc_acpc2img, all_acpc_ep));
+    
+    % identify unique voxels and counts in image space
+    [ unq, ~, cnt ] = unique(all_img_ep, 'rows');
+    
+    % convert ACPC end points back to image space voxel coords
+    %unq = round(mrAnatXformCoords(parc_acpc2img, unq));
+    
+    % catch image space coordinates and counts in roi structure 
+    rois{ii}.volume = [ unq accumarray(cnt, 1) ];
+    
+%     % write these down to check alignment
+%     img = zeros(size(parc.data));
+%     for jj = 1:size(y{1}.volume, 1)
+%         img(y{1}.volume(jj, 1), y{1}.volume(jj, 2), y{1}.volume(jj, 3)) = y{1}.volume(jj, 4); 
+%     end
+%     z = niftiCreate('data', img, 'fname', 'testROI.nii.gz', 'qto_xyz', parc.qto_xyz, 'qto_ijk', parc.qto_ijk);
+
     if isempty(rois{ii}.end.fibers)
         warning(['ROI label ' num2str(labels(ii)) ' has no streamline terminations.']);
     end
@@ -106,7 +131,7 @@ parfor ii = 1:length(labels)
     tfib(ii) = length(rois{ii}.end.fibers);
     
 end
-time = toc; 
+time = toc;
 
 display(['Successfully assigned ' num2str(sum(tfib)) ' of ' num2str(2*size(fe.life.M.Phi, 3)) ' endpoints in ' num2str(round(time)/60) ' minutes.']);
 
@@ -124,6 +149,7 @@ tcon = zeros(length(pairs), 1);
 display('Building paired connections...');
 
 % for every pair of nodes, estimate the connection
+tic;
 parfor ii = 1:length(pairs)
     
     % create shortcut names
@@ -143,27 +169,23 @@ parfor ii = 1:length(pairs)
     pconn{ii}.all.lengths = fibLength(pconn{ii}.all.indices);
     pconn{ii}.all.weights = fe.life.fit.weights(pconn{ii}.all.indices);
     
-    % add unique voxel coordinates of edge streamlines - for link networks
-    % if the connection is empty
-    if isempty(pconn{ii}.all.indices)
-        
-        % fill in empty voxel coords
-        pconn{ii}.all.pvoxels = [];
-    
-    else
-        
-        %         % otherwise, create a fiber group for the connection
-        %         afg = fgExtract(fg, pconn{ii}.all.indices, 'keep');
-        %         % grab the unique voxels of the path
-        %         pconn{ii}.all.pvoxels = fefgGet(afg, 'unique acpc coords');
-        
-        % pull subtensor of the connection
-        [ inds, ~ ] = find(fe.life.M.Phi(:, :, pconn{ii}.all.indices));
-        
-        % pull the unique voxel indices of the connection
-        pconn{ii}.all.pvoxels = unique(inds(:, 2));
-        
-    end
+    % add unique voxel coordinates of edge streamlines - 
+    % for creating microstructure and link networks
+    % move to a new fxn
+
+%     % if the connection is empty
+%     if isempty(pconn{ii}.all.indices)
+%         % fill in empty voxel coords
+%         pconn{ii}.all.pvoxels = [];
+%     else
+%         % pull subtensor of the connection
+%         %[ inds, ~ ] = find(fe.life.M.Phi(:, :, pconn{ii}.all.indices));
+%         subtensor = fe.life.M.Phi(:, :, pconn{ii}.all.indices);
+%         
+%         % pull the unique voxel indices of the connection
+%         %pconn{ii}.all.pvoxels = unique(inds(:, 2));
+%         pconn{ii}.all.pvoxels = unique(subtensor.subs(:, 2));
+%     end
     
     % find all weighted fibers
     nzw = pconn{ii}.all.weights > 0;
@@ -172,27 +194,20 @@ parfor ii = 1:length(pairs)
     pconn{ii}.nzw.lengths = pconn{ii}.all.lengths(nzw);
     pconn{ii}.nzw.weights = pconn{ii}.all.weights(nzw);
     
-    % add unique voxel coordinates of edge streamlines - for link networks
-    % if the connection is empty
-    if isempty(pconn{ii}.nzw.indices)
-        
-        % fill in empty voxel coords
-        pconn{ii}.nzw.pvoxels = [];
-        
-    else
-        
-        %         % otherwise, create a fiber group for the connection
-        %         nfg = fgExtract(fg, pconn{ii}.nzw.indices, 'keep');
-        %         % grab the unique voxels of the path
-        %         pconn{ii}.nzw.pvoxels = fefgGet(nfg, 'unique acpc coords');
-        
-        % pull subtensor of the connection
-        [ inds, ~ ] = find(fe.life.M.Phi(:, :, pconn{ii}.nzw.indices));
-        
-        % pull the unique voxel indices of the connection
-        pconn{ii}.nzw.pvoxels = unique(inds(:, 2));
-        
-    end
+%     % add unique voxel coordinates of edge streamlines - for link networks
+%     % if the connection is empty
+%     if isempty(pconn{ii}.nzw.indices)
+%         % fill in empty voxel coords
+%         pconn{ii}.nzw.pvoxels = [];
+%     else
+%         % pull subtensor of the connection
+%         %[ inds, ~ ] = find(fe.life.M.Phi(:, :, pconn{ii}.nzw.indices));
+%         subtensor = fe.life.M.Phi(:, :, pconn{ii}.nzw.indices);
+%         
+%         % pull the unique voxel indices of the connection
+%         %pconn{ii}.nzw.pvoxels = unique(inds(:, 2));
+%         pconn{ii}.all.pvoxels = unique(subtensor.subs(:, 2));
+%     end
     
     % calculate combined size of ROI
     psz = pconn{ii}.roi1sz + pconn{ii}.roi2sz;
@@ -227,7 +242,8 @@ parfor ii = 1:length(pairs)
     tcon(ii) = size(pconn{ii}.all.indices, 1);
     
 end
+time = toc;
 
-display(['Built paired connections object with ' num2str(sum(tcon)) ' streamlines.']);
+display(['Built paired connections object with ' num2str(sum(tcon)) ' streamlines in ' num2str(time/60) ' minutes.']);
 
 end

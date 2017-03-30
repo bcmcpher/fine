@@ -2,10 +2,12 @@ function [ hmap ] = plot_endpoint_heatmap(fe, outfile)
 %% end point density plot
 %
 % creates a heatmap of the streamline terminations in DWI image space
-% matches ACPC alignment, in register w/ anat
+% matches ACPC alignment, in register w/ anat, in DWI space
 %
-% add ability to get specific ROIs?
-% create reliced count in anat space?
+% TODO:
+% - add ability to get specific ROIs. separate fxn?
+% - add to rois cell array?
+% - create reliced count in anat space
 %
 
 % initialize endpoint outputs
