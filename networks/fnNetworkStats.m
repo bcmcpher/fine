@@ -3,6 +3,7 @@ function [ glob, node, nets ] = fnNetworkStats(mat, score)
 %
 % thresholding / log transform should be preformed outside this fxn  
 % should normalization be expected before as well?
+%
 
 %% fiber data - connection matrix
 
@@ -14,11 +15,11 @@ nets.len = weight_conversion(nets.raw, 'lengths');
 [ nets.dist, nets.edge ] = distance_wei(nets.len); 
 [ nets.tree, nets.clus ] = backbone_wu(nets.nrm, score);
 
-%% compute network statistics
+%% node measures
 
-display('Computing Network Summary Statistics...');
+% compute node network statistics
+display('Computing Nodal Summary Statistics...');
 
-% node measures
 node.degree = degrees_und(nets.nrm)';
 node.strength = strengths_und(nets.nrm)';
 node.between = betweenness_wei(nets.dist);
@@ -26,20 +27,30 @@ node.locEff = efficiency_wei(nets.nrm, 1);
 node.ccoef = clustering_coef_wu(nets.nrm);
 [ nets.btwcm, node.btwcv ] = edge_betweenness_wei(nets.dist);
 node.pagerank = pagerank_centrality(nets.nrm, 0.85, ones(size(nets.nrm, 1), 1)); % is this reasonable?
+
+% will fail if log10(mat) is provided
 node.eigv = eigenvector_centrality_und(nets.nrm);
 
-% global measures
+%% global measures
+
+% compute global network statistics
+display('Computing Global Summary Statistics...');
+
 [ glob.density, glob.dnvrt, glob.dnedg ] = density_und(nets.nrm);
 glob.mean_ccoef = mean(node.ccoef);
 glob.trans = transitivity_wu(nets.nrm);
 glob.glbEff = efficiency_wei(nets.nrm, 0);
 [ nets.score, glob.score ] = score_wu(nets.nrm, score); 
 glob.assort = assortativity_wei(nets.nrm, 0);
+
+% will fail if log10(mat) is provided
 [ node.corper, glob.corper ] = core_periphery_dir(nets.nrm, 1); node.corper = node.corper';
+
 [ glob.charpl, glob.efficiency, node.eccentricity, glob.radius, glob.diameter ] = charpath(nets.dist);
 glob.rcc = rich_club_wu(nets.nrm);
 
-% %% estimate community structure - keep compartmentalized
+%% estimate community structure - compartmentalized
+% This iterates, so it's slow in large networks. Proabably keep it separate.
 % 
 % display('Estimating Louvain Community Structure...');
 % 

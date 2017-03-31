@@ -147,10 +147,13 @@ omat = cat(3, amat, nmat, zmat);
 olab = [ alab nlab zlab ];
 
 % add stats once I am sure on order
+[ glob{1}, node{1}, nets{1} ] = fnNetworkStats(omat(:,:,2), 16);
+[ glob{2}, node{2}, nets{2} ] = fnNetworkStats(omat(:,:,10), 16);
+[ glob{3}, node{3}, nets{3} ] = fnNetworkStats(omat(:,:,18), 16);
 
 %% save whole output
 
-save(files.output, 'pconn', 'omat', 'olab', 'files', '-append');
+save(files.output, 'pconn', 'omat', 'olab', 'glob', 'node', 'nets', 'files', '-append');
 
 % remove parallel pool
 delete(pool);

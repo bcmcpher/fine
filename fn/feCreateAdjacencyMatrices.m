@@ -1,4 +1,4 @@
-function [ omat, connLabels ] = feCreateAdjacencyMatrices(pconn, label)
+function [ omat, outLabels ] = feCreateAdjacencyMatrices(pconn, label)
 %feCreateAdjacencyMatrices create adjacency matrices from a pconn list and
 % returns the labels for each matrix along the third dimension.
 %   
@@ -11,8 +11,13 @@ display('Building Adjacency Matrices...');
 tmp = getfield(pconn{1}, label);
 tmp = tmp.matrix;
 
-% find the number of fields to create output size
+% find the and label fields
 connLabels = fieldnames(tmp);
+for ii = 1:length(connLabels)
+    outLabels{ii} = [ label '_' connLabels{ii} ];
+end
+
+% find output size
 nmat = size(connLabels, 1);
 
 % find the number of unique labels

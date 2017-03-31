@@ -89,8 +89,10 @@ parfor ii = 1:length(pconn)
     if isfield(tmp, 'profile') % if there is one
         
         % pull the existing profiles and add the new one
-        prof        = tmp.profile;
-        prof.msslab = tprof{ii};
+        prof          = tmp.profile;
+        
+        % add extra isfield check?
+        prof.(mslab) = tprof{ii};
         
     else
         % create the profile field and add the data
@@ -101,7 +103,7 @@ parfor ii = 1:length(pconn)
     tmp.profile = prof;
        
     % reassign tmp to a paired connection cell array
-    pconn{ii}.label = tmp;
+    pconn{ii}.(label) = tmp;
     
 end
 
