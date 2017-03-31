@@ -63,7 +63,7 @@ parfor ii = 1:length(pconn)
             cln{ii}.out.indices = [];
             cln{ii}.out.lengths = [];
             cln{ii}.out.weights = [];
-            cln{ii}.out.pvoxels = [];
+            %cln{ii}.out.pvoxels = [];
             continue
         end
         
@@ -88,7 +88,7 @@ parfor ii = 1:length(pconn)
         cln{ii}.out.indices = [];
         cln{ii}.out.lengths = [];
         cln{ii}.out.weights = [];
-        cln{ii}.out.pvoxels = [];
+        %cln{ii}.out.pvoxels = [];
         continue
         
     end
@@ -119,8 +119,7 @@ parfor ii = 1:length(pconn)
     % create structure with all the cleaned field data
     tmp = struct('indices', cln{ii}.out.indices, ...
                  'lengths', cln{ii}.out.lengths, ...
-                 'weights', cln{ii}.out.weights, ...
-                 'pvoxels', cln{ii}.out.pvoxels);
+                 'weights', cln{ii}.out.weights);
              
     % assign cleaned count matrix
     pconn{ii}.(newout) = tmp;
@@ -128,6 +127,7 @@ parfor ii = 1:length(pconn)
     pconn{ii}.(newout).matrix.density = (2 * cnt) / psz;
     pconn{ii}.(newout).matrix.length = len;
     pconn{ii}.(newout).matrix.denlen = (2 / psz) * dln;
+    
 end
     
 end

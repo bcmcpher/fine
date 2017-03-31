@@ -12,8 +12,8 @@ function [ pconn, rois, omat, olab, files ] = fnBuildShen268Networks(subj, track
 %
 % Example usage:
 %   
-%   subj = '105115'; track = 'SD_PROB'; lmax='10'; rep='01'; nclust = 12; cacheDir='/N/dc2/projects/lifebid/lifeconn/matlab/cache';
-%   [ pconn, rois, omat, olab, files ] = fnBuildShen268Networks('105115', 'SD_PROB', '10', '01', 12, '/N/dc2/projects/lifebid/lifeconn/matlab/cache');
+% subj = '105115'; track = 'SD_PROB'; lmax='10'; rep='01'; nclust = 12; cacheDir='/N/dc2/projects/lifebid/lifeconn/matlab/cache';
+% [ pconn, rois, omat, olab, files ] = fnBuildShen268Networks('105115', 'SD_PROB', '10', '01', 12, '/N/dc2/projects/lifebid/lifeconn/matlab/cache');
 %
 
 %% build paths
@@ -116,24 +116,24 @@ clear tmpdir OK
 [ pconn, rois ] = feCreatePairedConnections(parc, fg.fibers, fascicle_length, fascicle_weights);
 
 % workspace cleaning
-%save(files.output, 'rois');
+save(files.output, 'rois');
 clear parc rois
 
 % clean networks
-%tic, pconn = feCleanPairedConnections(fg, pconn, 'all');toc
-%tic, pconn = feCleanPairedConnections(fg, pconn, 'nzw');toc
+pconn = feCleanPairedConnections(fg, pconn, 'all');
+pconn = feCleanPairedConnections(fg, pconn, 'nzw');
 
 % compute tract profiles
-%favol = niftiRead(files.favol);
+favol = niftiRead(files.favol);
 
-%tic, pconn = feTractProfilePairedConnections(fg, pconn, 'nzw', favol, 'fa');toc
-%tic, pconn = feTractProfilePairedConnections(fg, pconn, 'nzw_clean', favol, 'fa');toc
-
-% virtual lesion matrix
-tic,pconn = feVirtualLesionPairedConnections(M, fascicle_weights, measured_dsig, nTheta, pconn, 'nzw');toc
-%tic,pconn = feVirtualLesionPairedConnections(M, fascicle_weights, measured_dsig, nTheta, pconn, 'nzw_clean');toc
+pconn = feTractProfilePairedConnections(fg, pconn, 'nzw', favol, 'fa');
+pconn = feTractProfilePairedConnections(fg, pconn, 'nzw_clean', favol, 'fa');
 
 clear favol
+
+% virtual lesion matrix
+pconn = feVirtualLesionPairedConnections(M, fascicle_weights, measured_dsig, nTheta, pconn, 'nzw');
+pconn = feVirtualLesionPairedConnections(M, fascicle_weights, measured_dsig, nTheta, pconn, 'nzw_clean');
 
 %% create adjacency matrices
 
