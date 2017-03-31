@@ -86,7 +86,7 @@ parfor ii = 1:length(pconn)
     tmp = pconn{ii}.(label);
     
     % look for an existing profile field
-    if isfiled(tmp, 'profile') % if there is one
+    if isfield(tmp, 'profile') % if there is one
         
         % pull the existing profiles and add the new one
         prof        = tmp.profile;
