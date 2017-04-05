@@ -1,7 +1,10 @@
-function [ pconn ] = fnFindPathVoxels(fe, pconn, label)
+function [ pconn ] = fnFindPathVoxels(Phi, pconn, label)
 %fnFindPathVoxels finds the tensor indices of voxels for every non-zero
 % connection to create either microstructural summaries of networks or for
 % generating link networks.
+%
+% Phi is the sparse tensor - needed for finding the voxel indices
+% Phi = feGet(fe, 'Phi');
 %
 %   This is hopefully a temporary solution as this functionality is useful
 %   but is - apparently - very computationally demanding. I want this to be
@@ -11,13 +14,13 @@ function [ pconn ] = fnFindPathVoxels(fe, pconn, label)
 %   is always better, even if I basically always do it.
 %
 
-display('Finding voxel paths for all connections...')
+display('Finding voxels in tract for all edges...')
 
 tic;
 parfor ii = 1:length(pconn)
     
     % pull the connection
-    conn = getfield(pconn{ii}, label);
+    conn = pconn{ii}.(label);
     
     % if the connection is empty, fill in zero
     if isempty(conn.indices)
@@ -28,7 +31,7 @@ parfor ii = 1:length(pconn)
     else
         
         % pull subtensor of the connection
-        subtensor = fe.life.M.Phi(:, :, conn.indices);
+        subtensor = Phi(:, :, conn.indices);
         
         % pull the unique voxel indices of the connection
         conn.pvoxels = unique(subtensor.subs(:, 2));
@@ -36,12 +39,12 @@ parfor ii = 1:length(pconn)
     end
     
     % re-assign connection
-    pconn{ii} = setfield(pconn{ii}, label, conn);
+    pconn{ii}.(label) = conn;
     
 end
 time = toc;
 
-display([ 'Found path voxels in ' num2str(time/60) ' minutes.' ]);
+display([ 'Found the voxels for all edges in ' num2str(time/60) ' minutes.' ]);
 
 end
 

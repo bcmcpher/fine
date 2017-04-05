@@ -19,9 +19,15 @@ axis('square'); axis('equal'); axis('tight');
 cbar = colorbar;
 caxis([-crng crng]);
 set(gca, 'XTickLabel', '', 'YTickLabel', '', 'XTick', [], 'YTick', []);
-line([34.5 34.5], [0.5 68.5], 'Color', [0 0 0]);
-line([0.5 68.5], [34.5 34.5], 'Color', [0 0 0]);
-line([68.5 0.5], [68.5 0.5], 'Color', [0 0 0]);
+
+%% 
+
+full = size(mat, 1) + 0.5;
+half = (size(mat, 1) / 2) + 0.5;
+
+line([half half], [0.5 full], 'Color', [0 0 1]);
+line([0.5 full], [half half], 'Color', [0 0 1]);
+line([full 0.5], [full 0.5], 'Color', [0 0 1]);
 
 end
 

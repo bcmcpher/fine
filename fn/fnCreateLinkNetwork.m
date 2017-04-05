@@ -43,8 +43,8 @@ parfor ii = 1:length(pairs)
     ti2 = pairs(ii, 2);
     
     % grab the unique voxels of each edge
-    li1 = getfield(pconn{ti1}, label, 'pvoxels');
-    li2 = getfield(pconn{ti2}, label, 'pvoxels');
+    li1 = pconn{ti1}.(label).pvoxels;
+    li2 = pconn{ti2}.(label).pvoxels;
     
     % if either connection is empty, fill in 0 and move on
     if isempty(li1) || isempty(li2)
