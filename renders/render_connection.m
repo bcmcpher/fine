@@ -92,6 +92,8 @@ clear fg
 
 %% plot the requested connection / view / fg
 
+fh = figure;
+
 for ii = 1:length(persp)
     
     tpersp = persp{ii};

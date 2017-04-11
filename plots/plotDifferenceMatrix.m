@@ -23,9 +23,9 @@ set(gca, 'XTickLabel', '', 'YTickLabel', '', 'XTick', [], 'YTick', []);
 full = size(mat, 1) + 0.5;
 half = (size(mat, 1) / 2) + 0.5;
 
-line([half half], [0.5 full], 'Color', [0 0 1]);
-line([0.5 full], [half half], 'Color', [0 0 1]);
-line([full 0.5], [full 0.5], 'Color', [0 0 1]);
+line([half half], [0.5 full], 'Color', [0 0 0]);
+line([0.5 full], [half half], 'Color', [0 0 0]);
+line([full 0.5], [full 0.5], 'Color', [0 0 0]);
 
 end
 

@@ -31,12 +31,6 @@ display('Coverting streamlines and ROIs to ACPC space...')
 parc_img2acpc = niftiGet(parc,'qto_xyz');
 %parc_acpc2img = niftiGet(parc,'qto_ijk');
 
-% % convert fibers to acpc space
-% fg = feGet(fe, 'fg acpc');
-% 
-% % get fiber lengths
-% fibLength = fefgGet(fg, 'length');
-
 % initialize endpoint outputs
 ep1 = zeros(length(fibers), 3);
 ep2 = zeros(length(fibers), 3);
@@ -51,8 +45,7 @@ end
 fibers_size = size(fibers, 1);
 clear ii fibers
 
-% Trasform from AC-PC mm coordinates to correspodning voxel (in AC-PC T1w
-% anatomy)
+% Trasform from AC-PC mm coordinates to correspodning voxel (in AC-PC T1w anatomy)
 ep1 = round(ep1) + 1;
 ep2 = round(ep2) + 1;
 
@@ -69,11 +62,11 @@ rois = cell(length(labels), 1);
 tfib = zeros(length(labels), 1);
 
 parcsz = size(parc.data);
-% weights = feGet(fe, 'fiber weights');
+parc_data = parc.data;
 
 % for every label, assign endpoints
 tic;
-parc_data = parc.data;
+
 parfor ii = 1:length(labels)
     
     % catch label info
@@ -142,7 +135,7 @@ display(['Successfully assigned ' num2str(sum(tfib)) ' of ' num2str(2*fibers_siz
 
 clear ii x y z imgCoords acpcCoords roi_ep1 roi_ep2 fibers tfib time
 
-%% build  paired connections object
+%% build paired connections object
 
 % build every unique combination of labels
 pairs = nchoosek(1:length(labels), 2);
@@ -174,46 +167,13 @@ parfor ii = 1:length(pairs)
     pconn{ii}.all.lengths = fibLength(pconn{ii}.all.indices);
     pconn{ii}.all.weights = weights(pconn{ii}.all.indices);
     
-    % add unique voxel coordinates of edge streamlines - 
-    % for creating microstructure and link networks
-    % move to a new fxn
-
-%     % if the connection is empty
-%     if isempty(pconn{ii}.all.indices)
-%         % fill in empty voxel coords
-%         pconn{ii}.all.pvoxels = [];
-%     else
-%         % pull subtensor of the connection
-%         %[ inds, ~ ] = find(fe.life.M.Phi(:, :, pconn{ii}.all.indices));
-%         subtensor = fe.life.M.Phi(:, :, pconn{ii}.all.indices);
-%         
-%         % pull the unique voxel indices of the connection
-%         %pconn{ii}.all.pvoxels = unique(inds(:, 2));
-%         pconn{ii}.all.pvoxels = unique(subtensor.subs(:, 2));
-%     end
-    
     % find all weighted fibers
     nzw = pconn{ii}.all.weights > 0;
     
     pconn{ii}.nzw.indices = pconn{ii}.all.indices(nzw);
     pconn{ii}.nzw.lengths = pconn{ii}.all.lengths(nzw);
     pconn{ii}.nzw.weights = pconn{ii}.all.weights(nzw);
-    
-%     % add unique voxel coordinates of edge streamlines - for link networks
-%     % if the connection is empty
-%     if isempty(pconn{ii}.nzw.indices)
-%         % fill in empty voxel coords
-%         pconn{ii}.nzw.pvoxels = [];
-%     else
-%         % pull subtensor of the connection
-%         %[ inds, ~ ] = find(fe.life.M.Phi(:, :, pconn{ii}.nzw.indices));
-%         subtensor = fe.life.M.Phi(:, :, pconn{ii}.nzw.indices);
-%         
-%         % pull the unique voxel indices of the connection
-%         %pconn{ii}.nzw.pvoxels = unique(inds(:, 2));
-%         pconn{ii}.all.pvoxels = unique(subtensor.subs(:, 2));
-%     end
-    
+
     % calculate combined size of ROI
     psz = pconn{ii}.roi1sz + pconn{ii}.roi2sz;
     
