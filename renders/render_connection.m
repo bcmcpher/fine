@@ -1,4 +1,4 @@
-function [ fh, fgOut ] = render_connection(fe, pconn, label, tract, persp, slice, conn)
+function [ fh, lh, fgOut ] = render_connection(fe, pconn, label, tract, persp, slice, conn)
 % render_connection() renders an ENCODE object with network connection structure  
 %   Using a fit FE fiber group and pconn indexes, this fxn renders a
 %   connection, path neighborhood, or both with or without cleaning using MBA.
@@ -138,7 +138,7 @@ end
 
 % plot this way every time
 view(viewCoords);
-camlight right
+lh = camlight('right');
 lighting phong
 
 end

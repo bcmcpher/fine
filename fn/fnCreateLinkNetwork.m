@@ -42,6 +42,10 @@ parfor ii = 1:length(pairs)
     ti1 = pairs(ii, 1);
     ti2 = pairs(ii, 2);
     
+    % pull labels
+    out{ii}.edge1 = ti1;
+    out{ii}.edge2 = ti2;
+    
     % grab the unique voxels of each edge
     li1 = pconn{ti1}.(label).pvoxels;
     li2 = pconn{ti2}.(label).pvoxels;

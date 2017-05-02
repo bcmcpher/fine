@@ -18,7 +18,7 @@ function [ pconn, tprof ] = feTractProfilePairedConnections(fg, pconn, label, ms
 % - 'tprof' is the cell array of profiled output only as a cell array. For debugging.
 %
 
-% load msvol if it'smsv not already loaded
+% load msvol if msvol is not already loaded
 if isstring(msvol)
     msvol = niftiRead(msvol);
 end

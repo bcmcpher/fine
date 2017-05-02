@@ -1,4 +1,4 @@
-function [ glob, node, nets ] = fnEstimateLouvainCommunity(mat, iters, tau)
+function [ glob, node, nets ] = fnEstimateLouvainCommunity(mat, gamma, iters, tau)
 %fnEstimateLouvainCommunity is a loop to compute and return Louvain
 % community estimates with practical iterations in a usable form alongside
 % other network summaries.
@@ -18,7 +18,7 @@ q = zeros(iters, 1);
 for ii = 1:iters
     
     % estimate community estimates on input data
-    [ ci(:, ii), q(ii) ] = community_louvain(mat, 1, [], 'modularity');
+    [ ci(:, ii), q(ii) ] = community_louvain(mat, gamma, [], 'modularity');
 
 end;
 
