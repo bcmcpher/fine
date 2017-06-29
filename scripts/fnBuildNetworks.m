@@ -71,11 +71,11 @@ clear tmpdir OK
 % Run operations
 [ pconn, rois ] = feCreatePairedConnections(parc, fg.fibers, fascicle_length, fascicle_weights);
 
-% compute tract profiles
-pconn = feTractProfilePairedConnections(fg, pconn, 'nzw', favol, 'fa');
-
 % virtual lesion matrix
 pconn = feVirtualLesionPairedConnections(M, fascicle_weights, measured_dsig, nTheta, pconn, 'nzw');
+
+% compute tract profiles
+pconn = feTractProfilePairedConnections(fg, pconn, 'nzw', favol, 'fa');
 
 %% create adjacency matrices
 

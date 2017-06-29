@@ -31,7 +31,7 @@ display('Converting streamlines to ACPC space...');
 nnodes = 100;
 
 % minimum number of streamlines
-minNum = 3;
+minNum = 4;
 
 % check if average length is long enough for a profile to be reasonable?
 
