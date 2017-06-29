@@ -38,6 +38,7 @@ minNum = 4;
 % preallocate tract profile output
 tprof = cell(length(pconn), 1);
 tpcnt = 0;
+tptry = 0;
 
 display(['Computing tract profiles on ' num2str(length(pconn)) ' connections...']);
 
@@ -55,11 +56,22 @@ parfor ii = 1:length(pconn)
         
         tract = fgCreate('fibers', fibers(tmp.indices));
         
-        % compute tract profile
-        tprof{ii} = dtiComputeDiffusionPropertiesAlongFG(tract, msvol, [], [], nnodes);
-        
-        % track how many connections are profiled
-        tpcnt = tpcnt + 1;
+        % if the variance of the streamlines distance is far, too many
+        % streamlines are dropped to reliably compute profile
+        try
+            
+            % compute tract profile
+            tprof{ii} = dtiComputeDiffusionPropertiesAlongFG(tract, msvol, [], [], nnodes);
+            
+            % track how many connections are profiled
+            tpcnt = tpcnt + 1;
+            tptry = tptry + 1;
+        catch
+            
+            warning(['Connection: ' num2str(ii) ' failed to compute profile.']);
+            tprof{ii} = nan(100, 1);
+            tptry = tptry + 1;
+        end
         
     else
         
@@ -71,7 +83,7 @@ parfor ii = 1:length(pconn)
 end
 time = toc;
 
-display(['Computed ' num2str(tpcnt) ' tract profiles in ' num2str(round(time)/60) ' minutes.']);
+display(['Computed ' num2str(tpcnt)  ' of ' num2str(tptry) ' possible tract profiles in ' num2str(round(time)/60) ' minutes.']);
 
 clear ii time
 
