@@ -1,4 +1,4 @@
-function [ glob, node, nets ] = fnNetworkStats(mat, score)
+function [ glob, node, nets ] = fnNetworkStats(mat)
 %fnNetworkStats returns BCT measures of a symetric undirected network
 %
 % thresholding / log transform should be preformed outside this fxn  
@@ -13,7 +13,7 @@ nets.raw = mat;
 nets.nrm = weight_conversion(nets.raw, 'normalize');
 nets.len = weight_conversion(nets.raw, 'lengths');
 [ nets.dist, nets.edge ] = distance_wei(nets.len); 
-[ nets.tree, nets.clus ] = backbone_wu(nets.nrm, score);
+%[ nets.tree, nets.clus ] = backbone_wu(nets.nrm, score);
 
 %% node measures
 
@@ -23,13 +23,11 @@ display('Computing Nodal Summary Statistics...');
 node.degree = degrees_und(nets.nrm)';
 node.strength = strengths_und(nets.nrm)';
 node.between = betweenness_wei(nets.dist);
+[ nets.btwcm, node.btwcv ] = edge_betweenness_wei(nets.dist);
 node.locEff = efficiency_wei(nets.nrm, 1);
 node.ccoef = clustering_coef_wu(nets.nrm);
-[ nets.btwcm, node.btwcv ] = edge_betweenness_wei(nets.dist);
+node.eigv = eigenvector_centrality_und(nets.nrm); % will fail if log10(mat) is provided
 node.pagerank = pagerank_centrality(nets.nrm, 0.85, ones(size(nets.nrm, 1), 1)); % is this reasonable?
-
-% will fail if log10(mat) is provided
-node.eigv = eigenvector_centrality_und(nets.nrm);
 
 %% global measures
 
@@ -40,7 +38,7 @@ display('Computing Global Summary Statistics...');
 glob.mean_ccoef = mean(node.ccoef);
 glob.trans = transitivity_wu(nets.nrm);
 glob.glbEff = efficiency_wei(nets.nrm, 0);
-[ nets.score, glob.score ] = score_wu(nets.nrm, score); 
+%[ nets.score, glob.score ] = score_wu(nets.nrm, score); 
 glob.assort = assortativity_wei(nets.nrm, 0);
 
 % will fail if log10(mat) is provided
@@ -48,6 +46,9 @@ glob.assort = assortativity_wei(nets.nrm, 0);
 
 [ glob.charpl, glob.efficiency, node.eccentricity, glob.radius, glob.diameter ] = charpath(nets.dist);
 glob.rcc = rich_club_wu(nets.nrm);
+
+% compute small world propensity
+[ glob.swp, glob.swp_dc, glob.swp_dl, glob.swp_dt ] = rep_swp(nets.raw, 50);
 
 %% estimate community structure - compartmentalized
 % This iterates, so it's slow in large networks. Proabably keep it separate.

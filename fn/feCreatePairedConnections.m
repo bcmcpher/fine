@@ -188,7 +188,7 @@ parfor ii = 1:length(pairs)
     if isempty(  pconn{ii}.nzw.lengths) % if there are no nz lengths
         nzdln = 0;
     else
-        nzdln = sum(1 / pconn{ii}.nzw.lengths);
+        nzdln = sum(1 ./ pconn{ii}.nzw.lengths);
     end
     
     % create all streamline counts

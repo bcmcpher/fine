@@ -207,35 +207,35 @@ display(['Saving inflated ROIs in: ' ilabs.fname '...']);
 % save inflated labels
 niftiWrite(ilabs, ilabs.fname);
 
-%% debug figure
-
-% pull a slice and see what is added
-x = olabs.data(:,:,78);
-y = ilabs.data(:,:,78);
-z = y - x;
-%a = (ilabs.data(:,:,78) > 0) + (mask.data(:,:,78) > 0);
-wmOverlap1 = wm.data(:,:,78);
-wmOverlap2 = z > 0;
-wmOverlap = wmOverlap1 + wmOverlap2;
-
-fh = figure; 
-
-subplot(3, 2, 1); imagesc(x); 
-title('Original Labels'); colorbar;
-
-subplot(3, 2, 2); imagesc(y); 
-title('Inflated Labels'); colorbar;
-
-subplot(3, 2, 3); imagesc((wm.data(:,:,78) > 0) + (x > 0)); 
-title('Original Labels + WM'); colorbar;
-
-subplot(3, 2, 4); imagesc(wm.data(:,:,78) > 0); 
-title('WM Mask'); colorbar;
-
-subplot(3, 2, 5); imagesc(z); 
-title('Label Expansion'); colorbar;
-
-subplot(3, 2, 6); imagesc(wmOverlap); 
-title('WM Intersect'); colorbar;
+% %% debug figure
+% 
+% % pull a slice and see what is added
+% x = olabs.data(:,:,78);
+% y = ilabs.data(:,:,78);
+% z = y - x;
+% %a = (ilabs.data(:,:,78) > 0) + (mask.data(:,:,78) > 0);
+% wmOverlap1 = wm.data(:,:,78);
+% wmOverlap2 = z > 0;
+% wmOverlap = wmOverlap1 + wmOverlap2;
+% 
+% fh = figure; 
+% 
+% subplot(3, 2, 1); imagesc(x); 
+% title('Original Labels'); colorbar;
+% 
+% subplot(3, 2, 2); imagesc(y); 
+% title('Inflated Labels'); colorbar;
+% 
+% subplot(3, 2, 3); imagesc((wm.data(:,:,78) > 0) + (x > 0)); 
+% title('Original Labels + WM'); colorbar;
+% 
+% subplot(3, 2, 4); imagesc(wm.data(:,:,78) > 0); 
+% title('WM Mask'); colorbar;
+% 
+% subplot(3, 2, 5); imagesc(z); 
+% title('Label Expansion'); colorbar;
+% 
+% subplot(3, 2, 6); imagesc(wmOverlap); 
+% title('WM Intersect'); colorbar;
 
 end

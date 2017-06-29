@@ -50,6 +50,7 @@ switch nlog
         prop = 2;
     otherwise
         nmsk = ivert;
+        prop = 7;
         warning('Invalid neighborhood logical requested. Can either select: ''vert'', ''edge'', or ''face''. Defaulting to ''vert''');
 end
 
