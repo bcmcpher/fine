@@ -25,10 +25,16 @@ fascicle_weights = feGet(fe,   'fiber weights');
 nTheta           = feGet(fe,   'nbvals');
 M                = feGet(fe,   'model');
 measured_dsig    = feGet(fe,   'dsigdemeaned by voxel');
+
 clear fe
 
 % load labeled aparc+aseg volume and fa map
 parc = niftiRead(labels);
+
+clear fe
+
+% load labels volume and FA image
+parc  = niftiRead(labels);
 favol = niftiRead(fa);
 
 %% start parallel pool
