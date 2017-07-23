@@ -10,44 +10,45 @@ function [ pconn, rois ] = feCreatePairedConnections(parc, fibers, fibLength, we
 % rois = 'test/inflated_labels.nii.gz';
 %
 
-%% load data
-
-% % if string is passed, assume it's a path and load it
-% if isstring(fe) 
-%     display('Loading fe data...');
-%     load(fe);
-% end
-
-% if string is passed, assume it's a path and load it
-if isstring(parc)
-    parc = niftiRead(parc);
-end
-
 %% extract fibers to acpc space and identify endpoint coordinates
 
-display('Coverting streamlines and ROIs to ACPC space...')
+display('Assigning streamline endpoints to ROI labels...')
 
 % catch xform matrices for aparc
-parc_img2acpc = niftiGet(parc,'qto_xyz');
-%parc_acpc2img = niftiGet(parc,'qto_ijk');
+parc_acpc2img = niftiGet(parc, 'qto_ijk');
+
+% convert acpc fibers to image space
+fg = fgCreate;
+fg.fibers = fibers;
+fg = dtiXformFiberCoords(fg, parc_acpc2img, 'img');
+
+% re-extract label space fiber coordinates
+fibers = fg.fibers;
 
 % initialize endpoint outputs
 ep1 = zeros(length(fibers), 3);
 ep2 = zeros(length(fibers), 3);
 
 % for every fiber, pull the end points
-% fibers = fg.fibers; clear fg
-if size(fibers{1},1)~=3; error('Expected fibers with size(3,N)'); end
+if size(fibers{1}, 1) ~= 3; 
+    error('Expected fibers with size(3, N)'); 
+end
+
+% extract every streamline end point
 parfor ii = 1:length(fibers)
     ep1(ii,:) = fibers{ii}(:,1)';
     ep2(ii,:) = fibers{ii}(:,end)';
 end
+
+% compute size of fg for reporting
 fibers_size = size(fibers, 1);
+
 clear ii fibers
 
-% Trasform from AC-PC mm coordinates to correspodning voxel (in AC-PC T1w anatomy)
-ep1 = round(ep1) + 1;
-ep2 = round(ep2) + 1;
+% round converted end points to match image indices
+% produces highest assignment compared to floor / ceil / round() + 1
+ep1 = round(ep1);
+ep2 = round(ep2);
 
 %% assign fiber endpoints to labels
 
@@ -65,8 +66,6 @@ parcsz = size(parc.data);
 parc_data = parc.data;
 
 % for every label, assign endpoints
-tic;
-
 parfor ii = 1:length(labels)
     
     % catch label info
@@ -77,24 +76,61 @@ parfor ii = 1:length(labels)
     imgCoords   = [ x, y, z ];
     
     % convert label indices to ACPC coordinates
-    acpcCoords = mrAnatXformCoords(parc_img2acpc, imgCoords); % rely on file header
-    acpcCoords = round(acpcCoords) + 1;
+    %acpcCoords = mrAnatXformCoords(parc_img2acpc, imgCoords); % rely on file header
+    %acpcCoords = round(acpcCoords) + 1;
     
-    % catch size
-    rois{ii}.size = size(unique(acpcCoords, 'rows'), 1);
+    % catch size of ROI
+    rois{ii}.size = size(unique(imgCoords, 'rows'), 1);
     
-    % find streamline endpoints in ROI acpc coordinates
-    roi_ep1 = ismember(ep1, acpcCoords, 'rows');
-    roi_ep2 = ismember(ep2, acpcCoords, 'rows');
+    % find streamline endpoints in image coordinates for label
+    roi_ep1 = ismember(ep1, imgCoords, 'rows');
+    roi_ep2 = ismember(ep2, imgCoords, 'rows');
+    
+    % convert end points  in ROI to streamline indices
+    fibers = [ find(roi_ep1); find(roi_ep2) ];
+    
+% % from dtiIntersectFibersWithRoi - use nearest point + a tolerance to
+% % define node endpoints. DOUBLE ASSIGNS, KEEP FOR POSTERITY
+%   for (ii=1:length(roiCoords))
+%       [~, bestSqDist{ii}] = nearpoints(fc', roiCoords{ii}');
+%       keepAll{ii}         = bestSqDist{ii}<=minDist^2;
+%   end
+%   
+%   default minDist = 0.87;
+%   squared minDist = 0.7569;
+%
+%   % create empty fiber indices
+%   fibers = [];
+%         
+%   % for every label voxel, find streamlines w/in sufficient distance
+%   % define keep as a logical that keeps getting updated? find() outside loop?
+%   for jj = 1:size(acpcCoords, 1)
+%         
+%       % for first end points
+%       [ ~, bestSqDist1 ] = nearpoints(ep1', acpcCoords(jj, :)');
+%       keep1 = bestSqDist1 <= 0.7569;
+%           
+%       % for second end points
+%       [ ~, bestSqDist2 ] = nearpoints(ep2', acpcCoords(jj, :)');
+%       keep2 = bestSqDist2 <= 0.7569;
+%         
+%       % use logicals to drop endpoints and prevent double assignment?
+%         
+%       fibers = [ fibers find(keep1) find(keep2) ];
+%         
+%   end
+% 
+%   % merge together all the fiber indices ending w/in tolerance of the ROI
+%   % has to be near minimum of 2 points to get assigned?
+%   fibers = unique(fibers)';
     
     % for fibers that end in rois, catch indices / lengths / weights
-    fibers = [ find(roi_ep1); find(roi_ep2) ];
     rois{ii}.end.fibers = fibers;
     rois{ii}.end.length = fibLength(rois{ii}.end.fibers);
     rois{ii}.end.weight = weights(rois{ii}.end.fibers);
     
     % create ROI centroid
-    rois{ii}.centroid.acpc = round(mean(acpcCoords) + 1);
+    rois{ii}.centroid.acpc = round(mean(imgCoords) + 1);
     rois{ii}.centroid.img  = round(mean(imgCoords)) + 1;
     
 %     % create endpoint density ROI object
@@ -113,7 +149,7 @@ parfor ii = 1:length(labels)
 %     
 %     % catch image space coordinates and counts in roi structure 
 %     rois{ii}.volume = [ unq accumarray(cnt, 1) ];
-    
+%   
 %     % write these down to check alignment
 %     img = zeros(size(parc.data));
 %     for jj = 1:size(y{1}.volume, 1)
@@ -129,11 +165,10 @@ parfor ii = 1:length(labels)
     tfib(ii) = length(rois{ii}.end.fibers);
     
 end
-time = toc;
 
-display(['Successfully assigned ' num2str(sum(tfib)) ' of ' num2str(2*fibers_size) ' endpoints in ' num2str(round(time)/60) ' minutes.']);
+display(['Successfully assigned ' num2str(sum(tfib)) ' of ' num2str(2*fibers_size) ' endpoints.']);
 
-clear ii x y z imgCoords acpcCoords roi_ep1 roi_ep2 fibers tfib time
+clear ii x y z imgCoords roi_ep1 roi_ep2 fibers tfib time
 
 %% build paired connections object
 
@@ -147,7 +182,6 @@ tcon = zeros(length(pairs), 1);
 display('Building paired connections...');
 
 % for every pair of nodes, estimate the connection
-tic;
 parfor ii = 1:length(pairs)
     
     % create shortcut names
@@ -207,8 +241,7 @@ parfor ii = 1:length(pairs)
     tcon(ii) = size(pconn{ii}.all.indices, 1);
     
 end
-time = toc;
 
-display(['Built paired connections object with ' num2str(sum(tcon)) ' streamlines in ' num2str(time/60) ' minutes.']);
+display(['Built paired connections object with ' num2str(sum(tcon)) ' streamlines.']);
 
 end
