@@ -94,7 +94,7 @@ olab = [ alab nlab ];
 %% save whole output
 
 % write output to .mat
-save(output, 'pconn', 'omat', 'olab', 'glob', 'node', 'nets', '-v7.3');
+save(output, 'pconn', 'rois', 'omat', 'olab', 'glob', 'node', 'nets', '-v7.3');
 
 % remove parallel pool
 delete(pool);
