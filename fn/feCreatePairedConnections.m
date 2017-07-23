@@ -14,10 +14,11 @@ function [ pconn, rois ] = feCreatePairedConnections(parc, fibers, fibLength, we
 
 display('Assigning streamline endpoints to ROI labels...')
 
-% catch xform matrices for aparc
+% catch xform matrices for parc
 parc_acpc2img = niftiGet(parc, 'qto_ijk');
 
-% convert acpc fibers to image space
+% similar to dtiFiberendpointNifti.m
+% convert acpc fibers to parcellation space
 fg = fgCreate;
 fg.fibers = fibers;
 fg = dtiXformFiberCoords(fg, parc_acpc2img, 'img');
@@ -88,41 +89,6 @@ parfor ii = 1:length(labels)
     
     % convert end points  in ROI to streamline indices
     fibers = [ find(roi_ep1); find(roi_ep2) ];
-    
-% % from dtiIntersectFibersWithRoi - use nearest point + a tolerance to
-% % define node endpoints. DOUBLE ASSIGNS, KEEP FOR POSTERITY
-%   for (ii=1:length(roiCoords))
-%       [~, bestSqDist{ii}] = nearpoints(fc', roiCoords{ii}');
-%       keepAll{ii}         = bestSqDist{ii}<=minDist^2;
-%   end
-%   
-%   default minDist = 0.87;
-%   squared minDist = 0.7569;
-%
-%   % create empty fiber indices
-%   fibers = [];
-%         
-%   % for every label voxel, find streamlines w/in sufficient distance
-%   % define keep as a logical that keeps getting updated? find() outside loop?
-%   for jj = 1:size(acpcCoords, 1)
-%         
-%       % for first end points
-%       [ ~, bestSqDist1 ] = nearpoints(ep1', acpcCoords(jj, :)');
-%       keep1 = bestSqDist1 <= 0.7569;
-%           
-%       % for second end points
-%       [ ~, bestSqDist2 ] = nearpoints(ep2', acpcCoords(jj, :)');
-%       keep2 = bestSqDist2 <= 0.7569;
-%         
-%       % use logicals to drop endpoints and prevent double assignment?
-%         
-%       fibers = [ fibers find(keep1) find(keep2) ];
-%         
-%   end
-% 
-%   % merge together all the fiber indices ending w/in tolerance of the ROI
-%   % has to be near minimum of 2 points to get assigned?
-%   fibers = unique(fibers)';
     
     % for fibers that end in rois, catch indices / lengths / weights
     rois{ii}.end.fibers = fibers;
