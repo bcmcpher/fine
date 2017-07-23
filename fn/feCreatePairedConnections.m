@@ -101,17 +101,11 @@ parfor ii = 1:length(labels)
     
 %     % create endpoint density ROI object
 % 
-%     % combine found acpc endpoints
-%     all_acpc_ep = [ ep1(roi_ep1, :); ep2(roi_ep2, :) ];
-%     
-%     % convert acpc points back to image space
-%     all_img_ep = round(mrAnatXformCoords(parc_acpc2img, all_acpc_ep));
+%     % combine found endpoints
+%     ep = [ ep1(roi_ep1, :); ep2(roi_ep2, :) ];
 %     
 %     % identify unique voxels and counts in image space
-%     [ unq, ~, cnt ] = unique(all_img_ep, 'rows');
-%     
-%     % convert ACPC end points back to image space voxel coords
-%     %unq = round(mrAnatXformCoords(parc_acpc2img, unq));
+%     [ unq, ~, cnt ] = unique(ep, 'rows');
 %     
 %     % catch image space coordinates and counts in roi structure 
 %     rois{ii}.volume = [ unq accumarray(cnt, 1) ];
