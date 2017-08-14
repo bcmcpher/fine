@@ -35,7 +35,6 @@ clear fe
 
 % load labels volume and FA image
 parc  = niftiRead(labels);
-favol = niftiRead(fa);
 
 %% start parallel pool
 
