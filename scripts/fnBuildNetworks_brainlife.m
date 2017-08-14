@@ -1,4 +1,4 @@
-function [ pconn, rois, omat, olab ] = fnBuildNetworks_brain-life(fe, labels, nclust, cacheDir)
+function [ pconn, rois, omat, olab ] = fnBuildNetworks_brainlife(fe, labels, nclust, cacheDir)
 % fnBuildNetworks creates all the network data from any fit fe and parcellation.
 %
 % INPUTS: all inputs are strings
