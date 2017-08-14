@@ -1,4 +1,4 @@
-function [ fh, ilabs, wm, dbout ] = fsInflateDK(aparc, infl, nlog, outfile)
+function [ ilabs, wm, dbout ] = fsInflateDK(aparc, infl, nlog, outfile)
 %% 
 % currently assigns mode value of neighbors
 % can repeat inflation, unsure of ideal optimum
