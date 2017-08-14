@@ -44,7 +44,7 @@ files.labels  = fullfile(files.path, 'subjects', subj, 'anat', [ subj '_shen268_
 % because these FE file names are still different by data set...
 
 STN = {'FP', 'KK', 'HT', 'MP'};
-HC7 = {'7t_108323', '7t_109123', '7t_131217', '7t_910241'};
+HC7 = {'7t_111312', '7t_125525', '7t_102311', '7t_109123'};
 
 % stanford data has this extra file info after subject ID in the fe structure names, not paths
 if any(strcmp(subj, STN))
@@ -115,45 +115,41 @@ clear tmpdir OK
 % Run operations
 [ pconn, rois ] = feCreatePairedConnections(parc, fg.fibers, fascicle_length, fascicle_weights);
 
-% workspace cleaning
-save(files.output, 'rois', '-append');
-clear parc rois
-
 % clean networks
-pconn = feCleanPairedConnections(fg, pconn, 'all');
-pconn = feCleanPairedConnections(fg, pconn, 'nzw');
+%pconn = feCleanPairedConnections(fg, pconn, 'all');
+%pconn = feCleanPairedConnections(fg, pconn, 'nzw');
 
 % compute tract profiles
 favol = niftiRead(files.favol);
 
 pconn = feTractProfilePairedConnections(fg, pconn, 'nzw', favol, 'fa');
-pconn = feTractProfilePairedConnections(fg, pconn, 'nzw_clean', favol, 'fa');
+%pconn = feTractProfilePairedConnections(fg, pconn, 'nzw_clean', favol, 'fa');
 
 clear favol
 
 % virtual lesion matrix
 pconn = feVirtualLesionPairedConnections(M, fascicle_weights, measured_dsig, nTheta, pconn, 'nzw');
-pconn = feVirtualLesionPairedConnections(M, fascicle_weights, measured_dsig, nTheta, pconn, 'nzw_clean');
+%pconn = feVirtualLesionPairedConnections(M, fascicle_weights, measured_dsig, nTheta, pconn, 'nzw_clean');
 
 %% create adjacency matrices
 
 % create all streamline matrices
 [ amat, alab ] = feCreateAdjacencyMatrices(pconn, 'all');
 [ nmat, nlab ] = feCreateAdjacencyMatrices(pconn, 'nzw');
-[ zmat, zlab ] = feCreateAdjacencyMatrices(pconn, 'nzw_clean');
+%[ zmat, zlab ] = feCreateAdjacencyMatrices(pconn, 'nzw_clean');
 
 % combine outputs and labels into 1 matrix
-omat = cat(3, amat, nmat, zmat);
-olab = [ alab nlab zlab ];
+omat = cat(3, amat, nmat);
+olab = [ alab nlab ];
 
 % add stats once I am sure on order
 [ glob{1}, node{1}, nets{1} ] = fnNetworkStats(omat(:,:,2), 16);
 [ glob{2}, node{2}, nets{2} ] = fnNetworkStats(omat(:,:,10), 16);
-[ glob{3}, node{3}, nets{3} ] = fnNetworkStats(omat(:,:,18), 16);
+%[ glob{3}, node{3}, nets{3} ] = fnNetworkStats(omat(:,:,18), 16);
 
 %% save whole output
 
-save(files.output, 'pconn', 'omat', 'olab', 'glob', 'node', 'nets', 'files', '-append');
+save(files.output, 'pconn', 'rois', 'omat', 'olab', 'glob', 'node', 'nets', 'files', '-v7.3');
 
 % remove parallel pool
 delete(pool);
