@@ -32,6 +32,8 @@ clear fe
 %parc = niftiRead(labels);
 parc = labels;
 
+display('Assigning labels...');
+
 %clear fe
 
 % load labels volume and FA image
