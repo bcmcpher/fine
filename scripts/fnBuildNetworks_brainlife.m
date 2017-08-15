@@ -30,7 +30,7 @@ clear fe
 
 % load labeled aparc+aseg volume and fa map
 %parc = niftiRead(labels);
-labels = parc;
+parc = labels;
 
 %clear fe
 
