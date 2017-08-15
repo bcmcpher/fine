@@ -29,12 +29,13 @@ measured_dsig    = feGet(fe,   'dsigdemeaned by voxel');
 clear fe
 
 % load labeled aparc+aseg volume and fa map
-parc = niftiRead(labels);
+%parc = niftiRead(labels);
+labels = parc;
 
-clear fe
+%clear fe
 
 % load labels volume and FA image
-parc  = niftiRead(labels);
+%parc = niftiRead(labels);
 
 %% start parallel pool
 
