@@ -1,16 +1,48 @@
 function [ pconn, vlout ] = feVirtualLesionPairedConnections(M, fascicle_weights, measured_dsig, nTheta, pconn, label)
-%feVirtualLesionPairedConnections runs virtual lesion on a field of pconn indices.
+%feVirtualLesionPairedConnections runs virtual lesion on all edges store in pconn.
 %
 % INPUTS:
-% - 'fe' is a fit fe structure that is used to build pconn
-% - 'pconn' is the paired connection structure that stores fiber indices
-%   between each unique pair of connections in the 
-% - 'label' is the set of indices in pconn to perform virtual lesions for
+%     M                - fe model, sparse tensor object from fit fe structure
+%     fascicle_weights - vector of streamline weights from fit fe structure
+%     measured_dsig    - measured diffusion signal estimated from fe structure
+%     nTheta           - the number of directions stored in an fe structure
+%     pconn            - the paired connection object
+%     label - string indicating the fiber groups for which to create virtual lesions
+%             either:
+%                     'all' for all assigned streamlines or
+%                     'nzw' for non-zero weighted fibers returned by LiFE
+%             Additionally, this can be run after cleaning, resulting in
+%             valid calls of 'all_clean' and 'nzw_clean', respectively.
 %
 % OUTPUTS:
-% - 'pconn' is the paired connections object with VL data stored and added
-%   to the matrix field for generating networks
-% - 'vlout' is the virtual lesion output only as a cell array. For debugging.
+%     pconn - is the paired connections object with the virtual lesion output added
+%             to each connection.
+%
+%     vlout - debugging output; the cell array that is added internally to pconn
+%
+% TODO:
+% - add 'norm' option for computing virtual lesions
+% - check that the results I mean() are supposed to be meaned
+%
+% EXAMPLE:
+%
+% % load data
+% parc          = niftiRead('labels.nii.gz');
+% fg            = feGet(fe, 'fibers acpc');
+% fibers        = fg.fibers;
+% fibLength     = fefgGet(fg, 'length');
+% weights       = feGet(fe, 'fiberweights');
+% nTheta        = feGet(fe, 'nbvals');
+% M             = feGet(fe, 'model');
+% measured_dsig = feGet(fe, 'dsigdemeaned by voxel');
+%
+% % assign streamlines to edges
+% [ pconn, rois ] = feCreatePairedConnections(parc, fibers, fibLength, weights);
+%
+% % create a virtual lesion for every connection with non-zero weighted fibers
+% pconn = feVirtualLesionPairedConnections(M, fascicle_weights, measured_dsig, nTheta, pconn, 'nzw');
+%
+% Brent McPherson (c), 2017 - Indiana University
 %
 
 % run parallelized virtural lesion
@@ -28,7 +60,6 @@ parfor ii = 1:length(pconn)
     if sum(tmp.weights) == 0
         
         % set to zero and continue
-        %vlout{ii} = {};
         vlout{ii}.s.mean  = 0;
         vlout{ii}.em.mean = 0;
         vlout{ii}.j.mean  = 0;
@@ -71,6 +102,8 @@ for ii = 1:length(pconn)
 end
 
 end
+
+%% internal fxns to not overflow memory in parpool
 
 function [ rmse_wVL, rmse_woVL, nFib_tract, nFib_PN, nVoxels] = feComputeVirtualLesionM(M, fascicle_weights, measured_dsig, nTheta, ind_tract)
 % This function compute the rmse in a path neighborhood voxels with and

@@ -1,13 +1,33 @@
 function [ pconn, rois ] = feCreatePairedConnections(parc, fibers, fibLength, weights)
 %feCreatePairedConnections creates pconn object of every possible unique pair of 
-% of labels in parc w/ streamlines from fe object. 
+% of labels in a parcellation w/ streamlines from fibers object.
+%
+% INPUTS:
+%     parc      - loaded, labeled nifti object; the nodes of the network
+%     fibers    - cell array of the acpc transformed fibers field of a fiber group
+%     fibLenght - vector of the length of each streamline
+%     weights   - vector of the weights from each streamline 
+%
+% OUTPUTS:
+%     pconn - paired connections cell array, contains data for each edge
+%     rois  - data computed for each node of the network
 %   
 % TODO:
-% - make sure this is as fast as possible without having to run too many extra steps for more basic tasks
-% - catch endpoint ROI data - potential cosine similarity comparison between ROIs
+% - catch endpoints as ROI data
 %
-% feFile = 'test/fe_structure_105115_STC_run01_SD_PROB_lmax10_connNUM01.mat';
-% rois = 'test/inflated_labels.nii.gz';
+% EXAMPLE:
+%
+% % load data
+% parc = niftiRead('labels.nii.gz');
+% fg        = feGet(fe, 'fibers acpc');
+% fibers    = fg.fibers;
+% fibLength = fefgGet(fg, 'length');
+% weights   = feGet(fe, 'fiberweights');
+%
+% % assign streamlines to edges
+% [ pconn, rois ] = feCreatePairedConnections(parc, fibers, fibLength, weights);
+%
+% Brent McPherson (c), 2017 - Indiana University
 %
 
 %% extract fibers to acpc space and identify endpoint coordinates
@@ -75,11 +95,7 @@ parfor ii = 1:length(labels)
     % pull indices for a label in image space
     [ x, y, z ] = ind2sub(parcsz, find(parc_data == labels(ii)));
     imgCoords   = [ x, y, z ];
-    
-    % convert label indices to ACPC coordinates
-    %acpcCoords = mrAnatXformCoords(parc_img2acpc, imgCoords); % rely on file header
-    %acpcCoords = round(acpcCoords) + 1;
-    
+
     % catch size of ROI
     rois{ii}.size = size(unique(imgCoords, 'rows'), 1);
     

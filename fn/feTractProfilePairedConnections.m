@@ -1,29 +1,52 @@
 function [ pconn, tprof ] = feTractProfilePairedConnections(fg, pconn, label, msvol, mslab)
-%feTractProfilePairedConnections runs virtual lesion on a field of pconn indices.
+%feTractProfilePairedConnections runs creates tract profile(s) for every existing 
+% connection given a particular input.
 %
 % INPUTS:
-% - 'fg' is the optimized connectome returned by LiFE
-%          fg = feGet(fe,'fibers acpc'); 
-%           w = feGet(fe,'fiber weights');
-%          fg = fgExtract(fg, 'keep', w > 0);
-%
-% - 'pconn' is the paired connection structure that stores fiber indices
-%   between each unique pair of connections in the 
-% - 'label' is the set of indices in pconn to perform virtual lesions for
-% - 'msvol' is the aligned microstructural volume to extract tract profiles from
-%
+%     fg    - fiber group in acpc space
+%     pconn - paired connection object created with fg
+%     label - string indicating the fiber groups for which to create tract profiles
+%             either:
+%                     'all' for all assigned streamlines or
+%                     'nzw' for non-zero weighted fibers returned by LiFE
+%     msvol - a loaded microstructural nifti image to compute profiles with
+%     mslab - the label the new tract profile will be stored under
+%             
 % OUTPUTS:
-% - 'pconn' is the paired connections object with VL data stored and added
-%   to the matrix field for generating networks
-% - 'tprof' is the cell array of profiled output only as a cell array. For debugging.
+%     pconn - is the paired connections object with the tract profile(s) added
+%             in a field called 'profile'.
+%
+%     tprof - debugging output; the cell array that is added internally to pconn
+%
+% TODO:
+% - pass dt6 instead of msvol to create multiple profiles
+% - check if a labels exists and don't overwrite / add clobber
+% - pass nnodes / minnum as fxn level arguments
+% - check if the connections are too short for a reasonable profile (?)
+%
+% EXAMPLE:
+%
+% % load data
+% parc  = niftiRead('labels.nii.gz');
+% favol = niftiRead('fa.nii.gz');
+% fg        = feGet(fe, 'fibers acpc');
+% fibers    = fg.fibers;
+% fibLength = fefgGet(fg, 'length');
+% weights   = feGet(fe, 'fiberweights');
+%
+% % assign streamlines to edges
+% [ pconn, rois ] = feCreatePairedConnections(parc, fibers, fibLength, weights);
+%
+% % create a profile for every connection with non-zero weighted fibers
+% pconn = feTractProfilePairedConnections(fg, pconn, 'nzw', favol, 'fa');
+%
+% Brent McPherson (c), 2017 - Indiana University
 %
 
 % load msvol if msvol is not already loaded
 if isstring(msvol)
     msvol = niftiRead(msvol);
 end
-
-display('Converting streamlines to ACPC space...');
 
 % run parallelized tract profiles
 
@@ -69,7 +92,7 @@ parfor ii = 1:length(pconn)
         catch
             
             warning(['Connection: ' num2str(ii) ' failed to compute profile.']);
-            tprof{ii} = nan(100, 1);
+            tprof{ii} = nan(nnodes, 1);
             tptry = tptry + 1;
         end
         
@@ -87,11 +110,8 @@ display(['Computed ' num2str(tpcnt)  ' of ' num2str(tptry) ' possible tract prof
 
 clear ii time
 
-% %%%%
-% %%%%  TODO: add logic to prevent overwriting an existing field %%%
-% %%%%
+%% add virtual lesion to pconn object
 
-% add virtual lesion to pconn object
 parfor ii = 1:length(pconn)
         
     % pull subset field
@@ -101,14 +121,16 @@ parfor ii = 1:length(pconn)
     if isfield(tmp, 'profile') % if there is one
         
         % pull the existing profiles and add the new one
-        prof          = tmp.profile;
+        prof = tmp.profile;
         
         % add extra isfield check?
         prof.(mslab) = tprof{ii};
         
     else
+        
         % create the profile field and add the data
         prof = struct(mslab, tprof{ii});
+    
     end
         
     % add tract profile(s) to tmp

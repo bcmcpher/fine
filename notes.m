@@ -2,6 +2,26 @@
 % Brent McPherson
 %
 
+%% TODO:
+
+% feTractProfilePairedConnections
+% - pass dt6 instead of msvol to create multiple profiles
+% - check if a labels exists and don't overwrite / add clobber
+% - pass nnodes / minnum as fxn level arguments
+% - check if the connections are too short for a reasonable profile (?)
+%
+% feVirtualLesionPairedConnections
+% - add 'norm' option for computing virtual lesions
+% - check that the results I mean() are supposed to be meaned
+%
+% feCreatePairedConnections 
+% - catch endpoints as ROI data
+%
+% feCleanPairedConnections
+% - provide fxn level access to cleaning parameters
+
+%% figure out network shape stats for edges
+
 % load a dt6 to see what some of this stuff is
 dt6 = dtiLoadDt6('101431/dt6_xflip/dti48trilin/dt6.mat');
 
@@ -22,7 +42,13 @@ dtArr = dtiEigComp(eigVec, eigVal);
 dtiEigenvaluesFromWestinShapes();
 
 % See what other shape summaries I can pull from something like
+% USE CODE HERE TO COMPUTE WEIGHTED DISTANCE
 [ curv, tors ] = AFQ_ParameterizeTractShape(fg);
+
+% mba code to compute values by streamline
+% compute on super-fiber for edge-wise stats?
+% see AFQ_ParameterizeTractShape for applying weights from super-fiber
+mbaFiberProperties
 
 % compute torsion of single fiber
 % average or compute super fiber first?
@@ -58,7 +84,7 @@ dtiResampleFiberGroup
 dtiFiberProperties
 dtiFiberSummary
 
-%% other
+%% others / extras
 
 % create probability map in MNI space for each edge across subjects, similar to:
 AFQ_MakeFGProbabilityMap();

@@ -1,27 +1,41 @@
 function [ pconn, cln ] = feCleanPairedConnections(fg, pconn, label)
-%feCleanPairedConnections cleans the outlier fibers from a pconn cell
-% array. 
+%feCleanPairedConnections cleans the outlier fibers from connections inside 
+% a paired connection (pconn) cell array. 
 %
 % INPUTS:
-% - 'fg' is the optimized connectome returned by LiFE
-%          fg = feGet(fe,'fibers acpc'); 
-%           w = feGet(fe,'fiber weights');
-%          fg = fgExtract(fg, 'keep', w > 0);
-%
-% structure that generated the paired connections object
-% - 'pconn' is the paired connections object that has the field to be cleaned
-% - 'label' is the is the field of indices that will be cleaned.
-%   
+%     fg    - fiber group in acpc space
+%     pconn - paired connection object created with fg
+%     label - string indicating the fiber groups to clean
+%             either:
+%                     'all' for all assigned streamlines or
+%                     'nzw' for non-zero weighted fibers returned by LiFE
+%             
 % OUTPUTS:
-% - 'pconn' is the paired connections object wiht the cleaned streamline
-%   indices added in a new field appended with '_clean'.
+%     pconn - is the paired connections object with the cleaned streamline
+%             indices added in a new label appended with '_clean'.
 %
-% - 'cln' is the cell array of length(pconn) that is created in the fxn and
-%   added to pconn. It is for debugging - no different information is
-%   stored here.
+%     cln   - debugging output; the cell array that is added internally to pconn
 %
-
-display('Converting streamlines to ACPC space...');
+% TODO:
+% - provide fxn level access to cleaning parameters
+%
+% EXAMPLE:
+%
+% % load data
+% parc = niftiRead('labels.nii.gz');
+% fg        = feGet(fe, 'fibers acpc');
+% fibers    = fg.fibers;
+% fibLength = fefgGet(fg, 'length');
+% weights   = feGet(fe, 'fiberweights');
+%
+% % assign streamlines to edges
+% [ pconn, rois ] = feCreatePairedConnections(parc, fibers, fibLength, weights);
+%
+% % clean streamlines too far from center with all streamlines that are assigned
+% pconn = feCleanPairedConnections(fg, pconn, 'all');
+%
+% Brent McPherson (c), 2017 - Indiana University
+%
 
 % preallocate cleaned edge structure
 cln = cell(length(pconn), 1);
