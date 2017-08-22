@@ -1,9 +1,45 @@
-function [ glob, node, nets ] = fnEstimateLouvainCommunity(mat, gamma, iters, tau)
+function [ glob, node, nets ] = fnEstimateLouvainCommunity(mat, iters, gamma, tau)
 %fnEstimateLouvainCommunity is a loop to compute and return Louvain
-% community estimates with practical iterations in a usable form alongside
+% community estimates with a user defined number of iterations alongside
 % other network summaries.
 %
-% add small worldness? it's not really a useful measure...
+% INPUTS:
+%     mat   - the input adjacency matrix; can be weighted or unweighted
+%     iters - the number of iterations to find the maximum Q statistic
+%     gamma - Louvain resolution parameter
+%                 gamma > 1:  detects smaller modules
+%            0 <= gamma < 1:  detects larger modules
+%                 gamma = 1:  classic modularity
+%     tau   - threshold of reclustering for consensus
+%
+% OUTPUTS:
+%     glob - structure conataining global network properties of Louvain estimation
+%     node - structure containing node wise network properties of Louvain estimation
+%     nets - structure containing graphs describing properties of Louvain estimation
+%
+% TODO:
+% - add small worldness estimate in with repeats
+% - - make this optional? very slow in large networks, extra measure might not be useful
+%
+% EXAMPLE:
+%
+% % load data
+% parc          = niftiRead('labels.nii.gz');
+% fg            = feGet(fe, 'fibers acpc');
+% fibers        = fg.fibers;
+% fibLength     = fefgGet(fg, 'length');
+% weights       = feGet(fe, 'fiberweights');
+%
+% % assign streamlines to edges
+% [ pconn, rois ] = feCreatePairedConnections(parc, fibers, fibLength, weights);
+%
+% % create adjacency matrices of non-zero weighted fibers
+% [ omat, olab ] = feCreateAdjacencyMatrices(pconn, 'nzw');
+%
+% % compute binary network statistics from omat output
+% [ glob, node, nets ] = fnRentianScaling(omat(:,:,1), rois, 50);
+%
+% Brent McPherson (c), 2017 - Indiana University
 %
 
 % create simple data structure
@@ -48,12 +84,6 @@ nets.nsrta = nets.nrm(bb, bb);
 
 % build consensus partition or agreement matrix
 node.consensus = consensus_und(nets.agree, tau, iters);
-
-% % compute small-worldness
-% sw1 = mean(cellfun(@mean, rep.mcoef));
-% sw2 = mean(cellfun(@mean, rep.chpl));
-% 
-% fns.nrm.smwrld = (fns.nrm.mcoef / sw1) / (fns.nrm.chpl / sw2);
 
 end
 

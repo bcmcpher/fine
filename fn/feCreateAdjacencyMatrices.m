@@ -1,18 +1,52 @@
 function [ omat, outLabels ] = feCreateAdjacencyMatrices(pconn, label)
-%feCreateAdjacencyMatrices create adjacency matrices from a pconn list and
-% returns the labels for each matrix along the third dimension.
+%feCreateAdjacencyMatrices creates adjacency matrices from a pconn array and
+% returns the labels for each matrix along the third dimension. The number
+% of matrices returned depends on the number of fields computed for pconn.
 %   
+% INPUTS:
+%     pconn - is the paired connections object to create adjacency matrices from.
+%
+%     label - string indicating the fiber groups for which to create virtual lesions
+%             either:
+%                     'all' for all assigned streamlines or
+%                     'nzw' for non-zero weighted fibers returned by LiFE
+%             Additionally, this can be run after cleaning, resulting in
+%             valid calls of 'all_clean' and 'nzw_clean', respectively.
+%
+% OUTPUTS:
+%     omat - 3d array containing (nodes x nodes x edge_type) of processed networks
+%     olab - cell array of labels of the 'edge_type' along the 3rd dimension of omat
+%
+% EXAMPLE:
+%
+% % load data
+% parc          = niftiRead('labels.nii.gz');
+% fg            = feGet(fe, 'fibers acpc');
+% fibers        = fg.fibers;
+% fibLength     = fefgGet(fg, 'length');
+% weights       = feGet(fe, 'fiberweights');
+%
+% % assign streamlines to edges
+% [ pconn, rois ] = feCreatePairedConnections(parc, fibers, fibLength, weights);
+%
+% % create adjacency matrices of non-zero weighted fibers
+% [ omat, olab ] = feCreateAdjacencyMatrices(pconn, 'nzw');
+%
+% Brent McPherson (c), 2017 - Indiana University
+%
 
 % build matrices from pconn
 
 display('Building Adjacency Matrices...');
 
 % pull .matrix component from cell to determine how many matrices to make
-tmp = getfield(pconn{1}, label);
+% this assumes all the fields are the same - reasonably true
+tmp = pconn{1}.(label);
 tmp = tmp.matrix;
 
 % find the and label fields
 connLabels = fieldnames(tmp);
+outLabels = cell(length(connLabels, 1));
 for ii = 1:length(connLabels)
     outLabels{ii} = [ label '_' connLabels{ii} ];
 end
@@ -45,9 +79,9 @@ for ii = 1:length(pconn)
     for jj = 1:nmat
         
         % catch the specific matrix value
-        val =  getfield(pconn{ii}, label);
+        val = pconn{ii}.(label);
         val = val.matrix;
-        val = getfield(val, connLabels{jj});
+        val = val.(connLabels{jj});
         
         % assign labels to output matrix
         omat(pairs(ii, 1), pairs(ii, 2), jj) = val;

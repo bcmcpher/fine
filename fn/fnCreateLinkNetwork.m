@@ -1,19 +1,53 @@
 function [ omat, out ] = fnCreateLinkNetwork(pconn, label)
-%% create link network
-% Brent McPherson
-% 20170212
+%fnCreateLinkNetwork creates a link network from a pconn list that has had
+% edge volumes precomputed for the label requested.
 %
-% Need to figure out tensor indice to ROI coords mapping
+% INPUTS:
+%     pconn - is the paired connections object to create a link network from. 
+%             Edge volumes need to be estimated beforehand with fnFindPathVoxels.m 
 %
-% Add other measures?
+%     label - string indicating the fiber groups for which to create virtual lesions
+%             either:
+%                     'all' for all assigned streamlines or
+%                     'nzw' for non-zero weighted fibers returned by LiFE
+%             Additionally, this can be run after cleaning, resulting in
+%             valid calls of 'all_clean' and 'nzw_clean', respectively.
+%
+% OUTPUTS:
+%     omat - a matrix that is (length(pconn) x length(pconn)) in size
+%            showing the Dice coefficient of 
+%     out  - cell array of the data used to compute edge entry in omat
+%
+% TODO:
+% - add other metrics?
 % Cosine Similarity - pdist(ld, 'cosine'); or pdist2(ld1, ld2, 'cosine'); 
 % where ld is matrix of node indices, counts, and/or dictionary orientations.
 % some of these? all of these?
-%
 % https://en.wikipedia.org/wiki/Diversity_index#Simpson_index
 % Simpson's Index: probability that 2 random voxels are part of intersection
 % Richness: how many links does an intersection contain
 % Shannon Diversity Index: global measure of intersections between links 
+%
+% EXAMPLE:
+%
+% % load data
+% parc          = niftiRead('labels.nii.gz');
+% fg            = feGet(fe, 'fibers acpc');
+% fibers        = fg.fibers;
+% fibLength     = fefgGet(fg, 'length');
+% weights       = feGet(fe, 'fiberweights');
+% Phi           = feGet(fe, 'Phi');
+%
+% % assign streamlines to edges
+% [ pconn, rois ] = feCreatePairedConnections(parc, fibers, fibLength, weights);
+%
+% % find the voxels that each edge occupies
+% pconn = fnFindPathVoxels(Phi, pconn, 'nzw');
+%
+% % create link network based on overlap of non-zero weighted fibers
+% [omat, out ] = fnCreateLinkNetwork(pconn, 'nzw');
+%
+% Brent McPherson (c), 2017 - Indiana University
 %
 
 %% generate link network
@@ -58,7 +92,6 @@ parfor ii = 1:length(pairs)
     end
     
     % find the link intersection
-    %indices = intersect(li1, li2, 'rows');
     indices = intersect(li1, li2);
     
     % if the intersection is empty, move on
@@ -72,8 +105,7 @@ parfor ii = 1:length(pairs)
     num = size(indices, 1);
     
     % combine the voxel indices for denominator of Dice coeff
-    %den = size(unique([ li1; li2 ]), 1); % values greater than 1
-    den = size(li1, 1) + size(li2, 1); % values less than 1
+    den = size(li1, 1) + size(li2, 1);
     
     % build Dice coeff values for assignment
     val = (2 * num) / den;

@@ -1,8 +1,34 @@
 function [ glob, node, nets ] = fnNetworkStats(mat)
-%fnNetworkStats returns BCT measures of a symetric undirected network
+%fnNetworkStats returns BCT measures of a symetric undirected network.
+% Additionally, it computes Small World Propensity from the NCT.
 %
-% thresholding / log transform should be preformed outside this fxn  
-% should normalization be expected before as well?
+% INPUTS:
+%     mat     - the input adjacency matrix; can be weighted or unweighted
+%
+% OUTPUTS:
+%     glob - structure conataining global network properties
+%     node - structure containing node wise network properties
+%     nets - structure containing graphs describing properties
+%
+% EXAMPLE:
+%
+% % load data
+% parc          = niftiRead('labels.nii.gz');
+% fg            = feGet(fe, 'fibers acpc');
+% fibers        = fg.fibers;
+% fibLength     = fefgGet(fg, 'length');
+% weights       = feGet(fe, 'fiberweights');
+%
+% % assign streamlines to edges
+% [ pconn, rois ] = feCreatePairedConnections(parc, fibers, fibLength, weights);
+%
+% % create adjacency matrices of non-zero weighted fibers
+% [ omat, olab ] = feCreateAdjacencyMatrices(pconn, 'nzw');
+%
+% % compute binary network statistics from omat output
+% [ glob, node, nets ] = fnNetworkStats(omat(:,:,1));
+%
+% Brent McPherson (c), 2017 - Indiana University
 %
 
 %% fiber data - connection matrix
@@ -13,7 +39,6 @@ nets.raw = mat;
 nets.nrm = weight_conversion(nets.raw, 'normalize');
 nets.len = weight_conversion(nets.raw, 'lengths');
 [ nets.dist, nets.edge ] = distance_wei(nets.len); 
-%[ nets.tree, nets.clus ] = backbone_wu(nets.nrm, score);
 
 %% node measures
 
@@ -38,7 +63,6 @@ display('Computing Global Summary Statistics...');
 glob.mean_ccoef = mean(node.ccoef);
 glob.trans = transitivity_wu(nets.nrm);
 glob.glbEff = efficiency_wei(nets.nrm, 0);
-%[ nets.score, glob.score ] = score_wu(nets.nrm, score); 
 glob.assort = assortativity_wei(nets.nrm, 0);
 
 % will fail if log10(mat) is provided
@@ -49,25 +73,5 @@ glob.rcc = rich_club_wu(nets.nrm);
 
 % compute small world propensity
 [ glob.swp, glob.swp_dc, glob.swp_dl, glob.swp_dt ] = rep_swp(nets.raw, 50);
-
-%% estimate community structure - compartmentalized
-% This iterates, so it's slow in large networks. Proabably keep it separate.
-% 
-% display('Estimating Louvain Community Structure...');
-% 
-% [ lglob, lnode, lnets ] = fnEstimateLouvainCommunity(nets.nrm, iters, 0.5);
-% 
-% % catch data in return structures
-% glob.qstat = lglob.qstat;
-% node.assign = lnode.assign;
-% node.consensus = lnode.consensus;
-% nets.agree = lnets.agree;
-% nets.rsrta = lnets.rsrta;
-% nets.nsrta = lnets.nsrta;
-% 
-% % community structure - local / global measures
-% [ node.modularity, glob.modulartiy ] = modularity_und(nets.nrm, 1);
-% node.pcoef = participation_coef(nets.nrm, node.assign);
-% node.modz = module_degree_zscore(nets.nrm, node.assign);
 
 end

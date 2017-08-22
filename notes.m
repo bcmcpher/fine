@@ -4,6 +4,9 @@
 
 %% TODO:
 
+% feCreateAdjacencyMatrices
+% - make sure it still works with changes
+%
 % feTractProfilePairedConnections
 % - pass dt6 instead of msvol to create multiple profiles
 % - check if a labels exists and don't overwrite / add clobber
@@ -14,11 +17,42 @@
 % - add 'norm' option for computing virtual lesions
 % - check that the results I mean() are supposed to be meaned
 %
+% create fxn that finds single msvol value per edge
+% 
+% condense / combine plot fxns - many redundant
+%
+% streamline render fxns
+% - finish / check some functionality
+% - better handle individual / multiple inputs in network render
+% - set defualt view to minmax(x, y, z) coords + 10%
+%
+% fnEstimateLouvainCommunity
+% - assign defualt parameters
+%
+% add fxn of shape data for pconn
+%
+% fnBinaryNetworkStats
+% - assign / otherwise mark a default value for stats
+%
+% fnRentianScaling
+% - set up a defualt number of iterations
+%
 % feCreatePairedConnections 
 % - catch endpoints as ROI data
 %
 % feCleanPairedConnections
 % - provide fxn level access to cleaning parameters
+%
+% scripts and workflows are essentially the same - merge somehow
+% - drop project specific fxns
+%
+% check all the plot / volume fxn once the majority of above are done
+% - they have mostly minor changes / tweaks
+%
+% fix ALL function names
+%
+% fxn estimating neural conduction speed / bitrate for all edges
+%
 
 %% figure out network shape stats for edges
 
@@ -42,7 +76,7 @@ dtArr = dtiEigComp(eigVec, eigVal);
 dtiEigenvaluesFromWestinShapes();
 
 % See what other shape summaries I can pull from something like
-% USE CODE HERE TO COMPUTE WEIGHTED DISTANCE
+% USE CODE HERE TO COMPUTE WEIGHTED DISTANCE FOR A FG PROFILE
 [ curv, tors ] = AFQ_ParameterizeTractShape(fg);
 
 % mba code to compute values by streamline
@@ -85,6 +119,8 @@ dtiFiberProperties
 dtiFiberSummary
 
 %% others / extras
+
+% add optional smoothing / output space to endpoint ROI map
 
 % create probability map in MNI space for each edge across subjects, similar to:
 AFQ_MakeFGProbabilityMap();
