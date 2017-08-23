@@ -4,8 +4,6 @@
 
 %% TODO:
 
-%
-% create fxn that finds single msvol value per edge
 % 
 % condense / combine plot fxns - many redundant
 %
@@ -24,6 +22,10 @@
 %
 % link network functions
 %
+% parallel pool fxn
+%
+% find where all the loops can 'continue' without breaking 
+%
 % feTractProfilePairedConnections
 % - check if the connections are too short for a reasonable profile (?)
 %
@@ -35,14 +37,14 @@
 %
 % feCreatePairedConnections 
 % - catch endpoints as ROI data
-% - return object that has total counts
+% - return object that has total assigned counts / descriptives
 %
 % feCleanPairedConnections
 % - provide fxn level access to cleaning parameters
 % - explicitly pass a minimum number of streamlines for a connection to exist
 %
 % scripts and workflows are essentially the same - merge somehow
-% - drop project specific fxns
+% - drop project specific fxns, but don't loose them...
 %
 % check all the plot / volume fxn once the majority of above are done
 % - they have mostly minor changes / tweaks
