@@ -20,6 +20,7 @@ function [ omat, out ] = fnCreateLinkNetwork(pconn, label)
 %
 % TODO:
 % - add other metrics?
+% Mutual Information and Joint Entropy
 % Cosine Similarity - pdist(ld, 'cosine'); or pdist2(ld1, ld2, 'cosine'); 
 % where ld is matrix of node indices, counts, and/or dictionary orientations.
 % some of these? all of these?

@@ -4,32 +4,28 @@
 
 %% TODO:
 
-% feCreateAdjacencyMatrices
-% - make sure it still works with changes
-%
-% feTractProfilePairedConnections
-% - pass dt6 instead of msvol to create multiple profiles
-% - check if a labels exists and don't overwrite / add clobber
-% - pass nnodes / minnum as fxn level arguments
-% - check if the connections are too short for a reasonable profile (?)
-%
-% feVirtualLesionPairedConnections
-% - add 'norm' option for computing virtual lesions
-% - check that the results I mean() are supposed to be meaned
 %
 % create fxn that finds single msvol value per edge
 % 
 % condense / combine plot fxns - many redundant
 %
+% figure out if single fxn for making matrix field is workable
+%
 % streamline render fxns
 % - finish / check some functionality
-% - better handle individual / multiple inputs in network render
+% - better handle individual / multiple inputs in edge render
 % - set defualt view to minmax(x, y, z) coords + 10%
 %
 % fnEstimateLouvainCommunity
 % - assign defualt parameters
 %
-% add fxn of shape data for pconn
+% create fxn of shape data (curv, tors) for pconn edges
+% - super fiber array?
+%
+% link network functions
+%
+% feTractProfilePairedConnections
+% - check if the connections are too short for a reasonable profile (?)
 %
 % fnBinaryNetworkStats
 % - assign / otherwise mark a default value for stats
@@ -39,9 +35,11 @@
 %
 % feCreatePairedConnections 
 % - catch endpoints as ROI data
+% - return object that has total counts
 %
 % feCleanPairedConnections
 % - provide fxn level access to cleaning parameters
+% - explicitly pass a minimum number of streamlines for a connection to exist
 %
 % scripts and workflows are essentially the same - merge somehow
 % - drop project specific fxns

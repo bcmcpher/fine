@@ -46,7 +46,7 @@ tmp = tmp.matrix;
 
 % find the and label fields
 connLabels = fieldnames(tmp);
-outLabels = cell(length(connLabels, 1));
+outLabels = cell(length(connLabels), 1);
 for ii = 1:length(connLabels)
     outLabels{ii} = [ label '_' connLabels{ii} ];
 end

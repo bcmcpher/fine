@@ -1,12 +1,9 @@
-function [ pconn ] = fnFindPathVoxels(Phi, pconn, label)
+function [ pconn ] = fnFindPathVoxels(pconn, label, Phi)
 %fnFindPathVoxels finds the tensor indices of voxels for every connection 
 % to create either microstructural summaries of networks or for
 % generating link networks.
 %
 % INPUTS:
-%     Phi   - the sparse tensor object from LiFE model to find voxel /
-%             streamline node intersection.
-%
 %     pconn - is the paired connections object to compute edge volumes for.
 %
 %     label - string indicating the fiber groups for which to create virtual lesions
@@ -16,9 +13,12 @@ function [ pconn ] = fnFindPathVoxels(Phi, pconn, label)
 %             Additionally, this can be run after cleaning, resulting in
 %             valid calls of 'all_clean' and 'nzw_clean', respectively.
 %
+%     Phi   - the sparse tensor object from LiFE model to find voxel /
+%             streamline node intersection.
+%
 % OUTPUTS:
-%     omat - 3d array containing (nodes x nodes x edge_type) of processed networks
-%     olab - cell array of labels of the 'edge_type' along the 3rd dimension of omat
+%     pconn - the paired connection object with the voxel indices for each 
+%             edge computed from the fe.roi
 %
 % TODO:
 % - compute proportion of white matter (unique_edge / voxel dim of Phi)
