@@ -9,6 +9,13 @@
 %
 % figure out if single fxn for making matrix field is workable
 %
+% create fxn of shape data (curv, tors) for pconn edges
+% - super fiber array?
+%
+% link network functions
+%
+% parallel pool fxn
+%
 % streamline render fxns
 % - finish / check some functionality
 % - better handle individual / multiple inputs in edge render
@@ -16,13 +23,6 @@
 %
 % fnEstimateLouvainCommunity
 % - assign defualt parameters
-%
-% create fxn of shape data (curv, tors) for pconn edges
-% - super fiber array?
-%
-% link network functions
-%
-% parallel pool fxn
 %
 % find where all the loops can 'continue' without breaking 
 %

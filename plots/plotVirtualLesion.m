@@ -1,7 +1,7 @@
 function [ fig ] = plotVirtualLesion(se)
 %plotVirtualLesion recreates the distributions from the LiFE paper for any
 % virtual lesion.
-%   
+%
 
 %% raw RMSE distirbutions
 fig(1).name = 'rmse_distributions';
@@ -24,16 +24,17 @@ yjit = ymax * 0.10;
 
 plot(se.lesion.xhist,se.lesion.hist,'-','color', [.95 .45 .1],'linewidth',2); hold on
 plot(se.nolesion.xhist,se.nolesion.hist,'-','linewidth',2, 'color', [.1 .45 .95])
-plot([se.nolesion.rmse.mean,se.nolesion.rmse.mean], [0, ymax+yjit],'-','color',[.1 .45 .95] )
-plot([se.lesion.rmse.mean,se.lesion.rmse.mean], [0, ymax+yjit], '-', 'color',[.95 .45 .1])
+plot([se.nolesion.rmse.mean,se.nolesion.rmse.mean], [0, ymax + yjit],'-','color',[.1 .45 .95] )
+plot([se.lesion.rmse.mean,se.lesion.rmse.mean], [0, ymax + yjit], '-', 'color',[.95 .45 .1])
 
-title(sprintf('mean RMSE\nno-lesion %2.3f | lesion %2.2f',se.nolesion.rmse.mean,se.lesion.rmse.mean),'fontsize',16)
-ylabel('Probability', 'fontsize',14);xlabel('RMSE', 'fontsize',14)
+title(sprintf('mean RMSE\nno-lesion %2.3f | lesion %2.2f', se.nolesion.rmse.mean, se.lesion.rmse.mean), 'fontsize', 16)
+ylabel('Probability', 'fontsize', 14);
+xlabel('RMSE', 'fontsize', 14)
 
 legend({'Lesion','No lesion'},'fontsize',14);
 
 set(gca,'box','off','xtick',[mindat round(se.xrange(2)/2) round(se.xrange(2))],'ytick',[0 ymid ymax],...
-    'xlim', [mindat maxdat], 'ylim', [0 ymax+yjit], ...
+    'xlim', [mindat maxdat], 'ylim', [0 ymax + yjit], ...
     'tickdir', 'out', 'ticklength', [0.025 0]);
 
 %% bootstraps from strength of evidence
