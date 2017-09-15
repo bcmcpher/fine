@@ -24,8 +24,6 @@
 % fnEstimateLouvainCommunity
 % - assign defualt parameters
 %
-% find where all the loops can 'continue' without breaking 
-%
 % feTractProfilePairedConnections
 % - check if the connections are too short for a reasonable profile (?)
 %

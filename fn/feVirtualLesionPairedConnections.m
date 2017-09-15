@@ -38,7 +38,7 @@ function [ pconn, vlout ] = feVirtualLesionPairedConnections(pconn, label, M, we
 % measured_dsig = feGet(fe, 'dsigdemeaned by voxel');
 %
 % % if you want the normalized estimate, load the mean dsig
-% S0 = feGet(fe,  'b0signalimage');
+% S0 = feGet(fe, 'b0signalimage');
 %
 % % assign streamlines to edges
 % [ pconn, rois ] = feCreatePairedConnections(parc, fibers, fibLength, weights);
@@ -56,10 +56,10 @@ function [ pconn, vlout ] = feVirtualLesionPairedConnections(pconn, label, M, we
 if(~exist('S0', 'var') || isempty(S0))
     S0 = [];
     norm = 0;
-    display('Computing virtual lesion on raw diffusion signal.');
+    display('Computing virtual lesions on raw diffusion signal.');
 else
     norm = 1;
-    display('Computing virtual lesion on demeaned diffusion signal.');
+    display('Computing virtual lesions on demeaned diffusion signal.');
 end
 
 if(~exist('clobber', 'var') || isempty(clobber))

@@ -56,7 +56,7 @@ if(~exist('nnodes', 'var') || isempty(nnodes))
 end
 
 if(~exist('minNum', 'var') || isempty(minNum))
-    minNum = 1;
+    minNum = 3;
 end
 
 if(~exist('clobber', 'var') || isempty(clobber))

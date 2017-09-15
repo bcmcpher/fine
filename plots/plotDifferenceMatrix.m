@@ -7,6 +7,8 @@ function [ fh ] = plotDifferenceMatrix(mat1, mat2)
 
 % calculate the difference, find caxis range
 mat = mat1 - mat2;
+
+
 crng = max(abs(round(minmax(mat(:)'))));
 
 % make the plot
