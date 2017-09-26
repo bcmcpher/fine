@@ -32,6 +32,8 @@ y = zeros(75, 100);
 
 for rep = 1:75
     
+    display(['Repeat #: ' num2str(rep)]);
+    
     % fit the weights, provide the previous starting weights
     Niter = 200;
     fe = feSet(fe, 'fit', feFitModel(feGet(fe, 'model'), ...
@@ -44,6 +46,8 @@ for rep = 1:75
     % begin the plot
     if rep == 1
         
+        display(['Storing Repeat #: ' num2str(rep)]);
+        
         % pull bin centers on the first iteration
         [ y(rep, :), x ] = hist(log10(w0(w0 > 0)), 100);
         % plot the first histogram
@@ -52,19 +56,21 @@ for rep = 1:75
         
     else
         
+        display(['Storing Repeat #: ' num2str(rep)]);
+        
         % assign values
         [ y(rep, :), x ] = hist(log10(w0(w0 > 0)), x);
         % plot the first histogram
         %plot(x, y(rep, :), 'color', cols{rep});
-        save(outfile, 'x', 'y', '-v7.3', '-append');
+        save(outfile, 'x', 'y', '-append');
         
     end
     
 end
 
-display('Saving output...');
+display('Saving final output...');
 
 % save all the outputs
-save(outfile, 'fe', '-v7.3', '-append');
+save(outfile, 'fe', '-append');
 
 end
