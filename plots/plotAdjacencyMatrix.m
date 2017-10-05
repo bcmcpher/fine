@@ -3,12 +3,18 @@ function [ fh ] = plotAdjacencyMatrix(mat, crng, lines)
 %   crng is the color range
 %   add option for doing log or not
 %   figure out how to add labels w/ fh
+%   indices to sort edges
+%   lines that divide modules 
 %
 %   [0, 4] is what I've used for EMD on test data
 %   [-2, 7] is what I've used for Density on test data
 %
 % Brent McPherson (c), 2017
 %
+
+if ~exist('lines', 'var') || isempty(lines)
+  lines = 'noshow';
+end
 
 fh = figure('Position', [580 580 1080 680], 'color', 'white');
 colormap('hot');
