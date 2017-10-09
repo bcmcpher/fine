@@ -5,12 +5,12 @@
 %% TODO:
 
 % 
-% figure out if single fxn for making matrix field is workable
-%
-% create fxn of shape data (curv, tors) for pconn edges
-% - super fiber array?
+% add super-fiber options to initial creation, it's actually a small structure
 %
 % link network functions
+% - add other similarity measures
+% - documentation
+% - fix volumes so they have at least 2 connections in them
 %
 % parallel pool fxn
 %
@@ -19,8 +19,10 @@
 % - better handle individual / multiple inputs in edge render
 % - set defualt view to minmax(x, y, z) coords + 10%
 %
+% figure out if single fxn for making matrix field is workable
+%
 % fnEstimateLouvainCommunity
-% - assign defualt parameters
+% - assign default parameters
 %
 % feTractProfilePairedConnections
 % - check if the connections are too short for a reasonable profile (?)

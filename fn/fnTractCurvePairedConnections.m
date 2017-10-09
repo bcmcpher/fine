@@ -1,4 +1,4 @@
-function [ pconn, tcrve ] = fnTractCurvePairedConnections(fg, pconn, label, nnodes, minNum, clobber)
+function [ pconn, tcrve, pcsf ] = fnTractCurvePairedConnections(fg, pconn, label, nnodes, minNum, clobber)
 %feTractShapePairedConnections creates a 
 %
 % INPUTS:
@@ -66,6 +66,7 @@ end
 
 % preallocate tract profile output
 tcrve = cell(length(pconn), 1);
+pcsf = cell(length(pconn), 1);
 tccnt = 0;
 tctry = 0;
 
@@ -83,11 +84,13 @@ parfor ii = 1:length(pconn)
                 
         % create tract-wise fg and super fiber representation
         tfg = fgCreate('fibers', fibers(tmp.indices));
-        sf = dtiComputeSuperFiberRepresentation(tfg, [], nnodes);
-        tfg = dtiResampleFiberGroup(tfg, nnodes, 'N');
+        tfg = dtiReorientFibers(tfg, nnodes);
+        %tfg = dtiResampleFiberGroup(tfg, nnodes, 'N');
+        
+        pcsf{ii} = dtiComputeSuperFiberRepresentation(tfg, [], nnodes);
         
         % if the variance of the streamlines distance is far, too many
-        % streamlines are dropped to reliably compute profile
+        % streamlines are dropped to reliably compute curves
         
         try
             
@@ -124,12 +127,12 @@ parfor ii = 1:length(pconn)
                 X = fc((1:nnodes:numfibers*nnodes)+(node-1), :);
                 
                 % get the covariance structure from the super fiber group
-                fcov = sf.fibervarcovs{1};
+                fcov = pcsf{ii}.fibervarcovs{1};
                 sigma = [fcov(1:3, node)'; ...
                          0 fcov(4:5, node)';...
                          0 0 fcov(6, node)'];
                 sigma = sigma + sigma' - diag(diag(sigma));
-                mu    = sf.fibers{1}(:, node)';
+                mu    = pcsf{ii}.fibers{1}(:, node)';
                 
                 % weights for the given node.
                 weights(node, :) = mvnpdf(X, mu, sigma')';
