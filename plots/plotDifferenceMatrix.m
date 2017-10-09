@@ -1,4 +1,4 @@
-function [ fh ] = plotDifferenceMatrix(mat1, mat2)
+function [ fh, mat ] = plotDifferenceMatrix(mat1, mat2, crng)
 %plotDifferenceMatrix returns a fh to the difference between mat1 and mat2
 % This is used for inspecting differences between the cleaned networks
 %
@@ -8,8 +8,10 @@ function [ fh ] = plotDifferenceMatrix(mat1, mat2)
 % calculate the difference, find caxis range
 mat = mat1 - mat2;
 
-
-crng = max(abs(round(minmax(mat(:)'))));
+if ~exist('crng', 'var') || isempty(crng)
+    value = max(abs(round(minmax(mat(:)'))));
+    crng = [-value value];
+end
 
 % make the plot
 fh = figure('Position', [580 580 1080 680]); 
@@ -17,17 +19,8 @@ colormap(redblue);
 imagesc(mat);
 axis('square'); axis('equal'); axis('tight');
 colorbar;
-caxis([-crng crng]);
+caxis(crng);
 set(gca, 'XTickLabel', '', 'YTickLabel', '', 'XTick', [], 'YTick', []);
-
-%% left / right / diagonal lines
-
-% full = size(mat, 1) + 0.5;
-% half = (size(mat, 1) / 2) + 0.5;
-% 
-% line([half half], [0.5 full], 'Color', [0 0 0]);
-% line([0.5 full], [half half], 'Color', [0 0 0]);
-% line([full 0.5], [full 0.5], 'Color', [0 0 0]);
 
 end
 

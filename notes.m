@@ -5,8 +5,6 @@
 %% TODO:
 
 % 
-% condense / combine plot fxns - many redundant
-%
 % figure out if single fxn for making matrix field is workable
 %
 % create fxn of shape data (curv, tors) for pconn edges
@@ -46,6 +44,7 @@
 %
 % check all the plot / volume fxn once the majority of above are done
 % - they have mostly minor changes / tweaks
+% - comments / documentation / examples
 %
 % fix ALL function names
 %

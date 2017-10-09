@@ -16,9 +16,13 @@ if ~exist('lines', 'var') || isempty(lines)
   lines = 'noshow';
 end
 
-fh = figure('Position', [580 580 1080 680], 'color', 'white');
+if ~exist('crng', 'var') || isempty(crng)
+    crng = [ 0 max(max(mat)); ];
+end
+
+fh = figure('Position', [580 580 1080 680]);
 colormap('hot');
-imagesc(log(mat));
+imagesc(mat);
 axis('square'); axis('equal'); axis('tight');
 colorbar;
 caxis(crng);
@@ -27,20 +31,40 @@ set(gca, 'XTickLabel', '', 'YTickLabel', '', 'XTick', [], 'YTick', []);
 
 %% left / right / diagonal lines
 
-switch lines
+if ischar(lines)
     
-    case {'show'}
+    switch lines
         
-        full = size(mat, 1) + 0.5;
-        half = (size(mat, 1) / 2) + 0.5;
-        
-        % these are off a bit
-        line([half half], [0.5 full], 'Color', [0 0 1], 'Linewidth', 0.25);
-        line([0.5 full], [half half], 'Color', [0 0 1], 'Linewidth', 0.25);
-        line([full 0.5], [full 0.5], 'Color', [0 0 1], 'Linewidth', 0.25);
-        
-    otherwise
-        
+        case {'equal'}
+            
+            full = size(mat, 1) + 0.5;
+            half = (size(mat, 1) / 2) + 0.5;
+            
+            % these are off a bit
+            line([half half], [0.5 full], 'Color', [1 1 1], 'Linewidth', 0.25);
+            line([0.5 full], [half half], 'Color', [1 1 1], 'Linewidth', 0.25);
+            line([full 0.5], [full 0.5], 'Color', [1 1 1], 'Linewidth', 0.25);
+            
+        case {'noshow'}
+            
+        otherwise
+            
+            warning('Unknown line option requested. No lines drawn.');
+            
+    end
+    
+else
+
+    % assume this is plotting module boundaries
+    nummod = max(lines);
+    N = size(mat, 1);
+    mod_boundaries = find(abs(diff(lines))>0);
+    for i=1:nummod-1
+        ll = line([mod_boundaries(i)+0.5 mod_boundaries(i)+0.5],[0.5 N+0.5]); set(ll,'Color',[1 1 1],'LineWidth',0.25);
+        ll = line([0.5 N+0.5],[mod_boundaries(i)+0.5 mod_boundaries(i)+0.5]); set(ll,'Color',[1 1 1],'LineWidth',0.25);
+    end;
+
+    
 end
 
 end

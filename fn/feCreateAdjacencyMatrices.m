@@ -1,5 +1,5 @@
-function [ omat, outLabels ] = feCreateAdjacencyMatrices(pconn, label)
-%feCreateAdjacencyMatrices creates adjacency matrices from a pconn array and
+function [ omat, olab ] = feCreateAdjacencyMatrices(pconn, label, srt)
+%feCreateAdjacencyMatrices() creates adjacency matrices from a pconn array and
 % returns the labels for each matrix along the third dimension. The number
 % of matrices returned depends on the number of fields computed for pconn.
 %   
@@ -13,8 +13,13 @@ function [ omat, outLabels ] = feCreateAdjacencyMatrices(pconn, label)
 %             Additionally, this can be run after cleaning, resulting in
 %             valid calls of 'all_clean' and 'nzw_clean', respectively.
 %
+%     srt   - (optional) apply a specific order to the cortical nodes to group the
+%             connections differently. By default, the nodes are sorted by
+%             the number assigned in the cortical label volume.
+%
 % OUTPUTS:
 %     omat - 3d array containing (nodes x nodes x edge_type) of processed networks
+%
 %     olab - cell array of labels of the 'edge_type' along the 3rd dimension of omat
 %
 % EXAMPLE:
@@ -35,6 +40,11 @@ function [ omat, outLabels ] = feCreateAdjacencyMatrices(pconn, label)
 % Brent McPherson (c), 2017 - Indiana University
 %
 
+% parse optional arguments
+if(~exist('srt', 'var') || isempty(srt))
+    srt = [];
+end
+
 % build matrices from pconn
 
 display('Building Adjacency Matrices...');
@@ -46,9 +56,9 @@ tmp = tmp.matrix;
 
 % find the and label fields
 connLabels = fieldnames(tmp);
-outLabels = cell(length(connLabels), 1);
+olab = cell(length(connLabels), 1);
 for ii = 1:length(connLabels)
-    outLabels{ii} = [ label '_' connLabels{ii} ];
+    olab{ii} = [ label '_' connLabels{ii} ];
 end
 
 % find output size
@@ -94,5 +104,10 @@ end
 omat(isnan(omat)) = 0;
 omat(isinf(omat)) = 0;
 omat(omat < 0) = 0;
+
+% sort the cortical nodes given a vector
+if ~isempty(srt)
+    omat = omat(srt, srt, :);
+end
 
 end
