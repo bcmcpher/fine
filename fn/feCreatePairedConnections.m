@@ -204,7 +204,7 @@ parfor ii = 1:length(pairs)
     nzlen = mean(pconn{ii}.all.lengths(nzw));
     
     % if there are no nz lengths
-    if isempty(  pconn{ii}.nzw.lengths) 
+    if isempty(pconn{ii}.nzw.lengths) 
         nzdln = 0;
     else
         nzdln = sum(1 ./ pconn{ii}.nzw.lengths);
@@ -227,7 +227,7 @@ parfor ii = 1:length(pairs)
     pconn{ii}.nzw.matrix.length = nzlen;
     pconn{ii}.nzw.matrix.denlen = (2 / psz) * nzcnt * nzdln;
     
-    % create non-zero weighted streamline counts
+    % create zero weighted streamline counts
     pconn{ii}.zrw.matrix.count = zrcnt;
     pconn{ii}.zrw.matrix.density = (2 * zrcnt) / psz;
     pconn{ii}.zrw.matrix.length = zrlen;
