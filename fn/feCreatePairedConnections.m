@@ -196,12 +196,12 @@ parfor ii = 1:length(pairs)
     
     % values used to calculate different edge weights
     cnt = size(pconn{ii}.all.indices, 1);
-    len = mean(pconn{ii}.all.lengths);
+    len = nanmean(pconn{ii}.all.lengths);
     dln = sum(1 / pconn{ii}.all.lengths);
     
     % values used to calculate different edge weights for non-zero weighted streamlines
     nzcnt = size(pconn{ii}.all.indices(nzw), 1);
-    nzlen = mean(pconn{ii}.all.lengths(nzw));
+    nzlen = nanmean(pconn{ii}.all.lengths(nzw));
     
     % if there are no nz lengths
     if isempty(pconn{ii}.nzw.lengths) 
@@ -212,7 +212,7 @@ parfor ii = 1:length(pairs)
     
     % create equivalent measures for zero weighted fibers
     zrcnt = size(pconn{ii}.all.indices(zrw), 1);
-    zrlen = mean(pconn{ii}.all.lengths(zrw));
+    zrlen = nanmean(pconn{ii}.all.lengths(zrw));
     zrdln = sum(1 ./ pconn{ii}.zrw.lengths);
     
     % create all streamline counts

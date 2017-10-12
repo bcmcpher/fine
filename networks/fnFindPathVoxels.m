@@ -36,12 +36,13 @@ function [ pconn ] = fnFindPathVoxels(pconn, label, Phi, dim, clobber)
 % fibLength     = fefgGet(fg, 'length');
 % weights       = feGet(fe, 'fiberweights');
 % Phi           = feGet(fe, 'Phi');
+% vx            = [ 1.25 1.25 1.25 ];
 %
 % % assign streamlines to edges
 % [ pconn, rois ] = feCreatePairedConnections(parc, fibers, fibLength, weights);
 %
 % % find unique voxels in each edge and add them to pconn
-% pconn = fnFindPathVoxels(Phi, pconn, 'nzw');
+% pconn = fnFindPathVoxels(pconn, 'nzw', Phi, vx);
 %
 % Brent McPherson (c), 2017 - Indiana University
 %
@@ -64,7 +65,7 @@ mms3 = prod(dim);
 % estimate total wm vol
 wmvol = nvox * mms3;
 
-display([ 'Total white matter volume estimated at: ' wmvol ' mm^3.' ])
+display([ 'Total white matter volume estimated at: ' num2str(wmvol) ' mm^3.' ])
 
 tic;
 parfor ii = 1:length(pconn)
