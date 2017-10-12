@@ -96,6 +96,10 @@ parfor ii = 1:length(pairs)
     if isempty(li1) || isempty(li2)
         out{ii}.indices = [];
         out{ii}.dice = 0;
+        out{ii}.mutualInformation = 0;
+        out{ii}.jointEntropy = 0;
+        %out{ii}.histogramImage1 = [];
+        %out{ii}.histogramImage2 = [];
         continue
     end
     
@@ -106,31 +110,31 @@ parfor ii = 1:length(pairs)
     if isempty(indices)
         out{ii}.indices = [];
         out{ii}.dice = 0;
+        out{ii}.mutualInformation = 0;
+        out{ii}.jointEntropy = 0;
+        %out{ii}.histogramImage1 = [];
+        %out{ii}.histogramImage2 = [];
         continue
     end
     
     % BEGIN PULLING VALUES FOR JOINT ENTROPY / MI HERE
     % THESE ARE ONLY CONNECTIONS WITH SHARED SPACES
-
-    %keyboard;
     
     % grab image size and ROI image space coordinates
     imc1 = feroi(li1, :);
     imc2 = feroi(li2, :);
 
-    % preallocate image values
-    dims = max([size(imc1, 1), size(imc2, 1)]);
-    im1 = zeros(dims, 1);
-    im2 = zeros(dims, 1);
+    % grab image values
+    im1 = sub2ind(size(img.data), imc1(:,1), imc1(:,2), imc1(:,3));
+    im2 = sub2ind(size(img.data), imc2(:,1), imc2(:,2), imc2(:,3));
     
-    % because I can't figure out easy indexing, loop to get each voxel
-    % intensity for both images
-    for jj = 1:size(imc1, 1)
-        im1(jj) = img.data(imc1(jj, 1), imc1(jj, 2), imc1(jj, 3));
+    % pad data value dimensions - IS THIS VALID? NECESSARY TO WORK...?
+    if length(im2) > length(im1)
+        im1 = [ im1; zeros(length(im2) - length(im1), 1) ];
     end
     
-    for jj = 1:size(imc2, 1)
-        im2(jj) = img.data(imc2(jj, 1), imc2(jj, 2), imc2(jj, 3));
+    if length(im1) > length(im2)
+        im2 = [ im2; zeros(length(im1) - length(im2), 1) ];
     end
         
     % compute bins of joint histogram
@@ -181,8 +185,8 @@ parfor ii = 1:length(pairs)
     out{ii}.dice = val;
     out{ii}.mutualInformation = mutualInformation;
     out{ii}.jointEntropy = jointEntropy;
-    out{ii}.histogramImage1 = histogramImage1;
-    out{ii}.histogramImage2 = histogramImage2;
+    %out{ii}.histogramImage1 = histogramImage1;
+    %out{ii}.histogramImage2 = histogramImage2;
    
 end
 time = toc;
