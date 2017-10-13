@@ -1,14 +1,21 @@
-function [ LNmap, MLmap ] = fnLinkNetworkVolumes(fe, pconn, label, assign, one_out, mlt_out)
+function [ LNmap, MLmap ] = fnLinkNetworkVolumes(fe, pconn, label, assign, one_out, mlt_out, minVol)
 %fnLinkNetworkVolumes converts link network communities to voxel volumes
 %   with some additional work, I hope this will identify major tracts
+%
+% [ LNmap, MLmap ] = fnLinkNetworkVolumes(fe, pconn, 'nzw', node.assign, 'zz_one.nii.gz', 'zz_two.nii.gz');
+%
+
+% define defaults for minimum common voxels
+if(~exist('minVol', 'var') || isempty(minVol))
+    minVol = 1;
+end
 
 % grab count of each community
-% FAILS AS FUNCTION, RUNS INTERACTIVELY
 [ cnt, lab ] = hist(assign, unique(assign));
 cnt = cnt';
 
 % create structure of label and size of each link community
-linkLabelSize = [lab, cnt];
+linkLabelSize = [ lab, cnt ];
 
 % show the linkLabels that are greater than 1
 display(['Found: ' num2str(size(linkLabelSize(cnt > 1, :), 1)) ' labels.']);
@@ -36,20 +43,33 @@ for ii = 1:size(linkLabels, 1)
         if assign(jj) == lab
             
             % append to voxels to that ROI
-            out{ii}.voxel = [ out{ii}.voxel; pconn{jj}.(label).pvoxels ];
+            out{ii}.voxel = [ out{ii}.voxel; pconn{jj}.(label).volume.pvoxels ];
             
         end
         
     end
     
+    % only grab voxels that occur more than once
+    vol = unique(out{ii}.voxel);
+    num = numel(vol);
+    count = zeros(num,1);
+    
+    % for every unique voxel
+    for k = 1:num
+        
+        % get the count
+        count(k) = sum(out{ii}.voxel == vol(k));
+        
+    end
+    
+    % debug printing max intersection of communities
+    display([ 'Label ' num2str(ii) ' has as many as ' num2str(max(count)) ' shared voxels.' ]);
+    
     % set the unique voxels across label
-    out{ii}.voxel = unique(out{ii}.voxel);
+    out{ii}.voxel = vol(count > minVol);
+    %out{ii}.voxel = unique(out{ii}.voxel);
     
 end
-
-% remove duplicate voxel assignments?
-% how should this be reconciled?
-% does it matter?
 
 % create output structure to loop over and fill in volumes
 

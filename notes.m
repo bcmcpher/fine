@@ -8,9 +8,8 @@
 % add super-fiber options to initial creation, it's actually a small structure
 %
 % link network functions
-% - add other similarity measures
+% - add option to skip other similarity measures
 % - documentation
-% - fix volumes so they have at least 2 connections in them
 %
 % parallel pool fxn
 %
