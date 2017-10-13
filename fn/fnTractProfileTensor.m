@@ -1,6 +1,6 @@
 function [ pmat ] = fnTractProfileTensor(pconn, label, prof, srt)
 %fnCreateTractProfileTensor() creates an NxNxNodes tensor of all
-% precomputed tract profiles. Empty profiles are composed of Nas. 
+% precomputed tract profiles. Empty profiles are composed of NaNs. 
 %   
 % INPUTS:
 %     pconn - is the paired connections object to create adjacency matrices from.
