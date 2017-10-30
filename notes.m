@@ -21,6 +21,7 @@
 % figure out if single fxn for making matrix field is workable
 %
 % fnEstimateLouvainCommunity
+% - accept a range of gamma
 % - assign default parameters
 %
 % feTractProfilePairedConnections

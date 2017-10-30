@@ -9,6 +9,8 @@ function [ Mden, Mden_in, Mden_bw, Mden_in_lo, Mden_bw_hi ] = fnModuleDensity(M,
 %              Either:
 %                  'mean' - the average of the edge weights in the modules
 %                  'boot' - bootstrap the average edge weight in the module
+%                  'sum'  - adds up the values within a module - used with
+%                           virtual lesion EMD output for module level statistic
 %     flag   - whether or not to discount diagonal; assumes they're square
 %
 % OUTPUTS:
@@ -89,6 +91,7 @@ for i = 1:mnum
         switch method
             case 'mean'
                 Mden(i, j) = nanmean(Mij(:));
+                
             case 'boot'
                 
                 % linearize data
@@ -112,6 +115,9 @@ for i = 1:mnum
                 
                 % compute the mean of means for bootstrapped module value
                 Mden(i, j) = nanmean(boot);
+                
+            case 'sum'
+                Mden(i, j) = nansum(Mij(:));
                 
             otherwise
                 error('Invalid method of summarizing provided.');

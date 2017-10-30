@@ -1,8 +1,16 @@
-function [ mnten, seten ] = fnTractProfileModules(tptens, srt, method)
+function [ mnten, seten, dbg ] = fnTractProfileModules(tptens, srt, method)
 %fnTractProfileModules() takes a tract profile tensor and averages the
 % profiles into modules for a summary. Returns mean and standard error of
 % the modules.
 %   
+% TODO:
+% - set up to use nchoosek(1:nmod, 2) instead of nested loops
+%
+
+% parse optional arguments
+if(~exist('method', 'var') || isempty(method))
+    method = 'mean';
+end
 
 % grab number of nodes from input
 nnodes = size(tptens, 3);
@@ -11,8 +19,12 @@ nnodes = size(tptens, 3);
 nmod = max(srt);
 
 % create empty output matrix
-mnten = zeros(nmod, nmod, nnodes);
-seten = zeros(nmod, nmod, nnodes);
+mnten = nan(nmod, nmod, nnodes);
+seten = nan(nmod, nmod, nnodes);
+
+% total count of debug outputs 
+dbg = cell(1, nmod^2);
+dbc = 1;
 
 % for every module 'row'
 for i = 1:nmod
@@ -52,6 +64,10 @@ for i = 1:nmod
         % drop the initializing nan row
         moddat = moddat(2:end, :);
         
+        % catch cell array of more usefully sorted data frames
+        dbg{dbc} = moddat;
+        dbc = dbc + 1;
+        
         % define the type of edge summary to compute
         switch method
             
@@ -59,7 +75,8 @@ for i = 1:nmod
                 
                 % directly compute mean and standard error
                 mnten(i, j, :) = nanmean(moddat, 1);
-                seten(i, j, :) = nanstd(moddat, 1) / size(moddat, 1);
+                seten(i, j, :) = nanstd(moddat, 1);
+                %seten(i, j, :) = nanstd(moddat, 1) / size(moddat, 1);
                 
             case 'boot'
                 
@@ -75,7 +92,7 @@ for i = 1:nmod
                     p = randsample(1:nobs, nobs, true);
                     
                     % store the mean of the random samples
-                    boot(perm, :) = nanmean(moddat(p, :));
+                    boot(perm, :) = nanmean(moddat(p, :), 1);
                     
                 end
                 

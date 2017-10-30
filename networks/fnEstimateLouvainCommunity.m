@@ -9,7 +9,7 @@ function [ glob, node, nets ] = fnEstimateLouvainCommunity(mat, iters, gamma, ta
 %     gamma - Louvain resolution parameter
 %                 gamma > 1:  detects smaller modules
 %            0 <= gamma < 1:  detects larger modules
-%                 gamma = 1:  classic modularity
+%                 gamma = 1:  Louvain (classic) modularity
 %     tau   - threshold of reclustering for consensus
 %
 % OUTPUTS:
@@ -18,6 +18,7 @@ function [ glob, node, nets ] = fnEstimateLouvainCommunity(mat, iters, gamma, ta
 %     nets - structure containing graphs describing properties of Louvain estimation
 %
 % TODO:
+% - let gamma have a defualt of one and handle a vector
 % - add small worldness estimate in with repeats
 % - - make this optional? very slow in large networks, extra measure might not be useful
 %
@@ -41,6 +42,11 @@ function [ glob, node, nets ] = fnEstimateLouvainCommunity(mat, iters, gamma, ta
 %
 % Brent McPherson (c), 2017 - Indiana University
 %
+
+% parse optional arguments
+if(~exist('tau', 'var') || isempty(tau))
+    tau = 1;
+end
 
 % create simple data structure
 nets.raw = mat;
