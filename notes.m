@@ -5,10 +5,11 @@
 %% TODO:
 
 % 
-% add super-fiber options to initial creation, it's actually a small structure
+% store curv/tors parameters in profiles, not a separate field
 %
 % link network functions
 % - add option to skip other similarity measures
+% - add average angle between tracts
 % - documentation
 %
 % parallel pool fxn
@@ -19,6 +20,9 @@
 % - set defualt view to minmax(x, y, z) coords + 10%
 %
 % figure out if single fxn for making matrix field is workable
+%
+% fill in profiles as nan x nnodes so size can be reliables found 
+% -improve fnTractProfileTensor
 %
 % fnEstimateLouvainCommunity
 % - accept a range of gamma
@@ -31,11 +35,14 @@
 % - assign / otherwise mark a default value for stats
 %
 % fnRentianScaling
+% - deal with rois structure or make a separate helper to pull that?
 % - set up a defualt number of iterations
 %
 % feCreatePairedConnections 
+% - superfiber w/ usable default parameters
 % - catch endpoints as ROI data
 % - return object that has total assigned counts / descriptives
+% - must find a minimum number of streamlines here (?)
 %
 % feCleanPairedConnections
 % - provide fxn level access to cleaning parameters

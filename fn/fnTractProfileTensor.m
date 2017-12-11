@@ -1,4 +1,4 @@
-function [ pmat ] = fnTractProfileTensor(pconn, label, prof, srt)
+function [ pmat ] = fnTractProfileTensor(pconn, label, prof, nnodes, srt)
 %fnCreateTractProfileTensor() creates an NxNxNodes tensor of all
 % precomputed tract profiles. Empty profiles are composed of NaNs. 
 %   
@@ -20,6 +20,9 @@ function [ pmat ] = fnTractProfileTensor(pconn, label, prof, srt)
 % OUTPUTS:
 %     pmat - 3d array containing (nodes x nodes x profile) of tract profiles
 % 
+% TODO:
+% - define profiles as empty x nnodes so I don't need the argument and can always assume the size
+%
 % EXAMPLE:
 %
 % % load data
@@ -49,12 +52,16 @@ function [ pmat ] = fnTractProfileTensor(pconn, label, prof, srt)
 %
 
 % parse optional arguments
+if(~exist('nnodes', 'var') || isempty(nnodes))
+    nnodes = 100;
+end
+
 if(~exist('srt', 'var') || isempty(srt))
     srt = [];
 end
 
 % look at first entry for the number of nodes
-nnodes = size(eval([ 'pconn{1}.(label).profile.' prof ]), 1);
+%nnodes = size(eval([ 'pconn{1}.(label).profile.' prof ]), 1);
 
 % find the number of unique labels
 uniquelabels = zeros(size(pconn, 1), 1);
