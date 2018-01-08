@@ -10,9 +10,11 @@
 % link network functions
 % - add option to skip other similarity measures
 % - add average angle between tracts
+% - deal with norms between profiles or in a separate fxn?
 % - documentation
 %
 % parallel pool fxn
+% - see if this is actually necessary - maybe a local problem?
 %
 % streamline render fxns
 % - finish / check some functionality
@@ -21,8 +23,12 @@
 %
 % figure out if single fxn for making matrix field is workable
 %
-% fill in profiles as nan x nnodes so size can be reliables found 
+% fill in profiles as nan x nnodes so size can be reliably found 
 % -improve fnTractProfileTensor
+%
+% plot_endpoint_heatmap
+% - add option to smooth
+% - add option to reslice
 %
 % fnEstimateLouvainCommunity
 % - accept a range of gamma
@@ -41,12 +47,25 @@
 % feCreatePairedConnections 
 % - superfiber w/ usable default parameters
 % - catch endpoints as ROI data
+% - catch standard deviation of length
 % - return object that has total assigned counts / descriptives
+% - simplify how fibers / weights are stored? too big a change? used later?
 % - must find a minimum number of streamlines here (?)
 %
 % feCleanPairedConnections
 % - provide fxn level access to cleaning parameters
 % - explicitly pass a minimum number of streamlines for a connection to exist
+%
+% plotVirtualLesion (LiFE plots)
+% - fix overlap line
+% - separate handles?
+% - better internal notes
+%
+% fsInflateDestriuex
+% - actually make it work
+%
+% fsInflateDK
+% - add option for subcortical / cerebellar?
 %
 % scripts and workflows are essentially the same - merge somehow
 % - drop project specific fxns, but don't loose them...

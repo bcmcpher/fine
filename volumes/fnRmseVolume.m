@@ -35,6 +35,8 @@ for ii = 1:size(roi, 1)
     img(roi(ii, 1), roi(ii, 2), roi(ii, 3)) = vals(ii);
 end
 
+% replace NaNs?
+
 % create output nifti
 rmse = niftiCreate('data', img, 'fname', outfile, ...
                    'qto_xyz', fe.life.xform.img2acpc, ...
