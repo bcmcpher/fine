@@ -152,18 +152,18 @@ parfor ii = 1:length(pconn)
     else
         
         if(isdt6)
-            tprof{ii}.dt6_fa = [];
-            tprof{ii}.dt6_md = [];
-            tprof{ii}.dt6_rd = [];
-            tprof{ii}.dt6_ad = [];
-            tprof{ii}.dt6_cl = [];
-            tprof{ii}.dt6_cp = [];
-            tprof{ii}.dt6_cs = [];
+            tprof{ii}.dt6_fa = nan(nnodes, 1);
+            tprof{ii}.dt6_md = nan(nnodes, 1);
+            tprof{ii}.dt6_rd = nan(nnodes, 1);
+            tprof{ii}.dt6_ad = nan(nnodes, 1);
+            tprof{ii}.dt6_cl = nan(nnodes, 1);
+            tprof{ii}.dt6_cp = nan(nnodes, 1);
+            tprof{ii}.dt6_cs = nan(nnodes, 1);
             
         else
             
             % skip empty connection
-            tprof{ii} = [];
+            tprof{ii} = nan(nnodes, 1);
             continue
             
         end
@@ -174,8 +174,8 @@ end
 time = toc;
 
 if(isdt6)
-   tpcnt = tpcnt * 7;
-   tptry = tptry * 7;
+   tpcnt = tpcnt;
+   tptry = tptry;
 end
 
 display(['Computed ' num2str(tpcnt)  ' of ' num2str(tptry) ' possible tract profiles in ' num2str(round(time)/60) ' minutes.']);

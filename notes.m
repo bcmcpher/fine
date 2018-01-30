@@ -4,8 +4,6 @@
 
 %% TODO:
 
-% 
-% store curv/tors parameters in profiles, not a separate field
 %
 % link network functions
 % - add option to skip other similarity measures
@@ -22,9 +20,6 @@
 % - set defualt view to minmax(x, y, z) coords + 10%
 %
 % figure out if single fxn for making matrix field is workable
-%
-% fill in profiles as nan x nnodes so size can be reliably found 
-% -improve fnTractProfileTensor
 %
 % plot_endpoint_heatmap
 % - add option to smooth
@@ -45,8 +40,7 @@
 % - set up a defualt number of iterations
 %
 % feCreatePairedConnections 
-% - superfiber w/ usable default parameters
-% - catch endpoints as ROI data
+% - catch endpoints as ROI data - dtiCreateRoiFromFiberEndPoints
 % - catch standard deviation of length
 % - return object that has total assigned counts / descriptives
 % - simplify how fibers / weights are stored? too big a change? used later?
@@ -76,7 +70,11 @@
 %
 % fix ALL function names
 %
+% display to fprintf
+%
 % fxn estimating neural conduction speed / bitrate for all edges
+%
+% dtiExtrapolateVolumeFromCrossectionArea
 %
 
 %% figure out network shape stats for edges

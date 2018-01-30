@@ -51,7 +51,7 @@ ep1 = zeros(length(fibers), 3);
 ep2 = zeros(length(fibers), 3);
 
 % for every fiber, pull the end points
-if size(fibers{1}, 1) ~= 3; 
+if size(fibers{1}, 1) ~= 3
     error('Expected fibers with size(3, N)'); 
 end
 
@@ -171,7 +171,7 @@ parfor ii = 1:length(pairs)
     % catch size of ROIs
     pconn{ii}.roi1sz = roi1.size;
     pconn{ii}.roi2sz = roi2.size;
-    
+ 
     % assign intersections of terminating streamlines
     pconn{ii}.all.indices = intersect(roi1.end.fibers, roi2.end.fibers);
     pconn{ii}.all.lengths = fibLength(pconn{ii}.all.indices);

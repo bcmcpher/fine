@@ -20,6 +20,8 @@ function [ pconn, tcrve, pcsf ] = fnTractCurvePairedConnections(fg, pconn, label
 %
 %     tcrve - debugging output; the cell array that is added internally to pconn
 %
+%     pcsf  - debugging output: the cell array of all superfiber structures
+%
 % EXAMPLE:
 %
 % % load data
@@ -53,13 +55,15 @@ if(~exist('clobber', 'var') || isempty(clobber))
 end
 
 if(clobber == 1)
-    display(['Overwriting existing curves...']);
+    display(['Overwriting existing shape profiles...']);
 end
 
 % check if the first profile label already exists alongside clobber for a
 % faster exit from function if things shouldn't be recomputed.
-if isfield(pconn{1}.(label), 'shape') && clobber == 0;
-    error('Tract shapes for this label already exist. Please set clobber to 1 to explicitly overwrite existing profiles.');
+if isfield(pconn{1}.(label), 'profile')
+    if isfield(pconn{1}.(label).profile, 'shape') && clobber == 0
+        error('Tract shapes for this label already exist. Please set clobber to 1 to explicitly overwrite existing shapes and superfibers.');
+    end
 end
 
 % check if average length is long enough for curvature values to be reasonable?
@@ -82,12 +86,14 @@ parfor ii = 1:length(pconn)
     % in testing, need minimum of 4 streamlines to compute profile
     if size(tmp.indices, 1) > minNum
                 
-        % create tract-wise fg and super fiber representation
+        % create tract-wise fg
         tfg = fgCreate('fibers', fibers(tmp.indices));
         tfg = dtiReorientFibers(tfg, nnodes);
-        %tfg = dtiResampleFiberGroup(tfg, nnodes, 'N');
         
+        % create superfiber representation
         pcsf{ii} = dtiComputeSuperFiberRepresentation(tfg, [], nnodes);
+        sf_name = [ 'sf_' num2str(pconn{ii}.roi1) '_to_' num2str(pconn{ii}.roi2) ];
+        pcsf{ii}.name = sf_name;
         
         % if the variance of the streamlines distance is far, too many
         % streamlines are dropped to reliably compute curves
@@ -166,14 +172,16 @@ parfor ii = 1:length(pconn)
             
             warning(['Connection: ' num2str(ii) ' failed to compute curve data.']);
             tctry = tctry + 1;
-            tcrve{ii} = [];
+            tcrve{ii} = nan(nnodes, 1);
 
         end
         
     else
         
         % skip empty connection
-        tcrve{ii} = [];
+        sf_name = [ 'sf_' num2str(pconn{ii}.roi1) '_to_' num2str(pconn{ii}.roi2) ];
+        pcsf{ii} = struct('name', sf_name, 'n', 0, 'fibers', nan(3, nnodes), 'fibervarcovs', nan(6, nnodes));
+        tcrve{ii} = nan(nnodes, 1);
         continue
         
     end
@@ -190,47 +198,64 @@ clear ii time
 display('Adding tract curves to pconn...');
 
 for ii = 1:length(pconn)
-        
+    
     % pull subset field
     tmp = pconn{ii}.(label);
     
-    % look for an existing shape field
-    if isfield(tmp, 'curve') % if there is one
+    % look for an existing profile field
+    if isfield(tmp, 'profile') % if there is one
         
-        % pull the existing shapes and add the new ones
-        crve = tmp.curve;
+        % pull profile field so what's there isn't lost
+        prof = pconn{ii}.(label).profile;
+                    
+            % clobber is already set and this fxn is the only one to make
+            % .shape data field, so don't worry about preserving what's
+            % here (for now)
+            
+            try    
+                
+                % create the shape field and add the data
+                crve = struct('curv', tcrve{ii}.curv, 'tors', tcrve{ii}.tors, ...
+                    'tan', tcrve{ii}.tan, 'norm', tcrve{ii}.norm, 'bnrm', tcrve{ii}.bnrm);
+                
+            catch
+                
+                % if it's empty, fill in NaNs
+                crve = struct('curv', nan(nnodes, 1), 'tors', nan(nnodes, 1), ...
+                    'tan', nan(nnodes, 3), 'norm', nan(nnodes, 3), 'bnrm', nan(nnodes, 3));
+                
+            end
+            
+        %end
         
-        if isempty(tcrve{ii})
-            crve.curv = nan(nnodes, 1);
-            crve.tors = nan(nnodes, 1);
-            crve.tan  = nan(nnodes, 3);
-            crve.norm = nan(nnodes, 3);
-            crve.bnrm = nan(nnodes, 3);
-        end
+        % add tract profile(s) to tmp
+        tmp.profile.shape = crve;
         
-    else
+    % if profile field doesn't exist
+    else 
         
-        if ~isempty(tcrve{ii})
+        try
             
             % create the shape field and add the data
             crve = struct('curv', tcrve{ii}.curv, 'tors', tcrve{ii}.tors, ...
-                          'tan', tcrve{ii}.tan, 'norm', tcrve{ii}.norm, 'bnrm', tcrve{ii}.bnrm);
+                'tan', tcrve{ii}.tan, 'norm', tcrve{ii}.norm, 'bnrm', tcrve{ii}.bnrm);
             
-        else
-           
+        catch
+            
             % if it's empty, fill in NaNs
             crve = struct('curv', nan(nnodes, 1), 'tors', nan(nnodes, 1), ...
-                          'tan', nan(nnodes, 3), 'norm', nan(nnodes, 3), 'bnrm', nan(nnodes, 3));
+                'tan', nan(nnodes, 3), 'norm', nan(nnodes, 3), 'bnrm', nan(nnodes, 3));
             
         end
         
-    end
+        % add profiles and shape with crve sored
+        tmp.profile.shape = crve;
         
-    % add tract profile(s) to tmp
-    tmp.curve = crve;
-       
-    % reassign tmp to a paired connection cell array
-    pconn{ii}.(label) = tmp;
+    end
+    
+    % reassign superfiber and tmp to a paired connection cell array
+    pconn{ii}.(label).suberfiber = pcsf{ii};
+    pconn{ii}.(label).profile = tmp.profile;
     
 end
 
@@ -278,7 +303,7 @@ function [T,N,B,k,t] = frenet2(x,y,z)
 % 
 % See also: GRADIENT
 
-if nargin == 2,
+if nargin == 2
     z = zeros(size(x));
 end
 
