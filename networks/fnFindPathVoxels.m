@@ -1,4 +1,4 @@
-function [ pconn ] = fnFindPathVoxels(pconn, label, Phi, dim, clobber)
+function [ pconn, wmvol ] = fnFindPathVoxels(pconn, label, Phi, dim, clobber)
 %fnFindPathVoxels finds the tensor indices of voxels for every connection 
 % to create either microstructural summaries of networks or for
 % generating link networks.
@@ -23,6 +23,8 @@ function [ pconn ] = fnFindPathVoxels(pconn, label, Phi, dim, clobber)
 % OUTPUTS:
 %     pconn - the paired connection object with the voxel indices for each 
 %             edge added
+%
+%     wmvol - the total white matter volume according to the provided voxel 'dim'
 %
 % TODO:
 % - compute proportion of white matter (unique_edge / voxel dim of Phi)

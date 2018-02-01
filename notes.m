@@ -5,39 +5,29 @@
 %% TODO:
 
 %
-% link network functions
-% - add option to skip other similarity measures
-% - add average angle between tracts
-% - deal with norms between profiles or in a separate fxn?
-% - documentation
-%
-% parallel pool fxn
-% - see if this is actually necessary - maybe a local problem?
-%
-% streamline render fxns
-% - finish / check some functionality
-% - better handle individual / multiple inputs in edge render
-% - set defualt view to minmax(x, y, z) coords + 10%
-%
-% figure out if single fxn for making matrix field is workable
-%
 % plot_endpoint_heatmap
 % - add option to smooth
 % - add option to reslice
-%
-% fnEstimateLouvainCommunity
-% - accept a range of gamma
-% - assign default parameters
-%
-% feTractProfilePairedConnections
-% - check if the connections are too short for a reasonable profile (?)
+% - rename
 %
 % fnBinaryNetworkStats
 % - assign / otherwise mark a default value for stats
 %
 % fnRentianScaling
-% - deal with rois structure or make a separate helper to pull that?
+% - deal with rois structure
 % - set up a defualt number of iterations
+%
+% feCleanPairedConnections
+% - provide fxn level access to cleaning parameters
+% - explicitly pass a minimum number of streamlines for a connection to exist
+%
+% fix freesurfer label fxns
+% - add subcortical switch
+% - add Destrieux labels
+%
+% fnEstimateLouvainCommunity
+% - accept a range of gamma
+% - assign default parameters
 %
 % feCreatePairedConnections 
 % - catch endpoints as ROI data - dtiCreateRoiFromFiberEndPoints
@@ -46,20 +36,28 @@
 % - simplify how fibers / weights are stored? too big a change? used later?
 % - must find a minimum number of streamlines here (?)
 %
-% feCleanPairedConnections
-% - provide fxn level access to cleaning parameters
-% - explicitly pass a minimum number of streamlines for a connection to exist
+% link network functions
+% - merge into slightly faster dev fxn
+% - fix MI
+% - - never pulled values?
+% - - how to deal different tract sizes?
+% - - use stored central tendencies for fewer inputs?
+% - compute profile norms
 %
-% plotVirtualLesion (LiFE plots)
-% - fix overlap line
-% - separate handles?
-% - better internal notes
+% improve how volume stores central tendency info; fnAverageEdgeProperty
 %
-% fsInflateDestriuex
-% - actually make it work
+% streamline render fxns
+% - finish / check some functionality
+% - better handle individual / multiple inputs in edge render
+% - set defualt view to minmax(x, y, z) coords + 10%
 %
-% fsInflateDK
-% - add option for subcortical / cerebellar?
+% parallel pool fxn
+% - see if this is actually necessary - maybe a local problem?
+%
+% figure out if single fxn for making matrix field is workable
+%
+% feTractProfilePairedConnections
+% - check if the connections are too short for a reasonable profile (?)
 %
 % scripts and workflows are essentially the same - merge somehow
 % - drop project specific fxns, but don't loose them...
@@ -70,11 +68,12 @@
 %
 % fix ALL function names
 %
-% display to fprintf
+% display to printf
+%
+% built in matlab hierarchical clustering algorithms / plots
+% linkage / cluster / dendrogram / clusterdata / cophenet / inconsistent
 %
 % fxn estimating neural conduction speed / bitrate for all edges
-%
-% dtiExtrapolateVolumeFromCrossectionArea
 %
 
 %% figure out network shape stats for edges
@@ -140,6 +139,9 @@ dtiResampleFiberGroup
 % maybe this can be passed pconn?
 dtiFiberProperties
 dtiFiberSummary
+
+% sounds interesting, but not useful
+dtiExtrapolateVolumeFromCrossectionArea
 
 %% others / extras
 

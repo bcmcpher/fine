@@ -10,7 +10,7 @@ function [ omat, olab, out ] = fnCreateLinkNetwork(pconn, label, feroi, img)
 %             either:
 %                     'all' for all assigned streamlines or
 %                     'nzw' for non-zero weighted fibers returned by LiFE
-%                     'zwr' for all zero weightef fibers removed by LiFE
+%                     'zwr' for all zero weighted fibers removed by LiFE
 %             Additionally, this can be run after cleaning, resulting in
 %             valid calls of 'all_clean' and 'nzw_clean', respectively.
 %
@@ -153,12 +153,10 @@ parfor ii = 1:length(pairs)
     histogramImage2 = sum(jointHistogram, 2);
     
     % find non-zero elements for first image's histogram
-    indNoZero = histogramImage1 ~= 0;
-    
     % extract them out and get the probabilities
-    prob1NoZero = histogramImage1(indNoZero) / numel(histogramImage1);
-    
     % compute the entropy
+    indNoZero = histogramImage1 ~= 0;
+    prob1NoZero = histogramImage1(indNoZero) / numel(histogramImage1);
     entropy1 = -sum(prob1NoZero.*log2(prob1NoZero));
     
     % repeat for the second image

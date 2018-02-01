@@ -80,7 +80,7 @@ if (isfield(pconn{1}.(label).volume, field) && clobber == 0)
     error('''%s'' of ''%s'' for this label is already computed. Set clobber = 1 to recompute.', meas, dtype);
 end
 
-display(sprintf('Finding ''%s'' of ''%s'' for all edges...', meas, name));
+fprintf('Finding ''%s'' of ''%s'' for all edges...\n', meas, name);
 
 tic;
 parfor ii = 1:length(pconn)
@@ -93,7 +93,7 @@ parfor ii = 1:length(pconn)
         
         % fill in empty voxel coords
         conn.([ 'raw_' dtype ]) = [];
-        conn.(field)  = [];
+        conn.(field) = [];
             
     else
         
