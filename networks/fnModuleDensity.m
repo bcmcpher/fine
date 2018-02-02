@@ -46,6 +46,10 @@ function [ Mden, Mden_in, Mden_bw, Mden_in_lo, Mden_bw_hi ] = fnModuleDensity(M,
 % Olaf Sporns and Brent McPherson (c), 2017 - Indiana University
 %
 
+if(~exist('flag', 'var') || isempty(flag))
+    flag = 1;
+end
+
 % determine the number of modules
 mnum = max(ci);
 

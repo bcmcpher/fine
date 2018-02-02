@@ -11,6 +11,8 @@
 % - simplify how fibers / weights are stored? too big a change? used later?
 % - must find a minimum number of streamlines here (?)
 %
+% improve how volume stores central tendency info; fnAverageEdgeProperty()
+%
 % link network functions
 % - merge into slightly faster dev fxn
 % - fix MI
@@ -18,8 +20,6 @@
 % - - how to deal different tract sizes?
 % - - use stored central tendencies for fewer inputs?
 % - compute profile norms
-%
-% improve how volume stores central tendency info; fnAverageEdgeProperty()
 %
 % streamline render fxns
 % - finish / check some functionality
