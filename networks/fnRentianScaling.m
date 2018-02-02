@@ -13,7 +13,7 @@ function [ p, se, fh ] = fnRentianScaling(mat, rois, reps)
 %     fh - figure handle of plot of exponent
 %
 % TODO:
-% - set up a defualt number of iterations
+% - figure out the best default range for the plot
 %
 % EXAMPLE:
 %
@@ -35,6 +35,10 @@ function [ p, se, fh ] = fnRentianScaling(mat, rois, reps)
 %
 % Brent McPherson (c), 2017 - Indiana University
 %
+
+if(~exist('reps', 'var') || isempty(reps))
+    reps = 100;
+end
 
 % binarize input
 dat = weight_conversion(mat, 'binarize');

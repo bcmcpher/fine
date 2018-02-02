@@ -1,23 +1,33 @@
-function [ pconn, cln ] = feCleanPairedConnections(fg, pconn, label)
+function [ pconn, cln ] = feCleanPairedConnections(fg, pconn, label, minLength, maxDist, maxLengthStd, numNodes, maxIter, minNum)
 %feCleanPairedConnections cleans the outlier fibers from connections inside 
 % a paired connection (pconn) cell array. 
 %
 % INPUTS:
-%     fg    - fiber group in acpc space
-%     pconn - paired connection object created with fg
-%     label - string indicating the fiber groups to clean
-%             either:
-%                     'all' for all assigned streamlines or
-%                     'nzw' for non-zero weighted fibers returned by LiFE
+%    fg        - fiber group in acpc space
+%    pconn     - paired connection object created with fg
+%    label     - string indicating the fiber groups to clean
+%                either:
+%                       'all' for all assigned streamlines or
+%                       'nzw' for non-zero weighted fibers returned by LiFE
+%    minLength    - the minimum length in mm of a connection to be considered
+%                   valid (default = 10)
+%    maxDist      - the # of standard deviations a streamline node can take from the
+%                   centroid of the tract (default = 4)
+%    maxLengthStd - the # of standard deviations the length of a
+%                   streamline can deviate from the tracts mean (default = 4)
+%    numNodes     - the number of nodes fibers are resampled to for
+%                   similarity comparisons (default = 100)
+%    maxIter      - the number of iterations outliers will be tested and
+%                   sampled from (default = 10)
+%    minNum       - the minimum number of streamlines that must exist for
+%                   a connection to be kept (default = 3).
+%                   NOTE: tract profiles require a minimum of 3 streamlines.
 %             
 % OUTPUTS:
 %     pconn - is the paired connections object with the cleaned streamline
 %             indices added in a new label appended with '_clean'.
 %
 %     cln   - debugging output; the cell array that is added internally to pconn
-%
-% TODO:
-% - provide fxn level access to cleaning parameters
 %
 % EXAMPLE:
 %
@@ -37,19 +47,36 @@ function [ pconn, cln ] = feCleanPairedConnections(fg, pconn, label)
 % Brent McPherson (c), 2017 - Indiana University
 %
 
+% fill in defaults for any missing parameters
+
+if(~exist('minLength', 'var') || isempty(minLength))
+    minLength = 10;
+end
+
+if(~exist('maxDist', 'var') || isempty(maxDist))
+    maxDist = 4;
+end
+
+if(~exist('maxLengthStd', 'var') || isempty(maxLengthStd))
+    maxLengthStd = 4;
+end
+
+if(~exist('numNodes', 'var') || isempty(numNodes))
+    numNodes = 100;
+end
+
+if(~exist('maxIter', 'var') || isempty(maxIter))
+    maxIter = 10;
+end
+
+if(~exist('minNum', 'var') || isempty(minNum))
+    minNum = 3;
+end
+
 % preallocate cleaned edge structure
 cln = cell(length(pconn), 1);
 clncnt = 0;
 clntot = 0;
-
-% cleaning arguments - set up as arguments
-%maxVolDist = 3;
-minLength = 10;
-maxDist = 4;
-maxLengthStd = 4;
-numNodes = 100;
-maxIter = 10;
-minNum = 3;
 
 display(['Started cleaning ' num2str(length(pconn)) ' paired connections...']);
 

@@ -3,19 +3,6 @@
 %
 
 %% TODO:
-
-%
-% fnRentianScaling
-% - deal with rois structure
-% - set up a defualt number of iterations
-%
-% feCleanPairedConnections
-% - provide fxn level access to cleaning parameters
-% - explicitly pass a minimum number of streamlines for a connection to exist
-%
-% fix freesurfer label fxns
-% - add subcortical switch
-% - add Destrieux labels
 %
 % fnEstimateLouvainCommunity
 % - accept a range of gamma

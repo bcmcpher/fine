@@ -1,13 +1,16 @@
-function [ ilabs, wm, dbout ] = fsInflateDK(aparc, infl, nlog, outfile)
+function [ ilabs, wm, dbout ] = fsInflateDK(aparc, infl, nlog, subc, outfile)
 %% 
 % currently assigns mode value of neighbors
-% can repeat inflation, unsure of ideal optimum
-% what else should I compute?
-% decide what files to save - prompts / dummy checks
-% ROI centroids for glass brain
+% can repeat inflation, unsure of ideal optimum number of times
 % check to see if I can import FS directly?
 %
 % aparc = '105115/mri/aparc+aseg.nii.gz'; infl = 3;
+
+%% parse optional argument for including (or not) subcortical labels
+
+if(~exist('subc', 'var') || isempty(subc))
+    subc = 0;
+end
 
 %% import and set up data
 
@@ -35,12 +38,12 @@ wmCounter = 0; noWMCounter = 0;
 
 % create the wm mask
 origvals = unique(wm.data(:));
-for ii = 1:length(origvals);
+for ii = 1:length(origvals)
     if any(origvals(ii) == invals)
-        wm.data( wm.data == origvals(ii) ) = 1;
-        wmCounter=wmCounter+1;
+        wm.data(wm.data == origvals(ii)) = 1;
+        wmCounter=wmCounter + 1;
     else
-        wm.data( wm.data == origvals(ii) ) = 0;
+        wm.data(wm.data == origvals(ii)) = 0;
         noWMCounter = noWMCounter + 1;
     end
 end
@@ -53,11 +56,60 @@ display(['White matter masked with ' num2str(wmCounter) ' regions; ' num2str(noW
 olabs = rlabs;
 olabs.fname = 'original_labels.nii.gz';
 
-% set labels less than 1000 to 0
-olabs.data(olabs.data < 1000) = 0;
+% predefined cortex labels for this parcellation
+ctxvals = [ 1001:1035 2001:2035 ];
+
+% predefined extra 10 subcortical / cerebellum in each hemi + brain stem
+sbcvals = [ 8 10 11 12 13 16 17 18 26 28 47 49 50 51 52 53 54 58 60 ];
+
+% missing labels of useful but otherwise covered (?) regions
+% l/r thalamus: 9 48
+% l/r insula 19 55
+% l/r opperculum 20 56
+% l/r substantia nigra: 27 59
+
+% if subcortical labels are requested
+if subc == 1
+    
+    display('Selecting cortical and subcortical labels for dilation...');
+    
+    % merge all labels
+    vals = [ sbcvals ctxvals ];
+
+    % copy logic of white matter mask, but fill in labels
+    ovals = unique(olabs.data(:));
+    for ii = 1:length(ovals)
+        if any(ovals(ii) == vals)
+            olabs.data( olabs.data == ovals(ii) ) = ovals(ii);
+        else
+            olabs.data( olabs.data == ovals(ii) ) = 0;
+        end
+    end
+    
+else
+    
+    display('Selecting cortical labels for dilation...');
+    
+    % just use cortical labels
+    vals = ctxvals; 
+    
+    % copy logic of white matter mask, but fill in labels
+    ovals = unique(olabs.data(:));
+    for ii = 1:length(ovals)
+        if any(ovals(ii) == vals)
+            olabs.data( olabs.data == ovals(ii) ) = ovals(ii);
+        else
+            olabs.data( olabs.data == ovals(ii) ) = 0;
+        end
+    end
+
+    % set labels less than 1000 to 0
+    olabs.data(olabs.data < 1000) = 0;
+    
+end
 
 % remove unknown labels
-olabs.data(olabs.data == 1000 | olabs.data == 2000) = 0;
+%olabs.data(olabs.data == 1000 | olabs.data == 2000) = 0;
 
 % compute centroids of ROIs
 % find unique labels / isolate voxels, averaged x/y/z to return
@@ -159,15 +211,7 @@ for hh = 1:infl
                 else
                     lab = 0;
                 end
-                
-                % check how many that is...
-                %neigh = neigh(neigh > 0);
-                
-                % need more than 1 nonzero, but can't rely on a majority
-                
-                % figure out the most popular neighbor
-                
-                
+
                 % don't assign zero
                 if lab == 0 
                     continue;

@@ -1,13 +1,16 @@
-function [ fh, ilabs, wm, dbout ] = fsInflateDestrieux(aparc, infl, nlog, outfile)
-%% NOT MODIFIED YET
-% currently assigns mode value of neighbors
-% can repeat inflation, unsure of ideal optimum
-% what else should I compute?
-% decide what files to save - prompts / dummy checks
-% ROI centroids for glass brain
+function [ ilabs, wm, dbout ] = fsInflateDestrieux(aparc, infl, nlog, subc, outfile)
+%% 
+%
 % check to see if I can import FS directly?
 %
-% aparc = '105115/mri/aparc+aseg.nii.gz'; infl = 3;
+% aparc = '105115/mri/aparc.a2009s+aseg.nii.gz'; infl = 3;
+%
+
+%% parse optional argument for including (or not) subcortical labels
+
+if(~exist('subc', 'var') || isempty(subc))
+    subc = 0;
+end
 
 %% import and set up data
 
@@ -35,7 +38,7 @@ wmCounter = 0; noWMCounter = 0;
 
 % create the wm mask
 origvals = unique(wm.data(:));
-for ii = 1:length(origvals);
+for ii = 1:length(origvals)
     if any(origvals(ii) == invals)
         wm.data( wm.data == origvals(ii) ) = 1;
         wmCounter=wmCounter+1;
@@ -49,19 +52,61 @@ display(['White matter masked with ' num2str(wmCounter) ' regions; ' num2str(noW
 
 %% grab labels for inflation
 
+% predefined cortex labels for this parcellation
+ctxvals = [ 11101:11175 12101:12175 ];
+
+% predefined extra 10 subcortical / cerebellum in each hemi + brain stem
+sbcvals = [ 8 10 11 12 13 16 17 18 26 28 47 49 50 51 52 53 54 58 60 ];
+
+% missing labels of useful but otherwise covered (?) regions
+% l/r thalamus: 9 48
+% l/r insula 19 55
+% l/r opperculum 20 56
+% l/r substantia nigra: 27 59
+
 % subset to original labels
 olabs = rlabs;
 olabs.fname = 'original_labels.nii.gz';
 
-% set labels less than 1000 to 0
-olabs.data(olabs.data < 1000) = 0;
+% if subcortical labels are requested
+if subc == 1
+    
+    display('Selecting cortical and subcortical labels for dilation...');
+    
+    % merge all labels
+    vals = [ sbcvals ctxvals ];
 
-% remove unknown labels
-olabs.data(olabs.data == 1000 | olabs.data == 2000) = 0;
+    % copy logic of white matter mask, but fill in labels
+    ovals = unique(olabs.data(:));
+    for ii = 1:length(ovals)
+        if any(ovals(ii) == vals)
+            olabs.data( olabs.data == ovals(ii) ) = ovals(ii);
+        else
+            olabs.data( olabs.data == ovals(ii) ) = 0;
+        end
+    end
+    
+else
+    
+    display('Selecting cortical labels for dilation...');
+    
+    % just use cortical labels
+    vals = ctxvals; 
+    
+    % copy logic of white matter mask, but fill in labels
+    ovals = unique(olabs.data(:));
+    for ii = 1:length(ovals)
+        if any(ovals(ii) == vals)
+            olabs.data( olabs.data == ovals(ii) ) = ovals(ii);
+        else
+            olabs.data( olabs.data == ovals(ii) ) = 0;
+        end
+    end
 
-% compute centroids of ROIs
-% find unique labels / isolate voxels, averaged x/y/z to return
-% should I do this after inflation?
+    % set labels less than 1000 to 0
+    olabs.data(olabs.data < 1000) = 0;
+    
+end
 
 %% create local neighborhood logicals
 
@@ -160,14 +205,6 @@ for hh = 1:infl
                     lab = 0;
                 end
                 
-                % check how many that is...
-                %neigh = neigh(neigh > 0);
-                
-                % need more than 1 nonzero, but can't rely on a majority
-                
-                % figure out the most popular neighbor
-                
-                
                 % don't assign zero
                 if lab == 0 
                     continue;
@@ -206,36 +243,5 @@ display(['Saving inflated ROIs in: ' ilabs.fname '...']);
 
 % save inflated labels
 niftiWrite(ilabs, ilabs.fname);
-
-%% debug figure
-
-% pull a slice and see what is added
-x = olabs.data(:,:,78);
-y = ilabs.data(:,:,78);
-z = y - x;
-%a = (ilabs.data(:,:,78) > 0) + (mask.data(:,:,78) > 0);
-wmOverlap1 = wm.data(:,:,78);
-wmOverlap2 = z > 0;
-wmOverlap = wmOverlap1 + wmOverlap2;
-
-fh = figure; 
-
-subplot(3, 2, 1); imagesc(x); 
-title('Original Labels'); colorbar;
-
-subplot(3, 2, 2); imagesc(y); 
-title('Inflated Labels'); colorbar;
-
-subplot(3, 2, 3); imagesc((wm.data(:,:,78) > 0) + (x > 0)); 
-title('Original Labels + WM'); colorbar;
-
-subplot(3, 2, 4); imagesc(wm.data(:,:,78) > 0); 
-title('WM Mask'); colorbar;
-
-subplot(3, 2, 5); imagesc(z); 
-title('Label Expansion'); colorbar;
-
-subplot(3, 2, 6); imagesc(wmOverlap); 
-title('WM Intersect'); colorbar;
 
 end
