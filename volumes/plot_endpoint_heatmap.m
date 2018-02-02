@@ -1,48 +1,79 @@
-function [ hmap ] = plot_endpoint_heatmap(fe, outfile)
+function [ hmap ] = plot_endpoint_heatmap(fe, outfile, smooth, reslice)
 %% end point density plot
 %
-% creates a heatmap of the streamline terminations in DWI image space
-% matches ACPC alignment, in register w/ anat, in DWI space
+% creates a heatmap of the streamline terminations from an fe structure.
+% The data can optionally be smoothed with a 3d gaussian or resliced into a
+% different image space. Reslicing to a new space should proabably be smoothed.
 %
-% TODO:
-% - add ability to get specific ROIs. separate fxn?
-% - add to rois cell array?
-% - create reliced count in anat space
 %
+
+% parse optional arguments
+
+% turn off smoothing if it's not requested
+if(~exist('smooth', 'var') || isempty(smooth))
+    smooth = [];
+    disp('Not smoothing image...');
+end
+
+% if no new space is provided, use the fe structure for output size
+if(~exist('reslice', 'var') || isempty(reslice))
+    disp('Image will be sliced in fe space...');
+    out_xyz = fe.life.xform.img2acpc;
+    out_ijk = fe.life.xform.acpc2img;
+    out_dim = fe.life.imagedim(1:3);
+
+% otherwise use the data from the new space for output size
+else
+    disp(['Image will be resliced into ' reslice.fname ' space...']);
+    out_xyz = reslice.qto_xyz;
+    out_ijk = reslice.qto_ijk;
+    out_dim = size(reslice.data);    
+end
+
+disp('Converting streamlines to AC-PC space and extracting end points...');
+
+% pull acpc fibers
+fg = feGet(fe, 'fibersacpc');
+
+% convert to output space
+fg = dtiXformFiberCoords(fg, out_ijk, 'img');
 
 % initialize endpoint outputs
-iep1 = zeros(length(fe.fg.fibers), 3);
-iep2 = zeros(length(fe.fg.fibers), 3);
+iep1 = zeros(length(fg.fibers), 3);
+iep2 = zeros(length(fg.fibers), 3);
 
 % for every fiber, pull the end points
-for ii = 1:length(fe.fg.fibers)
-    iep1(ii,:) = fe.fg.fibers{ii}(:,1)';
-    iep2(ii,:) = fe.fg.fibers{ii}(:,end)';
+for ii = 1:length(fg.fibers)
+    iep1(ii,:) = fg.fibers{ii}(:,1)';
+    iep2(ii,:) = fg.fibers{ii}(:,end)';
 end
 
-% round all the endpoints
-iep1 = round(iep1) + 1;
-iep2 = round(iep2) + 1;
-
-% combine and reconver fiber endpoints to image space
+% combine fiber endpoints in acpc space
 ep = [ iep1; iep2 ];
+ep = round(ep) + 1;
 
-% sanity check of low/high dims
-%minmax(ep')
+clear iep1 iep2
+
+disp('Creating output data...');
 
 % create empty data space
-img = zeros(fe.life.imagedim(1:3));
+img = zeros(out_dim);
 
-% for every endpoint, create a density map of rois
+% create a density map of rois from every termination
 for ii = 1:length(ep)
-    img(ep(ii,1), ep(ii, 2), ep(ii, 3)) = img(ep(ii,1), ep(ii, 2), ep(ii, 3)) + 1;
+    img(ep(ii,1), ep(ii, 2), ep(ii, 3)) = img(ep(ii, 1), ep(ii, 2), ep(ii, 3)) + 1;
 end
 
-% create output nifti
+% smooth data if requested
+if ~isempty(smooth)
+    disp(['Smoothing output with a [ ' num2str(smooth) ' ] gaussian kernel...']);
+    img = smooth3(img, 'gaussian', smooth);
+end
+
+% create output nifti - write to fe space or new space
 hmap = niftiCreate('data', img, 'fname', outfile, ...
-                   'qto_xyz', fe.life.xform.img2acpc, ...
-                   'qto_ijk', fe.life.xform.acpc2img);
-% any additional parameters?
+                   'qto_xyz', out_xyz, ...
+                   'qto_ijk', out_ijk);
                
 % save file
 niftiWrite(hmap, outfile);

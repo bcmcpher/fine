@@ -1,5 +1,5 @@
 function [ glob, node, nets ] = fnBinaryNetworkStats(mat, kcore, cliques)
-%fnBinaryNetworkStats returns BCT measures of a symetric binary network.
+%fnBinaryNetworkStats returns BCT measures of a symmetric binary network.
 % Because I am always working with weighted networks, this fxn should only
 % focus on binary measures that may be useful / desired without repeating
 % network measures that should probably be estimated in the weighted
@@ -41,6 +41,14 @@ function [ glob, node, nets ] = fnBinaryNetworkStats(mat, kcore, cliques)
 %
 
 %% fiber data - connection matrix
+
+if(~exist('kcore', 'var') || isempty(kcore))
+    kcore = 12;
+end
+
+if(~exist('cliques', 'var') || isempty(cliques))
+    cliques = 12;
+end
 
 display('Thresholding Data...');
 

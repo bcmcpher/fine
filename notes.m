@@ -5,14 +5,6 @@
 %% TODO:
 
 %
-% plot_endpoint_heatmap
-% - add option to smooth
-% - add option to reslice
-% - rename
-%
-% fnBinaryNetworkStats
-% - assign / otherwise mark a default value for stats
-%
 % fnRentianScaling
 % - deal with rois structure
 % - set up a defualt number of iterations
