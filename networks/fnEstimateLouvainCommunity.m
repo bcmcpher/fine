@@ -6,7 +6,8 @@ function [ glob, node, nets ] = fnEstimateLouvainCommunity(mat, iters, gamma, ta
 % INPUTS:
 %     mat   - the input adjacency matrix; can be weighted or unweighted
 %     iters - the number of iterations to find the maximum Q statistic
-%     gamma - Louvain resolution parameter
+%     gamma - Louvain resolution parameter; can be a range of values - the
+%             gamma with the maximum q-stat will be returned
 %                 gamma > 1:  detects smaller modules
 %            0 <= gamma < 1:  detects larger modules
 %                 gamma = 1:  Louvain (classic) modularity
@@ -18,9 +19,7 @@ function [ glob, node, nets ] = fnEstimateLouvainCommunity(mat, iters, gamma, ta
 %     nets - structure containing graphs describing properties of Louvain estimation
 %
 % TODO:
-% - let gamma have a defualt of one and handle a vector
-% - add small worldness estimate in with repeats
-% - - make this optional? very slow in large networks, extra measure might not be useful
+% - vectorize preallocation of iters / gamma to allow parallel execution
 %
 % EXAMPLE:
 %
@@ -44,41 +43,56 @@ function [ glob, node, nets ] = fnEstimateLouvainCommunity(mat, iters, gamma, ta
 %
 
 % parse optional arguments
+if(~exist('gamma', 'var') || isempty(gamma))
+    gamma = 1;
+end
+
 if(~exist('tau', 'var') || isempty(tau))
     tau = 1;
 end
+
+% parse gamma for size
+ngam = size(gamma, 2);
 
 % create simple data structure
 nets.raw = mat;
 nets.nrm = weight_conversion(nets.raw, 'normalize');
 
 % perallocate loop
-ci = zeros(size(mat, 1), iters);
-q = zeros(iters, 1);
+ci = zeros(size(mat, 1), ngam, iters);
+q = zeros(ngam, iters, 1);
 
-% for every iteration
-for ii = 1:iters
+% for every gamma / iteration
+for ii = 1:ngam
+    for jj = 1:iters
     
-    % estimate community estimates on input data
-    [ ci(:, ii), q(ii) ] = community_louvain(mat, gamma, [], 'modularity');
+        % estimate community estimates on input data
+        [ ci(:, ii, jj), q(ii, jj) ] = community_louvain(mat, gamma(ngam), [], 'modularity');
 
-end;
+    end
+end
 
 % take the highest q-value (community structure statistic)
 % - find the highest estimated number of neighborhoods
 % - sort by neighborhoods
-[ ~, indx_max ] = max(q);
-glob.qstat = max(q);
+
+% pull the max q-stat and it's indices in the iterations
+[ qmax, vmax ] = max(q(:));
+[ g_max, i_max ] = ind2sub(size(q), vmax);
+
+% store the output
+glob.qstat = qmax;
+glob.gamma = gamma(max(g_max));
 
 % group nodes
-ci_max = ci(:, indx_max);
+ci_max = ci(:, g_max, i_max);
 node.assign = ci_max;
 
 % sort matrix by nodes
 [ ~, bb ] = sort(ci_max);
 
 % overlap of nieghborhood assignments
-agree = agreement(ci);
+agree = agreement(ci_max);
 
 % normalize for resampling N
 agree = agree ./ iters;

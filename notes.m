@@ -4,10 +4,6 @@
 
 %% TODO:
 %
-% fnEstimateLouvainCommunity
-% - accept a range of gamma
-% - assign default parameters
-%
 % feCreatePairedConnections 
 % - catch endpoints as ROI data - dtiCreateRoiFromFiberEndPoints
 % - catch standard deviation of length
@@ -23,7 +19,7 @@
 % - - use stored central tendencies for fewer inputs?
 % - compute profile norms
 %
-% improve how volume stores central tendency info; fnAverageEdgeProperty
+% improve how volume stores central tendency info; fnAverageEdgeProperty()
 %
 % streamline render fxns
 % - finish / check some functionality
