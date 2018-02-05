@@ -65,7 +65,7 @@ for i = 1:nmod
         moddat = moddat(2:end, :);
         
         % catch cell array of more usefully sorted data frames
-        dbg{dbc} = moddat;
+        dbg{dbc} = moddat(all(~isnan(moddat),2),:);
         dbc = dbc + 1;
         
         % define the type of edge summary to compute
@@ -76,7 +76,14 @@ for i = 1:nmod
                 % directly compute mean and standard error
                 mnten(i, j, :) = nanmean(moddat, 1);
                 seten(i, j, :) = nanstd(moddat, 1);
-                %seten(i, j, :) = nanstd(moddat, 1) / size(moddat, 1);
+                
+                % replace any nan w/ zero (all connections are missing)
+                x = mnten(i, j, :);
+                y = seten(i, j, :);
+                x(isnan(x)) = 0;
+                y(isnan(y)) = 0;
+                mnten(i, j, :) = x;
+                seten(i, j, :) = y;
                 
             case 'boot'
                 
@@ -99,6 +106,14 @@ for i = 1:nmod
                 % compute the mean of means for bootstrapped module value
                 mnten(i, j, :) = nanmean(boot, 1);
                 seten(i, j, :) = nanstd(boot, 1) ./ nrep;
+                
+                % replace any nan w/ zero (all connections are missing)
+                x = mnten(i, j, :);
+                y = seten(i, j, :);
+                x(isnan(x)) = 0;
+                y(isnan(y)) = 0;
+                mnten(i, j, :) = x;
+                seten(i, j, :) = y;
                 
             otherwise
                 

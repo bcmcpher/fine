@@ -35,7 +35,6 @@ function [ pconn ] = fnAverageEdgeProperty(pconn, label, roi, vol, dtype, meas, 
 %
 % TODO:
 % - if computing a central tendency on stored data, not require 
-% - second output that holds raw coordinates too?
 %
 % EXAMPLE:
 %
@@ -76,8 +75,10 @@ field = [ meas '_' dtype ];
 data = vol.data;
 
 % error without clobber set if measure is computed
-if (isfield(pconn{1}.(label).volume, field) && clobber == 0)
-    error('''%s'' of ''%s'' for this label is already computed. Set clobber = 1 to recompute.', meas, dtype);
+if (isfield(pconn{1}.(label).volume, dtype) && clobber == 0)
+    if (isfield(pconn{1}.(label).volume.(dtype), meas) && clobber == 0)
+        error('''%s'' of ''%s'' for this label is already computed. Set clobber = 1 to recompute.', meas, dtype);
+    end
 end
 
 fprintf('Finding ''%s'' of ''%s'' for all edges...\n', meas, name);
@@ -92,15 +93,16 @@ parfor ii = 1:length(pconn)
     if isempty(conn.pvoxels)
         
         % fill in empty voxel coords
-        conn.([ 'raw_' dtype ]) = [];
-        conn.(field) = [];
-            
+        conn.(dtype).raw = [];
+        conn.(dtype).(meas) = 0;
+        
     else
         
         % if raw is already stored and clobber is blank, use stored values
         if (isfield(conn, [ 'raw_' dtype ]) && clobber == 0)
             
-            vals = conn.([ 'raw_' dtype ]);
+            %vals = conn.([ 'raw_' dtype ]);
+            vals = conn.(dtype).raw;
             
         else
             
@@ -115,20 +117,20 @@ parfor ii = 1:length(pconn)
             end
             
             % add the raw values
-            conn.([ 'raw_' dtype ]) = vals;
+            conn.(dtype).raw = vals;
             
         end
         
         % compute the central tendency
         switch meas
             case {'mean', 'average'}
-                conn.(field) = mean(vals);
+                conn.(dtype).(meas) = mean(vals, 'omitnan');
             case {'median'}
-                conn.(field) = median(vals);
+                conn.(dtype).(meas) = median(vals, 'omitnan');
             case {'std', 'sd'}
-                conn.(field) = std(vals);
+                conn.(dtype).(meas) = std(vals, 'omitnan');
             case {'var', 'variance'}
-                conn.(field) = var(vals);
+                conn.(dtype).(meas) = var(vals, 'omitnan');
             otherwise
                 error('''%s'' central tendency is not currently defined for this context.', meas);
         end
@@ -137,7 +139,7 @@ parfor ii = 1:length(pconn)
     
     % re-assign connection and matrix value
     pconn{ii}.(label).volume = conn;
-    pconn{ii}.(label).matrix.(field) = conn.(field);
+    pconn{ii}.(label).matrix.(field) = conn.(dtype).(meas);
     
 end
 time = toc;

@@ -1,4 +1,4 @@
-function [ pconn, rois ] = feCreatePairedConnections(parc, fibers, fibLength, weights)
+function [ pconn, rois, out ] = feCreatePairedConnections(parc, fibers, fibLength, weights)
 %feCreatePairedConnections creates pconn object of every possible unique pair of 
 % of labels in a parcellation w/ streamlines from fibers object.
 %
@@ -11,9 +11,7 @@ function [ pconn, rois ] = feCreatePairedConnections(parc, fibers, fibLength, we
 % OUTPUTS:
 %     pconn - paired connections cell array, contains data for each edge
 %     rois  - data computed for each node of the network
-%   
-% TODO:
-% - catch endpoints as ROI data
+%     out   - catch simple counts of assigned streamlines, connections, etc.
 %
 % EXAMPLE:
 %
@@ -36,8 +34,8 @@ display('Assigning streamline endpoints to ROI labels...')
 
 % catch xform matrices for parc
 parc_acpc2img = niftiGet(parc, 'qto_ijk');
+parc_img2acpc = niftiGet(parc, 'qto_xyz');
 
-% similar to dtiFiberendpointNifti.m
 % convert acpc fibers to parcellation space
 fg = fgCreate;
 fg.fibers = fibers;
@@ -103,7 +101,7 @@ parfor ii = 1:length(labels)
     roi_ep1 = ismember(ep1, imgCoords, 'rows');
     roi_ep2 = ismember(ep2, imgCoords, 'rows');
     
-    % convert end points  in ROI to streamline indices
+    % convert end points in ROI to streamline indices
     fibers = [ find(roi_ep1); find(roi_ep2) ];
     
     % for fibers that end in rois, catch indices / lengths / weights
@@ -111,28 +109,13 @@ parfor ii = 1:length(labels)
     rois{ii}.end.length = fibLength(rois{ii}.end.fibers);
     rois{ii}.end.weight = weights(rois{ii}.end.fibers);
     
-    % create ROI centroid
-    rois{ii}.centroid.acpc = round(mean(imgCoords) + 1);
-    rois{ii}.centroid.img  = round(mean(imgCoords)) + 1;
+    % create endpoint ROI in vistasoft format
+    rois{ii}.roi = dtiNewRoi(num2str(labels(ii)), 'red', [ ep1(roi_ep1, :); ep2(roi_ep2, :) ]);
     
-%     % create endpoint density ROI object
-% 
-%     % combine found endpoints
-%     ep = [ ep1(roi_ep1, :); ep2(roi_ep2, :) ];
-%     
-%     % identify unique voxels and counts in image space
-%     [ unq, ~, cnt ] = unique(ep, 'rows');
-%     
-%     % catch image space coordinates and counts in roi structure 
-%     rois{ii}.volume = [ unq accumarray(cnt, 1) ];
-%   
-%     % write these down to check alignment
-%     img = zeros(size(parc.data));
-%     for jj = 1:size(y{1}.volume, 1)
-%         img(y{1}.volume(jj, 1), y{1}.volume(jj, 2), y{1}.volume(jj, 3)) = y{1}.volume(jj, 4); 
-%     end
-%     z = niftiCreate('data', img, 'fname', 'testROI.nii.gz', 'qto_xyz', parc.qto_xyz, 'qto_ijk', parc.qto_ijk);
-
+    % create ROI centroid
+    rois{ii}.centroid.img = round(mean(imgCoords) + 1);
+    rois{ii}.centroid.acpc = mrAnatXformCoords(parc_img2acpc, rois{ii}.centroid.img);
+    
     if isempty(rois{ii}.end.fibers)
         warning(['ROI label ' num2str(labels(ii)) ' has no streamline terminations.']);
     end
@@ -144,7 +127,7 @@ end
 
 display(['Successfully assigned ' num2str(sum(tfib)) ' of ' num2str(2*fibers_size) ' endpoints.']);
 
-clear ii x y z imgCoords roi_ep1 roi_ep2 fibers tfib time
+clear ii x y z imgCoords roi_ep1 roi_ep2 fibers time
 
 %% build paired connections object
 
@@ -154,6 +137,7 @@ pairs = nchoosek(1:length(labels), 2);
 % preallocate paired connection object
 pconn = cell(length(pairs), 1);
 tcon = zeros(length(pairs), 1);
+ncon = zeros(length(pairs), 1);
 
 display('Building paired connections...');
 
@@ -236,8 +220,27 @@ parfor ii = 1:length(pairs)
     % keep running total of total streamlines assigned a connection
     tcon(ii) = size(pconn{ii}.all.indices, 1);
     
+    % if the connection is empty or not
+    if size(pconn{ii}.all.indices, 1) > 0
+        ncon(ii) = 1;
+    end
+    
 end
 
 display(['Built paired connections object with ' num2str(sum(tcon)) ' streamlines.']);
+
+%% simple summary of counts
+
+% total streamlines, # of end points assigned
+out.strmct = fibers_size;
+out.assign = sum(tfib);
+
+% total connections, # assigned connections, # of streamlines assinged to connections
+out.nconns = size(pconn, 1);
+out.aconns = sum(ncon);
+out.paired = sum(tcon);
+
+% parcellation voxel size
+out.dvoxmm = abs(parc_img2acpc([1, 6, 11]));
 
 end

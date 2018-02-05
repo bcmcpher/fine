@@ -4,15 +4,6 @@
 
 %% TODO:
 %
-% feCreatePairedConnections 
-% - catch endpoints as ROI data - dtiCreateRoiFromFiberEndPoints
-% - catch standard deviation of length
-% - return object that has total assigned counts / descriptives
-% - simplify how fibers / weights are stored? too big a change? used later?
-% - must find a minimum number of streamlines here (?)
-%
-% improve how volume stores central tendency info; fnAverageEdgeProperty()
-%
 % link network functions
 % - merge into slightly faster dev fxn
 % - fix MI
@@ -25,6 +16,8 @@
 % - finish / check some functionality
 % - better handle individual / multiple inputs in edge render
 % - set defualt view to minmax(x, y, z) coords + 10%
+%
+% fix patch part of virtual lesion plot
 %
 % parallel pool fxn
 % - see if this is actually necessary - maybe a local problem?
@@ -41,6 +34,8 @@
 % - they have mostly minor changes / tweaks
 % - comments / documentation / examples
 %
+% brain shape plot of nodes and edges with size scaling / color
+%
 % fix ALL function names
 %
 % display to printf
@@ -49,6 +44,10 @@
 % linkage / cluster / dendrogram / clusterdata / cophenet / inconsistent
 %
 % fxn estimating neural conduction speed / bitrate for all edges
+%
+% feCreatePairedConnections 
+% - simplify how fibers / weights are stored? too big a change? used later?
+% - must find a minimum number of streamlines here (?)
 %
 
 %% figure out network shape stats for edges
