@@ -9,7 +9,7 @@
 % - fix MI
 % - - never pulled values?
 % - - how to deal different tract sizes?
-% - - use stored central tendencies for fewer inputs?
+% - - use stored central tendencies for fewer inputs
 % - compute profile norms
 %
 % streamline render fxns
@@ -36,14 +36,16 @@
 %
 % brain shape plot of nodes and edges with size scaling / color
 %
-% fix ALL function names
+% change all display to sprintf
 %
-% display to printf
+% fix ALL function names
 %
 % built in matlab hierarchical clustering algorithms / plots
 % linkage / cluster / dendrogram / clusterdata / cophenet / inconsistent
 %
 % fxn estimating neural conduction speed / bitrate for all edges
+%
+% summary fxn of Bassett's network tools
 %
 % feCreatePairedConnections 
 % - simplify how fibers / weights are stored? too big a change? used later?
