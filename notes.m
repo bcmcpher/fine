@@ -19,13 +19,12 @@
 %
 % fix patch part of virtual lesion plot
 %
+% brain shape plot of nodes and edges with size scaling / color
+%
 % parallel pool fxn
 % - see if this is actually necessary - maybe a local problem?
 %
 % figure out if single fxn for making matrix field is workable
-%
-% feTractProfilePairedConnections
-% - check if the connections are too short for a reasonable profile (?)
 %
 % scripts and workflows are essentially the same - merge somehow
 % - drop project specific fxns, but don't loose them...
@@ -34,7 +33,9 @@
 % - they have mostly minor changes / tweaks
 % - comments / documentation / examples
 %
-% brain shape plot of nodes and edges with size scaling / color
+% create profile / density module matrix plot
+% - individual
+% - groups?
 %
 % change all display to sprintf
 %
@@ -45,11 +46,13 @@
 %
 % fxn estimating neural conduction speed / bitrate for all edges
 %
-% summary fxn of Bassett's network tools
+% summary fxn(s?) of Bassett's network tools
 %
 % feCreatePairedConnections 
 % - simplify how fibers / weights are stored? too big a change? used later?
-% - must find a minimum number of streamlines here (?)
+%
+% feTractProfilePairedConnections
+% - check if the connections are too short for a reasonable profile (?)
 %
 
 %% figure out network shape stats for edges

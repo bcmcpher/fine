@@ -36,6 +36,9 @@ display('Assigning streamline endpoints to ROI labels...')
 parc_acpc2img = niftiGet(parc, 'qto_ijk');
 parc_img2acpc = niftiGet(parc, 'qto_xyz');
 
+% grab voxel resolution
+dvoxmm = abs(parc_img2acpc([1, 6, 11]));
+
 % convert acpc fibers to parcellation space
 fg = fgCreate;
 fg.fibers = fibers;
@@ -80,7 +83,10 @@ display(['Matching streamlines to ' num2str(length(labels)) ' nodes...']);
 % preallocate outputs
 rois = cell(length(labels), 1);
 tfib = zeros(length(labels), 1);
+dfib = zeros(length(labels), 1);
+dcnt = [];
 
+% grab size and data of labels
 parcsz = size(parc.data);
 parc_data = parc.data;
 
@@ -96,18 +102,35 @@ parfor ii = 1:length(labels)
 
     % catch size of ROI
     rois{ii}.size = size(unique(imgCoords, 'rows'), 1);
+    rois{ii}.volume = rois{ii}.size * prod(dvoxmm);
     
     % find streamline endpoints in image coordinates for label
     roi_ep1 = ismember(ep1, imgCoords, 'rows');
     roi_ep2 = ismember(ep2, imgCoords, 'rows');
     
-    % convert end points in ROI to streamline indices
-    fibers = [ find(roi_ep1); find(roi_ep2) ];
+    % find the indices of the counts
+    roi_iep1 = find(roi_ep1);
+    roi_iep2 = find(roi_ep2);
     
+    % combine unique streamline indices
+    fibers = unique([ roi_iep1; roi_iep2 ]);
+        
     % for fibers that end in rois, catch indices / lengths / weights
     rois{ii}.end.fibers = fibers;
     rois{ii}.end.length = fibLength(rois{ii}.end.fibers);
     rois{ii}.end.weight = weights(rois{ii}.end.fibers);
+    
+    % do both endpoints share the same ROI? count the instances, track indices
+    bep = intersect(roi_iep1, roi_iep2);
+    rois{ii}.dup.fibers = bep;
+    rois{ii}.dup.length = fibLength(bep);
+    rois{ii}.dup.weight = weights(bep);
+    dfib(ii) = size(bep, 1);
+    
+    % keep track of labels with both end points of streamlines 
+    if ~isempty(bep)
+        dcnt = [ dcnt; labels(ii) ];
+    end
     
     % create endpoint ROI in vistasoft format
     rois{ii}.roi = dtiNewRoi(num2str(labels(ii)), 'red', [ ep1(roi_ep1, :); ep2(roi_ep2, :) ]);
@@ -116,6 +139,7 @@ parfor ii = 1:length(labels)
     rois{ii}.centroid.img = round(mean(imgCoords) + 1);
     rois{ii}.centroid.acpc = mrAnatXformCoords(parc_img2acpc, rois{ii}.centroid.img);
     
+    % throw a warning if no terminations are in a label
     if isempty(rois{ii}.end.fibers)
         warning(['ROI label ' num2str(labels(ii)) ' has no streamline terminations.']);
     end
@@ -125,7 +149,8 @@ parfor ii = 1:length(labels)
     
 end
 
-display(['Successfully assigned ' num2str(sum(tfib)) ' of ' num2str(2*fibers_size) ' endpoints.']);
+display([ 'Successfully assigned ' num2str(sum(tfib)) ' of ' num2str(2*fibers_size) ' terminations.' ]);
+display([ num2str(size(dcnt, 1)) ' ROIs had both terminations of ' num2str(sum(dfib)) ' streamlines.']);
 
 clear ii x y z imgCoords roi_ep1 roi_ep2 fibers time
 
@@ -231,16 +256,26 @@ display(['Built paired connections object with ' num2str(sum(tcon)) ' streamline
 
 %% simple summary of counts
 
-% total streamlines, # of end points assigned
-out.strmct = fibers_size;
-out.assign = sum(tfib);
+% streamline summaries
+out.strm.count = fibers_size;
+out.strm.paired = sum(tcon);
 
-% total connections, # assigned connections, # of streamlines assinged to connections
-out.nconns = size(pconn, 1);
-out.aconns = sum(ncon);
-out.paired = sum(tcon);
+% end point summaries
+out.ep.assign = sum(tfib);
+out.ep.proportion = out.ep.assign / (fibers_size * 2);
+
+% connection summaries
+out.conn.possible = size(pconn, 1);
+out.conn.total = sum(ncon);
+
+% within node connection summary
+out.dupf.count = sum(dfib);
+out.dupf.roi = dcnt;
 
 % parcellation voxel size
-out.dvoxmm = abs(parc_img2acpc([1, 6, 11]));
+out.parc.img2acpc = parc_img2acpc;
+out.parc.acpc2img = parc_acpc2img;
+out.parc.size = size(parc_data);
+out.parc.dvoxmm = dvoxmm;
 
 end
