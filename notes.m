@@ -6,11 +6,8 @@
 %
 % link network functions
 % - merge into slightly faster dev fxn
-% - fix MI
-% - - never pulled values?
-% - - how to deal different tract sizes?
-% - - use stored central tendencies for fewer inputs
-% - compute profile norms
+% - argument parsing / progression updates, etc.
+% - fix MI - still computes bad values
 %
 % streamline render fxns
 % - finish / check some functionality
@@ -26,6 +23,8 @@
 %
 % figure out if single fxn for making matrix field is workable
 %
+% change all display to sprintf
+%
 % scripts and workflows are essentially the same - merge somehow
 % - drop project specific fxns, but don't loose them...
 %
@@ -36,8 +35,6 @@
 % create profile / density module matrix plot
 % - individual
 % - groups?
-%
-% change all display to sprintf
 %
 % fix ALL function names
 %
