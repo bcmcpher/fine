@@ -18,10 +18,10 @@
 %
 % brain shape plot of nodes and edges with size scaling / color
 %
+% dt6 option to fnAverageEdgeProperty for multiple MS averages
+%
 % parallel pool fxn
 % - see if this is actually necessary - maybe a local problem?
-%
-% figure out if single fxn for making matrix field is workable
 %
 % change all display to sprintf
 %
@@ -47,6 +47,8 @@
 %
 % feCreatePairedConnections 
 % - simplify how fibers / weights are stored? too big a change? used later?
+%
+% figure out if single fxn for making matrix field is workable
 %
 % feTractProfilePairedConnections
 % - check if the connections are too short for a reasonable profile (?)
