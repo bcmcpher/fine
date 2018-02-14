@@ -25,6 +25,8 @@
 %
 % change all display to sprintf
 %
+% make sure volume fxns can take a loaded .nii or a string
+%
 % scripts and workflows are essentially the same - merge somehow
 % - drop project specific fxns, but don't loose them...
 %
