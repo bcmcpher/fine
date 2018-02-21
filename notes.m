@@ -1,4 +1,4 @@
-%% new measures to add to edge-wise nodes for more thorough anatomy
+%% new features / fxns to add to toolbox
 % Brent McPherson
 %
 
@@ -40,12 +40,16 @@
 %
 % fix ALL function names
 %
+% fix ALL documentation
+%
 % built in matlab hierarchical clustering algorithms / plots
 % linkage / cluster / dendrogram / clusterdata / cophenet / inconsistent
 %
 % fxn estimating neural conduction speed / bitrate for all edges
 %
 % summary fxn(s?) of Bassett's network tools
+%
+% fxn to virtual lesion streamlines w/ both terminations in 1 ROI
 %
 % feCreatePairedConnections 
 % - simplify how fibers / weights are stored? too big a change? used later?
@@ -54,6 +58,8 @@
 %
 % feTractProfilePairedConnections
 % - check if the connections are too short for a reasonable profile (?)
+%
+% compute profile from ENCODE directly? 
 %
 
 %% figure out network shape stats for edges
