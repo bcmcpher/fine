@@ -2,6 +2,9 @@ function [ LNmap, MLmap ] = fnLinkNetworkVolumes(fe, pconn, label, assign, one_o
 %fnLinkNetworkVolumes converts link network communities to voxel volumes
 %   with some additional work, I hope this will identify major tracts
 %
+% TODO:
+% add dilate / fill / erode steps to tract volumes
+%
 % [ LNmap, MLmap ] = fnLinkNetworkVolumes(fe, pconn, 'nzw', node.assign, 'zz_one.nii.gz', 'zz_two.nii.gz');
 %
 
@@ -99,6 +102,38 @@ for ii = 1:size(out, 1)
         mltOut(coord(jj, 1), coord(jj, 2), coord(jj, 3), ii) = ii;
     
     end
+    
+end
+
+% define dilation here
+se = strel('cube', 3);
+
+% for every label
+for ii = 1:size(out, 1)
+    
+    % pull image
+    raw = mltOut(:,:,:,ii);
+    
+    % dilate / fill / erode volume
+    imd = imdilate(raw, se);
+    imf = imfill(imd, 'holes');
+    ime = imerode(imf, se);
+    
+    % return image
+    tmp = zeros(size(ime));
+    tmp(ime == ii) = ii;
+    
+    % find groups of bw images to de-island
+    disl = zeros(size(tmp));
+    CC = bwconncomp(tmp, 26);
+    
+    % find largest group and keep it
+    numPixels = cellfun(@numel,CC.PixelIdxList);
+    [ ~, idx] = max(numPixels);
+    disl(CC.PixelIdxList{idx}) = ii;
+        
+    % store output data
+    mltOut(:, :, :, ii) = disl;
     
 end
 

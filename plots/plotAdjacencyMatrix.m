@@ -24,7 +24,7 @@ fh = figure('Position', [580 580 1080 680]);
 colormap('hot');
 imagesc(mat);
 axis('square'); axis('equal'); axis('tight');
-colorbar;
+%colorbar;
 caxis(crng);
 
 set(gca, 'XTickLabel', '', 'YTickLabel', '', 'XTick', [], 'YTick', []);

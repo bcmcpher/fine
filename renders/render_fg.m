@@ -138,3 +138,26 @@ lh = camlight('right');
 lighting phong
 
 end
+
+
+% % combine all the nodes of all the streamlines
+% fibs = [];
+% for jj = 1:length(fibers)
+%     fibs = [ fibs fibers{jj} ];
+% end
+% 
+% %  find min / max [x,y,z]
+% axCoords = minmax(fibs);
+% 
+% %  compute 5% padding of [x,y,z]
+% axPadding = abs(axCoords(:,1) - axCoords(:,2)) * 0.10;
+% 
+% % add padding to [x,y,z] dimensions
+% axOut = [ round(axCoords(:, 1) + 4*axPadding), round(axCoords(:, 2) - 4*axPadding) ];
+% 
+% % decide the slice
+% indx=[ 0 0 axOut(3,1) ];
+% 
+% % apply default limits to axis
+% axOut2 = [round(axCoords(:,1) - axPadding), round(axCoords(:,2) + axPadding)];
+% axis([reshape(axOut2', 1, 6)]);
