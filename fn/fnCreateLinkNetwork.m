@@ -1,4 +1,4 @@
-function [ omat, olab, out ] = fnCreateLinkNetwork(pconn, label, feroi, img)
+function [ omat, olab, out ] = devLinkNetwork(pconn, label, meas, dtype, Phi, dict)
 %fnCreateLinkNetwork creates a link network from a pconn list that has had
 % edge volumes precomputed for the label requested.
 %
@@ -14,20 +14,35 @@ function [ omat, olab, out ] = fnCreateLinkNetwork(pconn, label, feroi, img)
 %             Additionally, this can be run after cleaning, resulting in
 %             valid calls of 'all_clean' and 'nzw_clean', respectively.
 %
+%     meas  - the measure to be used when creating the links. 
+%             Possible options are:
+%               - dice: the dice coefficient between voxels of the connections
+%               - mi: mutual information between precomputed voxel values
+%               - angle: the average angle of intersection between the streamline nodes
+%               - tprof: a series of summary statistics between a specified tract profile
+%               - deReus: the node based link network defined by deReus et al. 2014
+%
+%     dtype - defines the microstructural label for "mi" or the profile label for "tprof"
+%
+%     Phi   - the Phi model object from the fe structure. 
+%             Only needed if "angle" requested.
+%
+%     dict  - the dictionary of streamline orientations from the fe structure. 
+%             Only needed if "angle" requested.
+%
 % OUTPUTS:
 %     omat - a matrix that is (length(pconn) x length(pconn)) in size
-%            showing the Dice coefficient of each intersecting volume.
+%            showing the requested measure of each intersecting edge.
+%
+%     olab - a cell array of labels that describe the 3rd dimension of omat
+%
 %     out  - cell array of the data used to compute edge entry in omat
 %
 % TODO:
 % - add other metrics?
-% Mutual Information and Joint Entropy
-% Cosine Similarity - pdist(ld, 'cosine'); or pdist2(ld1, ld2, 'cosine'); 
-% where ld is matrix of node indices, counts, and/or dictionary orientations.
-% some of these? all of these?
 % https://en.wikipedia.org/wiki/Diversity_index#Simpson_index
 % Simpson's Index: probability that 2 random voxels are part of intersection
-% Richness: how many links does an intersection contain
+% Richness: how many voxels does an intersection contain
 % Shannon Diversity Index: global measure of intersections between links 
 %
 % EXAMPLE:
@@ -48,180 +63,323 @@ function [ omat, olab, out ] = fnCreateLinkNetwork(pconn, label, feroi, img)
 % pconn = fnFindPathVoxels(pconn, 'nzw', Phi, vx);
 %
 % % create link network based on overlap of non-zero weighted fibers
-% [ omat, out ] = fnCreateLinkNetwork(pconn, 'nzw');
+% [ omat, out ] = fnCreateLinkNetwork(pconn, 'nzw', 'dice');
 %
 % Brent McPherson (c), 2017 - Indiana University
 %
 
 %% generate link network
 
+x = 5;
+
 % error if volume is not precomputed
 if (~isfield(pconn{1}.(label), 'volume'))
-    error('Edge volumes for this label must be precomputed with fnFindPathVoxels().');
+    error('Edge volumes for label ''%s'' must be precomputed with fnFindPathVoxels().', label);
 end    
 
-display('Preallocating output structure...');
+% error if MI is called to estimate w/o dtype being stored
+if (~isfield(pconn{1}.(label).volume, dtype) && strcmp(meas, 'mi'))
+    error('An average edge property dtype ''%s'' must be precomputed with fnAverageEdgeProperty().', dtype);
+end
 
-% number of edges; link nodes
+% error when Phi needed and not found
+if(~exist('Phi', 'var') || isempty(Phi))
+    Phi = [];
+    if strcmp(meas, 'angle')
+        error('Phi was not passed, so the angle cannot be computed.');
+    end 
+end
+
+% error when dict needed and not found
+if(~exist('dict', 'var') || isempty(dict))
+    dict = [];
+    if strcmp(meas, 'angle')
+        error('dict was not passed, so the angle cannot be computed.');
+    end 
+end
+
+% check if dtype exists and can be split on a '.', meaning it's a dt6.(type) profile
+if(~exist('dtype', 'var') || isempty(dtype))
+    dtype = 'none';
+end
+dtype = strsplit(dtype, '.');
+% make this a switch if dtype is needed
+
+disp('Preallocating output values...');
+
+% number of edges; links between edges are the new nodes
 lnodes = size(pconn, 1);
 
-% create indices for every pair of link connections
-pairs = nchoosek(1:lnodes, 2);
+% compute indices of output size
+mask = triu(ones(lnodes), 1); 
 
-% build empty cells to parallelize computation
-out = cell(length(pairs), 1);
+% preallocate unique indices - faster than nchoosek
+[ xind, yind ] = find(mask > 0);
+indx = [ xind, yind ];
 
-% build empty matrices
-omat = zeros(lnodes, lnodes, 3);
+clear mask xind yind 
 
-display('Computing unique edge intersections...');
+switch meas
+    
+    case 'dice'
+        olab = {'dice'};
+        nmiss = 1;
+    case 'mi'
+        olab = {'mi', 'joint', 'entropy1', 'entropy2'};
+        nmiss = 4;
+    case 'angle'
+        olab = {'dotp', 'angle', 'cosd'};
+        nmiss = 3;
+    case 'tprof'
+        olab = {'nrm', 'corr', 'smae', 'dotp', 'rmse', 'cosd'};
+        nmiss = 6;
+    case 'deReus'
+        olab = {'node'};
+        nmiss = 1;
+    otherwise
+        error('Invalid method of comparison requested. Either use: ''dice'', ''mi'', ''angle'', ''tprof'', or ''deReus''.');
+end
 
-% for every connections overlap
+% build an empty output array
+out = cell(size(indx, 1), 1);
+
+disp('Computing weights for unique edge intersections...');
+
 tic;
-parfor ii = 1:length(pairs)
+for ii = 1:size(indx, 1)
     
-    % simple index for each edge combination
-    ti1 = pairs(ii, 1);
-    ti2 = pairs(ii, 2);
+    % grab the precomputed indices
+    conn1 = indx(ii, 1);
+    conn2 = indx(ii, 2);
+
+    % grap the unique streamlines of each edge
+    pi1 = pconn{conn1}.(label).indices;
+    pi2 = pconn{conn2}.(label).indices;
     
-    % pull labels
-    out{ii}.edge1 = ti1;
-    out{ii}.edge2 = ti2;
+    % fill in nothing if either connection is empty
+    if isempty(pi1) || isempty(pi2)
+        out{ii} = zeros(1, nmiss);
+        continue
+    end
     
     % grab the unique voxels of each edge
-    li1 = pconn{ti1}.(label).volume.pvoxels;
-    li2 = pconn{ti2}.(label).volume.pvoxels;
-    
-    % if either connection is empty, fill in 0 and move on
-    if isempty(li1) || isempty(li2)
-        out{ii}.indices = [];
-        out{ii}.dice = 0;
-        out{ii}.mutualInformation = 0;
-        out{ii}.jointEntropy = 0;
-        %out{ii}.histogramImage1 = [];
-        %out{ii}.histogramImage2 = [];
-        continue
-    end
-    
-    % find the link intersection
-    indices = intersect(li1, li2);
-    
-    % if the intersection is empty, move on
-    if isempty(indices)
-        out{ii}.indices = [];
-        out{ii}.dice = 0;
-        out{ii}.mutualInformation = 0;
-        out{ii}.jointEntropy = 0;
-        %out{ii}.histogramImage1 = [];
-        %out{ii}.histogramImage2 = [];
-        continue
-    end
-    
-    % BEGIN PULLING VALUES FOR JOINT ENTROPY / MI HERE
-    % THESE ARE ONLY CONNECTIONS WITH SHARED SPACES
-    
-    % grab image size and ROI image space coordinates
-    imc1 = feroi(li1, :);
-    imc2 = feroi(li2, :);
-
-    % grab image values
-    im1 = sub2ind(size(img.data), imc1(:,1), imc1(:,2), imc1(:,3));
-    im2 = sub2ind(size(img.data), imc2(:,1), imc2(:,2), imc2(:,3));
-    
-    % pad data value dimensions - IS THIS VALID? NECESSARY TO WORK...?
-    if length(im2) > length(im1)
-        im1 = [ im1; zeros(length(im2) - length(im1), 1) ];
-    end
-    
-    if length(im1) > length(im2)
-        im2 = [ im2; zeros(length(im1) - length(im2), 1) ];
-    end
+    pv1 = pconn{conn1}.(label).volume.pvoxels;
+    pv2 = pconn{conn2}.(label).volume.pvoxels;
         
-    % compute bins of joint histogram
-    [ ~, ~, indrow ] = unique(im1(:));
-    [ ~, ~, indcol ] = unique(im2(:));
+    % find the common volume of the connections
+    vind = intersect(pv1, pv2);
     
-    % compute joint entropy
-    jointHistogram = accumarray([indrow indcol], 1);
-    jointProb = jointHistogram / numel(indrow);
-    indNoZero = jointHistogram ~= 0;
-    jointProb1DNoZero = jointProb(indNoZero);
-    jointEntropy = -sum(jointProb1DNoZero.*log2(jointProb1DNoZero));
+    % if the intersection is empty, fill in zero
+    if isempty(vind)
+        out{ii} = zeros(1, nmiss);
+        continue
+    end
     
-    % compute individual histogram summaries
-    histogramImage1 = sum(jointHistogram, 1);
-    histogramImage2 = sum(jointHistogram, 2);
+    switch meas
+        
+        % dice coefficient
+        case 'dice'
+        
+            % find the size of the intersection - numerator
+            num = size(vind, 1);
+            
+            % combine the voxel indices for denominator of Dice coeff
+            den = size(pv1, 1) + size(pv2, 1);
+            
+            % build Dice coeff values for assignment
+            out{ii} = (2 * num) / den;
+        
+        case 'mi'
+            
+            % SOME INDIVIDUAL ENTROPY ESTIMATES ARE LARGE NEGATIVE NUMBERS
+            % THIS MAKES ~HALF OF MI ESTIMATES LARGE NEGATIVE NUMBERS - BAD
+            % I DO NOT CURRENTLY KNOW HOW TO FIX THIS
+            % link to how I compute the values currently
+            % https://stackoverflow.com/questions/23691398/mutual-information-and-joint-entropy-of-two-images-matlab
+            
+            % grab path voxels
+            imp1 = pconn{conn1}.(label).volume.pvoxels;
+            imp2 = pconn{conn2}.(label).volume.pvoxels;
+            
+            % grab path values
+            if size(dtype, 2) == 1
+                imv1 = pconn{conn1}.(label).volume.(dtype{1}).raw;
+                imv2 = pconn{conn2}.(label).volume.(dtype{1}).raw;
+            elseif size(dtype, 2) == 2
+                imv1 = pconn{conn1}.(label).volume.(dtype{1}).(dtype{2}).raw;
+                imv2 = pconn{conn2}.(label).volume.(dtype{1}).(dtype{2}).raw;
+            else
+                error('Impossible MI comparison: %s', [ dtype{1} '.' dtype{2} ]);
+            end
+            
+            % grab combined voxels from both paths
+            imp = union(imp1, imp2);
+            
+            % build image vector
+            im = nan(size(imp, 1), 2);
+            
+            % grab indices of voxels not in the path
+            [ ~, im01 ] = setdiff(imp, imp1);
+            [ ~, im02 ] = setdiff(imp, imp2);
+            
+            % set entries unique to each tract to zero in the other tract
+            im(im01, 1) = 0;
+            im(im02, 2) = 0;
+            
+            % replace missing in each column with the values
+            im(isnan(im(:, 1)), 1) = imv1;
+            im(isnan(im(:, 2)), 2) = imv2;
+
+            % compute bins of joint histogram
+            [ ~, ~, indrow ] = unique(im(:, 1));
+            [ ~, ~, indcol ] = unique(im(:, 2));
+            
+            % compute joint entropy
+            jointHist = accumarray([indrow indcol], 1);
+            jointProb = jointHist / numel(indrow);
+            indNoZero = jointHist ~= 0;
+            jointNzPb = jointProb(indNoZero);
+            jointEntropy = -sum(jointNzPb .* log2(jointNzPb));
+            
+            % compute individual histogram summaries
+            histImage1 = sum(jointHist, 1);
+            histImage2 = sum(jointHist, 2);
+            
+            % find non-zero elements for first image's histogram
+            % extract them out and get the probabilities
+            % compute the entropy
+            indNoZero1 = histImage1 ~= 0;
+            prob1NoZero = histImage1(indNoZero1) / numel(histImage1);
+            entropy1 = -sum(prob1NoZero .* log2(prob1NoZero));
+            
+            % repeat for the second image
+            indNoZero2 = histImage2 ~= 0;
+            prob2NoZero = histImage2(indNoZero2) / numel(histImage2);
+            entropy2 = -sum(prob2NoZero .* log2(prob2NoZero));
+            
+            % now compute mutual information
+            mutualInfo = (entropy1 + entropy2) - jointEntropy;
+ 
+            % assign to output
+            out{ii} = [ mutualInfo, jointEntropy, entropy1, entropy2 ];
+            
+        % angle of intersection (subset the tensor)    
+        case 'angle'
+            
+            % reduce Phi to the shared voxels of the connections
+            sub1 = Phi(:, vind, pi1);
+            sub2 = Phi(:, vind, pi2);
+            
+            % from subtensors pull the dictionary atoms for each connection
+            atom1 = dict(:, sub1.subs(:, 1));
+            atom2 = dict(:, sub2.subs(:, 1));
+            
+            % find the average orientation of each tract
+            matm1 = mean(atom1, 2);
+            matm2 = mean(atom2, 2);
+            
+            % find the scalar product to assign a link weight
+            dotp = dot(matm1, matm2);
+            
+            % compute the angle between connections
+            angl = acos(dotp);
+            
+            % compute cosine distance between angle
+            cosd = pdist2(matm1', matm2', 'cosine');
+            
+            out{ii} = [ dotp angl cosd ];
+            
+        case 'tprof'
+            
+            if size(dtype, 2) == 1
+                tp1 = pconn{conn1}.(label).profile.(dtype{1});
+                tp2 = pconn{conn2}.(label).profile.(dtype{1});
+            elseif size(dtype, 2) == 2
+                tp1 = pconn{conn1}.(label).profile.(dtype{1}).(dtype{2});
+                tp2 = pconn{conn2}.(label).profile.(dtype{1}).(dtype{2});
+            else
+                error('Impossible tract profile requested.');
+            end
+            
+            % compute the norm between profiles
+            nrm = norm(tp1 - tp2);
+            
+            % other measures
+            corc = corr(tp1, tp2);               % correlation
+            %mnae = mae(tp1 - tp2);               % mean of absolute error
+            smae = norm(tp1 - tp2, 1);           % sum of absolute error
+            %mxae = norm(tp1 - tp2, inf);         % max of absolute error 
+            dotp = dot(tp1, tp2);                % scalar product
+            %mser = mse(tp1, tp2);                % mean of square error
+            %sser = sse(tp1 - tp2);               % sum of square error
+            rmse = sqrt(mean((tp1 - tp2) .^ 2)); % RMSE
+            cosd = pdist2(tp1', tp2', 'cosine'); % cosine distance
+            
+            % combine and fit coefficients to the lines
+            % how could these be compared?
+            %[ coeff, errs ] = lpc([ tp1, tp2 ], 4);
+            
+            % fourier? other time series analysis?
+            
+            % store output
+            %out{ii} = [ nrm corc mnae smae mxae scal mser sser rmse cosd ];
+            out{ii} = [ nrm corc smae dotp rmse cosd ];
+            
+        case 'deReus'
+            
+            % assume empty
+            val = 0;
+            
+            % if two connections share a node, assign 1
+            if (pconn{conn1}.roi1 == pconn{conn2}.roi1 || pconn{conn1}.roi2 == pconn{conn2}.roi2)
+                val = 1;
+            end
+            
+            if (pconn{conn1}.roi1 == pconn{conn2}.roi2 || pconn{conn1}.roi2 == pconn{conn2}.roi1)
+                val = 1;
+            end
+            
+            % store output
+            out{ii} = val;
+            
+        otherwise
+            
+            error('Invalid metric between edges requested.');
+            
+    end
     
-    % find non-zero elements for first image's histogram
-    % extract them out and get the probabilities
-    % compute the entropy
-    indNoZero = histogramImage1 ~= 0;
-    prob1NoZero = histogramImage1(indNoZero) / numel(histogramImage1);
-    entropy1 = -sum(prob1NoZero.*log2(prob1NoZero));
-    
-    % repeat for the second image
-    indNoZero = histogramImage2 ~= 0;
-    prob2NoZero = histogramImage2(indNoZero) / numel(histogramImage2);
-    entropy2 = -sum(prob2NoZero.*log2(prob2NoZero));
-    
-    % now compute mutual information
-    mutualInformation = entropy1 + entropy2 - jointEntropy;
-    
-    % END OF IMAGE INTENSITY COMPARISONS
-    
-    % find the size of the intersection
-    num = size(indices, 1);
-    
-    % combine the voxel indices for denominator of Dice coeff
-    den = size(li1, 1) + size(li2, 1);
-    
-    % build Dice coeff values for assignment
-    val = (2 * num) / den;
-    
-    % catch output
-    out{ii}.indices = indices;
-    out{ii}.dice = val;
-    out{ii}.mutualInformation = mutualInformation;
-    out{ii}.jointEntropy = jointEntropy;
-    %out{ii}.histogramImage1 = histogramImage1;
-    %out{ii}.histogramImage2 = histogramImage2;
-   
 end
 time = toc;
 
-display(['Created link network from ' num2str(length(pairs)) ' unique edge combinations in ' num2str(round(time)/60) ' minutes.']);
+disp(['Computed link network metrics in ' num2str(time/60) ' minutes.' ]);
 
-%% assemble matrix
+disp('Creating link network graph...');
 
-display('Creating link network matrix...');
+% preallocate matrix
+omat = nan(lnodes, lnodes, nmiss);
 
-for ii = 1:length(pairs)
+% create outputs
+for ii = 1:size(indx, 1)
     
-    % simple index for each 
-    ti1 = pairs(ii, 1);
-    ti2 = pairs(ii, 2);
+    % grab the precomputed indices
+    conn1 = indx(ii, 1);
+    conn2 = indx(ii, 2);
     
-    % build matrix of dice coeffs
-    omat(ti1, ti2, 1) = out{ii}.dice;
-    omat(ti2, ti1, 1) = out{ii}.dice;
+    for jj = 1:nmiss
+        
+        % create matrix
+        omat(conn1, conn2, jj) = out{ii}(jj);
+        omat(conn2, conn1, jj) = out{ii}(jj);
     
-    % build matrix of dice coeffs
-    omat(ti1, ti2, 2) = out{ii}.jointEntropy;
-    omat(ti2, ti1, 2) = out{ii}.jointEntropy;
-    
-    % build matrix of dice coeffs
-    omat(ti1, ti2, 3) = out{ii}.mutualInformation;
-    omat(ti2, ti1, 3) = out{ii}.mutualInformation;
+    end
     
 end
-
-clear ii ti1 ti2 
 
 % fix nan/inf/neg values to zero
+omat = squeeze(omat);
 omat(isinf(omat)) = 0;
 omat(isnan(omat)) = 0;
-omat(omat < 0) = 0;
-
-olab = {'dice', 'jointEntropy', 'mutualInformation'};
+%omat(omat < 0) = 0;
 
 end
+

@@ -5,27 +5,29 @@
 %% TODO:
 %
 % link network functions
-% - merge into slightly faster dev fxn
-% - argument parsing / progression updates, etc.
 % - fix MI - still computes bad values
+%
+% dt6 option to fnAverageEdgeProperty for multiple MS averages
+%
+% fix patch part of virtual lesion plot
 %
 % streamline render fxns
 % - finish / check some functionality
 % - better handle individual / multiple inputs in edge render
 % - set defualt view to minmax(x, y, z) coords + 10%
 %
-% fix patch part of virtual lesion plot
+% module profile / value plot from paper
+% - individual
+% - group
 %
-% brain shape plot of nodes and edges with size scaling / color
+% brain shape plot of nodes and edges with size scaling / color / labels?
 %
-% dt6 option to fnAverageEdgeProperty for multiple MS averages
+% make sure volume fxns can take a loaded .nii or a string
 %
 % parallel pool fxn
 % - see if this is actually necessary - maybe a local problem?
 %
 % change all display to sprintf
-%
-% make sure volume fxns can take a loaded .nii or a string
 %
 % scripts and workflows are essentially the same - merge somehow
 % - drop project specific fxns, but don't loose them...
@@ -50,6 +52,8 @@
 % summary fxn(s?) of Bassett's network tools
 %
 % fxn to virtual lesion streamlines w/ both terminations in 1 ROI
+%
+% finish feCreatePairedConnectionsFromSurface
 %
 % feCreatePairedConnections 
 % - simplify how fibers / weights are stored? too big a change? used later?
