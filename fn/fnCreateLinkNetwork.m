@@ -1,4 +1,4 @@
-function [ omat, olab, out ] = devLinkNetwork(pconn, label, meas, dtype, Phi, dict)
+function [ omat, olab, out ] = fnCreateLinkNetwork(pconn, label, meas, dtype, Phi, dict)
 %fnCreateLinkNetwork creates a link network from a pconn list that has had
 % edge volumes precomputed for the label requested.
 %
@@ -40,10 +40,10 @@ function [ omat, olab, out ] = devLinkNetwork(pconn, label, meas, dtype, Phi, di
 %
 % TODO:
 % - add other metrics?
-% https://en.wikipedia.org/wiki/Diversity_index#Simpson_index
-% Simpson's Index: probability that 2 random voxels are part of intersection
-% Richness: how many voxels does an intersection contain
-% Shannon Diversity Index: global measure of intersections between links 
+%   https://en.wikipedia.org/wiki/Diversity_index#Simpson_index
+%     - Simpson's Index: probability that 2 random voxels are part of intersection
+%     - Richness: how many voxels does an intersection contain
+%     - Shannon Diversity Index: global measure of intersections between links 
 %
 % EXAMPLE:
 %
@@ -69,8 +69,6 @@ function [ omat, olab, out ] = devLinkNetwork(pconn, label, meas, dtype, Phi, di
 %
 
 %% generate link network
-
-x = 5;
 
 % error if volume is not precomputed
 if (~isfield(pconn{1}.(label), 'volume'))
@@ -105,7 +103,7 @@ end
 dtype = strsplit(dtype, '.');
 % make this a switch if dtype is needed
 
-disp('Preallocating output values...');
+disp('Preallocating output matrix...');
 
 % number of edges; links between edges are the new nodes
 lnodes = size(pconn, 1);
@@ -126,6 +124,7 @@ switch meas
         nmiss = 1;
     case 'mi'
         olab = {'mi', 'joint', 'entropy1', 'entropy2'};
+        nbin = 256; % number of bins for the individual / joint histograms
         nmiss = 4;
     case 'angle'
         olab = {'dotp', 'angle', 'cosd'};
@@ -146,7 +145,7 @@ out = cell(size(indx, 1), 1);
 disp('Computing weights for unique edge intersections...');
 
 tic;
-for ii = 1:size(indx, 1)
+parfor ii = 1:size(indx, 1)
     
     % grab the precomputed indices
     conn1 = indx(ii, 1);
@@ -230,36 +229,61 @@ for ii = 1:size(indx, 1)
             im(isnan(im(:, 1)), 1) = imv1;
             im(isnan(im(:, 2)), 2) = imv2;
 
-            % compute bins of joint histogram
-            [ ~, ~, indrow ] = unique(im(:, 1));
-            [ ~, ~, indcol ] = unique(im(:, 2));
+            % create first ROI histogram and compute entropy
+            ihist1 = hist(im(:, 1), nbin);
+            ihist1 = ihist1 / sum(ihist1);
+            ihist1nz = ihist1(ihist1 ~= 0);
+            entropy1 = -sum(ihist1nz(:) .* log2(ihist1nz(:)));
             
-            % compute joint entropy
-            jointHist = accumarray([indrow indcol], 1);
-            jointProb = jointHist / numel(indrow);
-            indNoZero = jointHist ~= 0;
-            jointNzPb = jointProb(indNoZero);
-            jointEntropy = -sum(jointNzPb .* log2(jointNzPb));
+            % create second ROI histogram and compute entropy
+            ihist2 = hist(im(:, 2), nbin);
+            ihist2 = ihist2 / sum(ihist2);
+            ihist2nz = ihist2(ihist2 ~= 0);
+            entropy2 = -sum(ihist2nz(:) .* log2(ihist2nz(:)));
             
-            % compute individual histogram summaries
-            histImage1 = sum(jointHist, 1);
-            histImage2 = sum(jointHist, 2);
+            % create joint ROI histogram and compute joint entropy
+            jhist = hist2(im(:, 1), im(:, 2), nbin);
+            jhist = jhist / sum(jhist(:));
+            jhistnz = jhist(jhist ~=0);
+            jointEntropy = -sum(jhistnz(:) .* log2(jhistnz(:)));
             
-            % find non-zero elements for first image's histogram
-            % extract them out and get the probabilities
-            % compute the entropy
-            indNoZero1 = histImage1 ~= 0;
-            prob1NoZero = histImage1(indNoZero1) / numel(histImage1);
-            entropy1 = -sum(prob1NoZero .* log2(prob1NoZero));
-            
-            % repeat for the second image
-            indNoZero2 = histImage2 ~= 0;
-            prob2NoZero = histImage2(indNoZero2) / numel(histImage2);
-            entropy2 = -sum(prob2NoZero .* log2(prob2NoZero));
-            
-            % now compute mutual information
+            % compute mutual information
             mutualInfo = (entropy1 + entropy2) - jointEntropy;
+            
+%             % compute bins of joint histogram
+%             [ ~, ~, indrow ] = unique(im(:, 1));
+%             [ ~, ~, indcol ] = unique(im(:, 2));
+%             
+%             % compute joint entropy
+%             jointHist = accumarray([indrow indcol], 1);
+%             jointProb = jointHist / numel(indrow);
+%             indNoZero = jointHist ~= 0;
+%             jointNzPb = jointProb(indNoZero);
+%             jointEntropy = -sum(jointNzPb .* log2(jointNzPb));
+%             
+%             % compute individual histogram summaries
+%             histImage1 = sum(jointHist, 1);
+%             histImage2 = sum(jointHist, 2);
+%             
+%             % find non-zero elements for first image's histogram
+%             % extract them out and get the probabilities
+%             % compute the entropy
+%             indNoZero1 = histImage1 ~= 0;
+%             prob1NoZero = histImage1(indNoZero1) / numel(histImage1);
+%             entropy1 = -sum(prob1NoZero .* log2(prob1NoZero));
+%             
+%             % repeat for the second image
+%             indNoZero2 = histImage2 ~= 0;
+%             prob2NoZero = histImage2(indNoZero2) / numel(histImage2);
+%             entropy2 = -sum(prob2NoZero .* log2(prob2NoZero));
+%             
+%             % now compute mutual information
+%             mutualInfo = (entropy1 + entropy2) - jointEntropy;
  
+            if mutualInfo <= 0
+                keyboard;
+            end
+            
             % assign to output
             out{ii} = [ mutualInfo, jointEntropy, entropy1, entropy2 ];
             
