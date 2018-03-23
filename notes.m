@@ -4,9 +4,6 @@
 
 %% TODO:
 %
-% better formats for virtual lesion plot
-% - request just 1 of the three?
-%
 % module profile / density plot from paper
 % - individual
 % - group
@@ -48,6 +45,8 @@
 % summary fxn(s?) of Bassett's network tools
 %
 % fxn to virtual lesion streamlines w/ both terminations in 1 ROI
+%
+% better default axes in virtual lesion measures plot 
 %
 % finish feCreatePairedConnectionsFromSurface
 %
