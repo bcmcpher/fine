@@ -117,8 +117,7 @@ indx = [ xind, yind ];
 
 clear mask xind yind 
 
-switch meas
-    
+switch meas    
     case 'dice'
         olab = {'dice'};
         nmiss = 1;
@@ -189,18 +188,8 @@ parfor ii = 1:size(indx, 1)
             out{ii} = (2 * num) / den;
         
         case 'mi'
-            
-            % SOME INDIVIDUAL ENTROPY ESTIMATES ARE LARGE NEGATIVE NUMBERS
-            % THIS MAKES ~HALF OF MI ESTIMATES LARGE NEGATIVE NUMBERS - BAD
-            % I DO NOT CURRENTLY KNOW HOW TO FIX THIS
-            % link to how I compute the values currently
-            % https://stackoverflow.com/questions/23691398/mutual-information-and-joint-entropy-of-two-images-matlab
-            
-            % grab path voxels
-            imp1 = pconn{conn1}.(label).volume.pvoxels;
-            imp2 = pconn{conn2}.(label).volume.pvoxels;
-            
-            % grab path values
+
+            % grab path values depending on dtype passed
             if size(dtype, 2) == 1
                 imv1 = pconn{conn1}.(label).volume.(dtype{1}).raw;
                 imv2 = pconn{conn2}.(label).volume.(dtype{1}).raw;
@@ -208,18 +197,18 @@ parfor ii = 1:size(indx, 1)
                 imv1 = pconn{conn1}.(label).volume.(dtype{1}).(dtype{2}).raw;
                 imv2 = pconn{conn2}.(label).volume.(dtype{1}).(dtype{2}).raw;
             else
-                error('Impossible MI comparison: %s', [ dtype{1} '.' dtype{2} ]);
+                error('Impossible data for MI comparison: %s does not exist.', [ dtype{1} '.' dtype{2} ]);
             end
             
             % grab combined voxels from both paths
-            imp = union(imp1, imp2);
+            imp = union(pv1, pv2);
             
             % build image vector
             im = nan(size(imp, 1), 2);
             
             % grab indices of voxels not in the path
-            [ ~, im01 ] = setdiff(imp, imp1);
-            [ ~, im02 ] = setdiff(imp, imp2);
+            [ ~, im01 ] = setdiff(imp, pv1);
+            [ ~, im02 ] = setdiff(imp, pv2);
             
             % set entries unique to each tract to zero in the other tract
             im(im01, 1) = 0;
@@ -229,19 +218,19 @@ parfor ii = 1:size(indx, 1)
             im(isnan(im(:, 1)), 1) = imv1;
             im(isnan(im(:, 2)), 2) = imv2;
 
-            % create first ROI histogram and compute entropy
+            % create first edge histogram and compute entropy
             ihist1 = hist(im(:, 1), nbin);
             ihist1 = ihist1 / sum(ihist1);
             ihist1nz = ihist1(ihist1 ~= 0);
             entropy1 = -sum(ihist1nz(:) .* log2(ihist1nz(:)));
             
-            % create second ROI histogram and compute entropy
+            % create second edge histogram and compute entropy
             ihist2 = hist(im(:, 2), nbin);
             ihist2 = ihist2 / sum(ihist2);
             ihist2nz = ihist2(ihist2 ~= 0);
             entropy2 = -sum(ihist2nz(:) .* log2(ihist2nz(:)));
             
-            % create joint ROI histogram and compute joint entropy
+            % create joint edge histogram and compute joint entropy
             jhist = hist2(im(:, 1), im(:, 2), nbin);
             jhist = jhist / sum(jhist(:));
             jhistnz = jhist(jhist ~=0);
@@ -249,41 +238,7 @@ parfor ii = 1:size(indx, 1)
             
             % compute mutual information
             mutualInfo = (entropy1 + entropy2) - jointEntropy;
-            
-%             % compute bins of joint histogram
-%             [ ~, ~, indrow ] = unique(im(:, 1));
-%             [ ~, ~, indcol ] = unique(im(:, 2));
-%             
-%             % compute joint entropy
-%             jointHist = accumarray([indrow indcol], 1);
-%             jointProb = jointHist / numel(indrow);
-%             indNoZero = jointHist ~= 0;
-%             jointNzPb = jointProb(indNoZero);
-%             jointEntropy = -sum(jointNzPb .* log2(jointNzPb));
-%             
-%             % compute individual histogram summaries
-%             histImage1 = sum(jointHist, 1);
-%             histImage2 = sum(jointHist, 2);
-%             
-%             % find non-zero elements for first image's histogram
-%             % extract them out and get the probabilities
-%             % compute the entropy
-%             indNoZero1 = histImage1 ~= 0;
-%             prob1NoZero = histImage1(indNoZero1) / numel(histImage1);
-%             entropy1 = -sum(prob1NoZero .* log2(prob1NoZero));
-%             
-%             % repeat for the second image
-%             indNoZero2 = histImage2 ~= 0;
-%             prob2NoZero = histImage2(indNoZero2) / numel(histImage2);
-%             entropy2 = -sum(prob2NoZero .* log2(prob2NoZero));
-%             
-%             % now compute mutual information
-%             mutualInfo = (entropy1 + entropy2) - jointEntropy;
- 
-            if mutualInfo <= 0
-                keyboard;
-            end
-            
+
             % assign to output
             out{ii} = [ mutualInfo, jointEntropy, entropy1, entropy2 ];
             
@@ -355,11 +310,7 @@ parfor ii = 1:size(indx, 1)
             val = 0;
             
             % if two connections share a node, assign 1
-            if (pconn{conn1}.roi1 == pconn{conn2}.roi1 || pconn{conn1}.roi2 == pconn{conn2}.roi2)
-                val = 1;
-            end
-            
-            if (pconn{conn1}.roi1 == pconn{conn2}.roi2 || pconn{conn1}.roi2 == pconn{conn2}.roi1)
+            if (pconn{conn1}.roi1 == pconn{conn2}.roi1 || pconn{conn1}.roi2 == pconn{conn2}.roi2pconn{conn1}.roi1 == pconn{conn2}.roi2 || pconn{conn1}.roi2 == pconn{conn2}.roi1)
                 val = 1;
             end
             

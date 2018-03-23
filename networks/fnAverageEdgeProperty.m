@@ -1,6 +1,6 @@
 function [ pconn ] = fnAverageEdgeProperty(pconn, label, roi, vol, dtype, meas, clobber)
 %fnAverageEdgeProperty finds the central tendency of a tract from an 
-% appropriately aligned volume.
+% appropriately aligned volume or dt6 structure.
 %
 % INPUTS:
 %     pconn - is the paired connections object to compute edge volumes for.
@@ -15,7 +15,7 @@ function [ pconn ] = fnAverageEdgeProperty(pconn, label, roi, vol, dtype, meas, 
 %     roi   - the coordinates of the indices in the volume from the fe
 %             structure.
 %
-%     vol   - a volume of data on which central tendecies will be computed
+%     vol   - a volume of data or a dt6 on which to store data and compute 'meas'
 %             per edge. Must be in alignment with fe ROI for valid results
 %
 %     dtype - a field name the central tendency can be stored with
@@ -64,15 +64,68 @@ if(~exist('clobber', 'var') || isempty(clobber))
     clobber = 0;
 end
 
-% create vol filename
-[ ~, nam, ext ] = fileparts(vol.fname);
-name = [ nam ext ];
+if(isfield(vol, 'dt6'))
+    
+    disp('Computing tract central tendency from dt6...');
+    
+    tol = 1e-6;
+    dt = vol;
+    
+    % extract tensor data from dt6
+    [ ~, eigVal ] = dtiEig(dt.dt6);
+    mask = repmat(all(eigVal == 0, 4),[ 1 1 1 3 ]);
+    eigVal(eigVal < tol) = tol;
+    eigVal(mask) = 0;
+    clear mask;
+    
+    switch dtype
+        
+        case 'fa'
+            dat = dtiComputeFA(eigVal);
+            
+        case 'md'
+            [ ~, dat ] = dtiComputeFA(eigVal);
+            
+        case 'rd'
+            [ ~, ~, dat ] = dtiComputeFA(eigVal);
+                    
+        case 'ad'
+            [ ~, ~, ~, dat ] = dtiComputeFA(eigVal);
+    
+        case 'cl'
+            dat = dtiComputeWestinShapes(eigVal, 'lsum');
+            
+        case 'cp'
+            [ ~, dat ] = dtiComputeWestinShapes(eigVal, 'lsum');
+            
+        case 'cs'
+            [ ~, ~, dat ] = dtiComputeWestinShapes(eigVal, 'lsum');
+            
+        otherwise
+            error('A volume summary of ''%s'' cannot be extracted from a dt6', dtype);
+    end
+    
+    % create the "nifti" volume of the data in AC-PC space
+    vol = niftiCreate('data', dat, ...
+                      'qto_xyz', dt.xformToAcpc);
+                  
+    % create vol filename
+    name = [ 'dt6_' dtype ];
 
-% output field name
-field = [ meas '_' dtype ];
+else
+    disp('Computing tract central tendency from volume...');
+    
+    % create vol filename
+    [ ~, nam, ext ] = fileparts(vol.fname);
+    name = [ nam ext ];
+
+end
 
 % extract relavant data from volume
 data = vol.data;
+    
+% output field name
+field = [ meas '_' dtype ];
 
 % error without clobber set if measure is computed
 if (isfield(pconn{1}.(label).volume, dtype) && clobber == 0)
@@ -144,7 +197,7 @@ parfor ii = 1:length(pconn)
 end
 time = toc;
 
-display([ 'Found the ' meas ' of ' name ' for all edges in ' num2str(time/60) ' minutes.' ]);
+disp([ 'Found the ' meas ' of ' name ' for all edges in ' num2str(time) ' seconds.' ]);
 
 end
 

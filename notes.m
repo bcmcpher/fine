@@ -4,21 +4,17 @@
 
 %% TODO:
 %
-% link network functions
-% - fix MI - still computes bad values
+% better formats for virtual lesion plot
+% - request just 1 of the three?
 %
-% dt6 option to fnAverageEdgeProperty for multiple MS averages
-%
-% fix patch part of virtual lesion plot
+% module profile / density plot from paper
+% - individual
+% - group
 %
 % streamline render fxns
 % - finish / check some functionality
 % - better handle individual / multiple inputs in edge render
 % - set defualt view to minmax(x, y, z) coords + 10%
-%
-% module profile / value plot from paper
-% - individual
-% - group
 %
 % brain shape plot of nodes and edges with size scaling / color / labels?
 %
@@ -36,13 +32,13 @@
 % - they have mostly minor changes / tweaks
 % - comments / documentation / examples
 %
-% create profile / density module matrix plot
-% - individual
-% - groups?
-%
 % fix ALL function names
 %
 % fix ALL documentation
+%
+% link network functions
+% - add other metrics?
+% - create separate fxn for computing individual edge similarities?
 %
 % built in matlab hierarchical clustering algorithms / plots
 % linkage / cluster / dendrogram / clusterdata / cophenet / inconsistent
@@ -153,4 +149,5 @@ dtiCoherenceMap
 dtiNeuralConductionSpeed
 dtiNeuronBitRate
 
-
+% compare profiles?
+dtiComputeCurveDiff
