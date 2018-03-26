@@ -91,7 +91,7 @@ tprof = cell(length(pconn), 1);
 tpcnt = 0;
 tptry = 0;
 
-display(['Computing tract profiles on ' num2str(length(pconn)) ' connections...']);
+disp(['Computing tract profiles on ' num2str(length(pconn)) ' connections...']);
 
 tic;    
 fibers = fg.fibers;

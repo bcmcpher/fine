@@ -138,7 +138,7 @@ switch nmtgrp
             [ 0 0 0.25 ], [ 0.25 0 0 ]};        % lower tri
         
     otherwise
-        error('This function cannont currently support %s groups.', nmtgrp);
+        error('This function cannont currently support %s matrix groups.', nmtgrp);
 end
 
 % figure; hold on;

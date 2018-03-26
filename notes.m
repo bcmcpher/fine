@@ -25,6 +25,8 @@
 %
 % fnVirtualLesionModules - failed on 101431; see if it can be fixed
 %
+% create classified fiber structure Dan wants
+%
 % parallel pool fxn
 % - see if this is actually necessary - maybe a local problem?
 %
@@ -56,10 +58,10 @@
 %
 % better default axes in virtual lesion measures plot 
 %
-% finish feCreatePairedConnectionsFromSurface
-%
 % feCreatePairedConnections 
 % - simplify how fibers / weights are stored? too big a change? used later?
+%
+% finish feCreatePairedConnectionsFromSurface
 %
 % figure out if single fxn for making matrix field is workable
 %
