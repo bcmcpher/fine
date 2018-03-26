@@ -8,6 +8,8 @@
 % - individual
 % - group
 %
+% create scatter plot of module upper diagonals from stacked input of matrices
+%
 % streamline render fxns
 % - finish / check some functionality
 % - better handle individual / multiple inputs in edge render
@@ -16,6 +18,12 @@
 % brain shape plot of nodes and edges with size scaling / color / labels?
 %
 % make sure volume fxns can take a loaded .nii or a string
+%
+% fnTractProfileTensor - check functionality
+%
+% fnTractProfileModules - check optimization
+%
+% fnVirtualLesionModules - failed on 101431; see if it can be fixed
 %
 % parallel pool fxn
 % - see if this is actually necessary - maybe a local problem?

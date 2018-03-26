@@ -21,7 +21,8 @@ function [ pmat ] = fnTractProfileTensor(pconn, label, prof, srt)
 %     pmat - 3d array containing (nodes x nodes x profile) of tract profiles
 % 
 % TODO:
-% - define profiles as empty x nnodes so I don't need the argument and can always assume the size
+% - make sure flip of ij / ji profile is done correctly
+% - check that srt argument reorders profiles correctly
 %
 % EXAMPLE:
 %
@@ -97,7 +98,7 @@ for ii = 1:size(pairs, 1)
     
     % assign profile to profile tensor
     pmat(grp1, grp2, :) = tmp;
-    pmat(grp2, grp1, :) = tmp;
+    pmat(grp2, grp1, :) = fliplr(tmp);
     
 end
 
