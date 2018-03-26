@@ -178,13 +178,13 @@ if(isdt6)
    tptry = tptry;
 end
 
-display(['Computed ' num2str(tpcnt)  ' of ' num2str(tptry) ' possible tract profiles in ' num2str(round(time)/60) ' minutes.']);
+disp(['Computed ' num2str(tpcnt)  ' of ' num2str(tptry) ' possible tract profiles in ' num2str(round(time)/60) ' minutes.']);
 
 clear ii time
 
 %% add tract profile to pconn object
 
-display('Adding tract profiles to pconn...');
+disp('Adding tract profiles to pconn...');
 
 for ii = 1:length(pconn)
         
