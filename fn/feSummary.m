@@ -1,5 +1,5 @@
 function [ out ] = feSummary(fe, class)
-%feSummary() Provides the summary output Dan wrote for an fe structure.
+%out = feSummary() Provides the summary output Dan wrote for an fe structure.
 % Will optionally parse and return classified fiber breakdown as well. 
 %
 %   Return some summary values of an fe structure, including:
@@ -94,9 +94,9 @@ out.length.nz_total = sum(nz_fg_lengths);
 out.length.proportion = out.length.wb_total / out.length.nz_total;
 
 % compute proportion of nzw streamlines
-out.pruned.wb_count = nsl;
-out.pruned.nz_count = length(nzw);
-out.pruned.proportion = out.pruned.nz_count / out.pruned.wb_count;
+out.life.wb_count = nsl;
+out.life.nz_count = length(nzw);
+out.life.proportion = out.life.nz_count / out.life.wb_count;
 
 % mean, std, and max of streamline lengths
 out.streamline.wb_mn_length = mean(wb_fg_lengths, 'omitnan');
@@ -112,7 +112,7 @@ if ~isempty(class)
     % grab all classified indices
     indx = find(class.index);
     
-    if length(class.index) == out.pruned.nz_count
+    if length(class.index) == out.life.nz_count
         
         % if the number classified matches the nz number of streamlines
         fprintf ('\n Number of items in the classification structure suggests that classification was performed on pruned connectome.')
@@ -128,18 +128,18 @@ if ~isempty(class)
         out.classified.nz_count = length(find(class.index));
         
         % grab the nz classified proportion
-        out.classified.nz_proportion = out.classified.nz_count / out.pruned.nz_count;
+        out.classified.nz_proportion = out.classified.nz_count / out.life.nz_count;
 
         % grab the nz classified length descriptives
         out.classified.nz_mn_length = mean(out.length.nz_total(indx), 'omitnan');
         out.classified.nz_sd_length = std(out.length.nz_total(indx), 'omitnan');
     
     % if the number classified matches the wb number of streamlines    
-    elseif length(class.index) == out.pruned.wb_count        
+    elseif length(class.index) == out.life.wb_count        
         
         % grab the unclassified count and proportion
         out.classified.wb_count = length(indx);
-        out.classified.wb_proportion = out.classified.wb_count / out.pruned.wb_count;
+        out.classified.wb_proportion = out.classified.wb_count / out.life.wb_count;
         
         % grab the unclassified streamline length descriptives
         out.classified.wb_mn_length = mean(wb_fg_lengths(indx));
@@ -152,7 +152,7 @@ if ~isempty(class)
         out.classified.nz_count = length(srv);
         
         % grab the nz classified proportion
-        out.classified.nz_proportion = out.classified.nz_count / out.pruned.nz_count;
+        out.classified.nz_proportion = out.classified.nz_count / out.life.nz_count;
         
         % grab the nz classified length descriptives
         out.classified.nz_mn_length = mean(nz_fg_lengths(srv), 'omitnan');

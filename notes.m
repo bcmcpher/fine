@@ -160,3 +160,6 @@ dtiNeuronBitRate
 
 % compare profiles?
 dtiComputeCurveDiff
+
+% apparently from SPM
+mrAnatComputeMutualInfo
