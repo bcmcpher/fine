@@ -1,7 +1,18 @@
 function [ fh ] = fnPlotModulePoints(mats, clr)
-%fnPlotModulePoints() plots each unique module of each subjects as a point
+%fnPlotModulePoints() plots each unique module of each subject as a point
+% Points are sorted by within / between module connections in the order of
+% the upper diagonal.
 %
-%   Hopefully this shows group differences...
+% Recreates Figure ##.# from paper TBD.
+%
+% INPUTS:
+%     mats - a N x N x subj matrix of mean tract profile tensors
+%     clr  - a N x subj cell array of colors to plot subjects' points
+%
+% OUTPUTS:
+%     fh   - figure handle of the resulting plot
+%
+% Brent McPherson, (c) 2018 Indiana University
 %
 
 % pull the number of modules from input
@@ -11,8 +22,8 @@ nmod = size(mats, 1);
 nsubj = size(mats, 3);
 
 % pull maximum range of axes
-amax = ceil(max(mats(:)));
-amid = round(amax / 2);
+amax = max(mats(:));
+amid = amax / 2;
 
 % create diagonal indices from input size
 diag = [ 1:nmod; 1:nmod ]';
@@ -62,6 +73,7 @@ end
 % format the plot axes
 set(gca, 'YTick', [ 0 amid amax ], 'YTickLabel', [ 0 amid amax ]);
 set(gca, 'XTick', 1:npts, 'XTickLabel', labs, 'XLim', [ 0 npts + 1 ], 'TickLength', [ 0 0 ]);
+set(gca, 'XTickLabelRotation', 90);
 
 end
 

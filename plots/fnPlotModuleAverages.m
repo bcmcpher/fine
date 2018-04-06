@@ -1,36 +1,111 @@
-function [ fh, cmap ] = fnPlotModuleAverages(tpMn, tpSd, mtMn, tpgrp, mtgrp, clr)
+function [ fh, cmap ] = fnPlotModuleAverages(tpMn, tpSd, mtMn, tpgrp, mtgrp, clr, ilim)
 %fnPlotModuleAverages() creates the average profile and module matrix from
-% a cell array of inputs. Recreates Figure ##.# from paper TBD.
+% a cell array of inputs. The number of profiles and matrix modules may be 
+% different. Depending on the data that is combined, this plot can display
+% multiple modality observations within a subject or different groups of
+% multiple subjects.
 %
-%   Still in development
+% Recreates Figure ##.# from paper TBD.
 %
-
+% INPUTS:
+%     tpMn  - a 1xN cell array of mean tract profile tensors
+%     tpSd  - a 1xN cell array of std tract profile tensors 
+%             (optional) if this is passed empty, std is computed between tpMn observations
+%     mtMn  - a 1xM cell array of network modules connectivity
+%     tpgrp - a 1xN array assigning group membership for averaging profile inputs
+%     mtgrp - a 1xM array assigning group membership for averaging module inputs
+%     clr   - colors to plot group-wise profiles
+%     ilim  - user specified y-axis limit range on average profile plots (optional)
+%
+% OUTPUTS:
+%     fh    - figure handle of the resulting plot
+%     cmap  - color map produced internally to map average network modules
+%
 % TODO:
 %
 % high priority
+% - make sure color map indices increase correctly
 % - generalize to N mtgrps passed - currenltly only handles up to 5
-% - compute tract profile std if it's not passed
-% - if 1 set of groupings are passed, apply to both profiles and matrices
-% - - same argument based on dimensions?
 %
 % low priority
-% - figure out lower / upper bounds of profile
 % - be able to manually define the color scale?
 % - multiple color scales?
-% - multiple measures per group?
+%
+% - multiple measures per group? - It already does, stack repeated measures
+%   and group accordingly (grp1-fa, grp2-fa, grp1-md, grp2-md, etc)
+%
+% Brent McPherson, (c) 2018 Indiana University
+%
 
-%% parse inputs for dimensions
+%% parse inputs for dimension checks
 
-% CHECK THAT ALL INPUT DIMENSIONS MATCH
+% grab the dimensions of the input profiles
+[ x, y, z ] = cellfun(@size, tpMn, 'UniformOutput', true);
+
+% if any row / col is different or if there are different lengths
+if ~all([ all(x) all(y) ]) || ~all(z)
+    error('An entry in the individual profile means does not have the correct size. Dimensions must match.');
+end
+
+clear x y z
+
+% check standard deviation if tpSd
+if ~isempty(tpSd)
+    
+    % grab the dimensions of the input profiles
+    [ x, y, z ] = cellfun(@size, tpSd, 'UniformOutput', true);
+    
+    % if any row / col is different or if there are different lengths
+    if ~all([ all(x) all(y) ]) || ~all(z)
+        error('An entry in the individual profile sd''s does not have the correct size. Dimensions must match.');
+    end
+    
+    clear x y z
+    
+end
+
+% for every input module matrix, get the row / col dim
+[ x, y ] = cellfun(@size, mtMn, 'UniformOutput', true);
+
+% if anything isn't the same dimension, error out
+if ~all([ all(x) all(y) ])
+    error('An entry in the individual modules does not have the correct size. Dimensions must match.');
+end
+
+clear x y
+
+%% parse inputs for processing
 
 % infer the number of subjects
-%nsubj = size(grp, 1);
+nsubj = size(tpMn, 1);
 
 % pull the number of communities from labels
-ncomm = 9;
+ncomm = size(tpMn{1}, 1);
 
 % profile length / nodes
-x = 1:100;
+nnode = size(tpMn{1}, 3);
+x = 1:nnode;
+
+if(~exist('ilim', 'var') || isempty(ilim))
+    ilim = [];
+    plim = 'auto';
+end
+
+% if something is passed
+if ~isempty(ilim)
+    
+    % pass an array forward
+    if isnumeric(ilim)
+        plim = 'pass';
+        limit = ilim;
+    end
+    
+    % pass a string as what's requested
+    if ischar(ilim)
+        plim = ilim;        
+    end
+    
+end
 
 %% parse together input profile data based into defined group averages
 
@@ -46,21 +121,81 @@ gSeTp = cell(ntpgrp, 1);
 % split inputs by group
 for igrp = 1:ntpgrp
     
-    % split data by groups
+    % split data by groups, recombine to compute mean
     gtpdat = tpMn(tpgrp == tpgrps(igrp));
-    gtpstd = tpSd(tpgrp == tpgrps(igrp));
-    
-    % merge data into structes that can be summarized across
     tpmdat = cat(4, gtpdat{:});
-    tpsdat = cat(4, gtpstd{:});
+    gMnTp{igrp} = mean(tpmdat, 4, 'omitnan');
     
-    % compute group-wise mean of data
-    gMnTp{igrp} = nanmean(tpmdat, 4);
-    gSeTp{igrp} = nanmean(tpsdat, 4);
+    % if std is not passed, compute it; otherwise average what's passed
+    if isempty(tpSd)
+        
+        % compute standard deviation
+        gSeTp{igrp} = std(tpmdat, 0, 4, 'omitnan');
+    
+    else
+        
+        % split data by groups, recombine to compute mean
+        gtpstd = tpSd(tpgrp == tpgrps(igrp));
+        tpsdat = cat(4, gtpstd{:});
+        gSeTp{igrp} = mean(tpsdat, 4, 'omitnan');
+    
+    end
         
 end
 
-clear igrp gtpdat gmndat tpdat mtdat
+clear igrp gtpdat tpmdat gmndat gtpstd tpsdat mtdat
+
+%% extract min / max of vector for axes limits
+
+switch plim
+    
+    case {'free'}
+        % don't fix plot axes
+        flim = false;
+        
+    case{'auto'}
+        % find and apply min/max +- 5% limit
+        
+        % pull into array
+        tpmdat = cat(4, tpMn{:});
+        
+        % better ub/lb computation? currently sucks...
+        %
+        % % grab global mean / std
+        % tpmn = mean(tpmdat, 4, 'omitnan');
+        % tpse = std(tpmdat, 0, 4, 'omitnan');
+        %
+        % % grap 3 std upper bound
+        % tpub = tpmn + 3*tpse;
+        %
+        % pad = range(tpub) * 0.5;
+        %
+        % % create limit to pass forward
+        % mnmx = minmax(tpub(:)');
+        %
+        % % create limit
+        % limit = [ mnmx(1) - pad mnmx(2) + pad ];
+        
+        % reshape for finding min / max
+        bndat = reshape(tpmdat, [ ncomm*ncomm*nsubj nnode ]);
+        
+        % grab the absolute upper / lower boundaries
+        mnmx = minmax(bndat(:)');
+        
+        % pad min / max 5% of the total range
+        pad = range(mnmx) * .05;
+        limit = [ mnmx(1) - pad mnmx(2) + pad ];
+        flim = true;
+        
+    case 'pass'
+        
+        flim = true;
+        
+    otherwise
+        
+        error('Unacceptable limits for profiles passed. Please pass a [ # # ] array.');
+        
+end
 
 %% parse together input matrix data based into defined group averages
 
@@ -88,23 +223,7 @@ end
 
 clear igrp gmndat mtdat
 
-% % put fixed 2 groups into the data here
-% 
-% % feed created cell array into the specific outs here
-% % then generalize the number of groups to be plotted
-% hcMnTp = gMnTp{1};
-% clMnTp = gMnTp{2};
-% 
-% hcSeTp = gSeTp{1};
-% clSeTp = gSeTp{2};
-% 
-% hcMnMt = gMnMt{1};
-% clMtMt = gMnMt{2};
-
-% the number of groups needs to determine the patch sizes
-
-% colors = {'red', 'blue', 'red', 'blue', 'red', 'blue'};
-
+% get the divisions of upper diagonal cells
 switch nmtgrp
     
     case 1
@@ -114,7 +233,7 @@ switch nmtgrp
     case 2
         % 2 group
         ptc = {[ 0 1 1 ], [ 1 1 0 ];  % upper
-            [ 0 0 1 ], [ 1 0 0 ]}; % lower
+            [ 0 0 1 ], [ 1 0 0 ]};    % lower
         
     case 3
         % 3 group
@@ -124,14 +243,14 @@ switch nmtgrp
         
     case 4
         % 4 group
-        ptc = {[ 0.50 1 1 ],   [ 1 1 0.50 ];   % upper tri
-            [ 0 0.50 1 1 ], [ 1 1 0.50 0 ]; % upper quad
-            [ 0 0 1 0.50 ], [ 0.50 1 0 0 ]; % lower quad
-            [ 0 0 0.50 ],   [ 0.50 0 0 ]};  % lower tri
+        ptc = {[ 0.50 1 1 ],   [ 1 1 0.50 ]; % upper tri
+            [ 0 0.50 1 1 ], [ 1 1 0.50 0 ];  % upper quad
+            [ 0 0 1 0.50 ], [ 0.50 1 0 0 ];  % lower quad
+            [ 0 0 0.50 ],   [ 0.50 0 0 ]};   % lower tri
         
     case 5
         % 5 group
-        ptc = {[ 0.75 1 1 ], [ 1 1 0.75 ];         % upper tri
+        ptc = {[ 0.75 1 1 ], [ 1 1 0.75 ];      % upper tri
             [ 0.25 .75 1 1 ], [ 1 1 0.75 .25];  % upper quad
             [ 0 0 .25 .25 1 1 .75 ], [ .75 1 1 1 .25 0 0 ]; % center
             [ 0 0 .75 0.25 ], [ 0.25 .75 0 0 ]; % lower quad
@@ -216,20 +335,32 @@ for ii = 1:size(pairs, 1)
     end
     
     % drop all the extra panel labels
-    %axis equal; axis square; axis tight;
+    % axis equal; axis square; axis tight;
+    axis tight;
     set(gca, 'XTick', [], 'YTick', []);
     
     % determine how to best fit y-axes?
-    % set(gca, 'XLim', [ 0 size(hcMnTp, 3) ], ...
-    %     'YLim', [ min([ ub1, ub2 ]) max([ lb1, lb2 ]) + .1 ]);
+    set(gca, 'XLim', [ 0 nnode ])
+    
+    if flim
+        set(gca, 'YLim', [ limit(1) limit(2) ]);
+    end
     
     hold off;
     
 end
 
-% define range
-%cmap = hot(ceil(max([ clMtMt(:); hcMnMt(:) ])));
-cmap = hot(ceil(max(max(max(gMnMt{:})))));
+%% define color mapping 
+
+% find the min and max values in the matrix
+crng = [ min(min(cat(2, gMnMt{:}))) max(max(cat(2, gMnMt{:}))) ];
+
+% define the color map
+cmap = hot(64);
+caxis([ crng(1) crng(2) ]);
+
+% create the spacing between min / max that corresponds to colors
+vals = linspace(crng(1), crng(2), 64);
 
 for ii = 1:size(pairs, 1)
 
@@ -239,10 +370,13 @@ for ii = 1:size(pairs, 1)
     for imt = 1:nmtgrp
         
         % pull value from data
-        val = round(gMnMt{imt}(pairs(ii, 1), pairs(ii, 2)));
+        val = gMnMt{imt}(pairs(ii, 1), pairs(ii, 2));
+        
+        % pull the index for the color map
+        [ ~, cmv ] = min(abs(val - vals));
         
         % pull colormap associated with the label
-        color = cmap(val, :);
+        color = cmap(cmv, :);
         
         % fill patch with scaled heatmap color
         patch(ptc{imt, :}, color, 'LineWidth', 1);
