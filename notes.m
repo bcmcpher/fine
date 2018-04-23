@@ -4,12 +4,6 @@
 
 %% TODO:
 %
-% module profile / density plot from paper
-% - individual
-% - group
-%
-% create scatter plot of module upper diagonals from stacked input of matrices
-%
 % streamline render fxns
 % - finish / check some functionality
 % - better handle individual / multiple inputs in edge render
@@ -19,11 +13,15 @@
 %
 % make sure volume fxns can take a loaded .nii or a string
 %
+% feTractProfilePairedConnections - ensure i -> j orientation of profile
+%
 % fnTractProfileTensor - check functionality
 %
 % fnTractProfileModules - check optimization
 %
 % fnVirtualLesionModules - failed on 101431; see if it can be fixed
+%
+% fnPlotModulePoints - plot individuals by color or group average w/ error bars
 %
 % create classified fiber structure Dan wants
 %
@@ -53,6 +51,9 @@
 % fxn estimating neural conduction speed / bitrate for all edges
 %
 % summary fxn(s?) of Bassett's network tools
+%
+% simple shape analysis of cortical node centers; geometric morphometric analysis
+% - procrustes alignment
 %
 % fxn to virtual lesion streamlines w/ both terminations in 1 ROI
 %
@@ -163,3 +164,24 @@ dtiComputeCurveDiff
 
 % apparently from SPM
 mrAnatComputeMutualInfo
+
+%% bvalue normalization
+
+% load HCP data
+bval = dlmread('~/mrtrix3/dwi.bvals');
+
+% thresholds
+bvn = 100;
+bv0 = 50;
+
+% grab unique and indices
+[ bvals.unique, ~, bvals.uindex ] = unique(bval);
+
+% if bval is <= bv0, assume it's a b-zero
+bvals.unique(bvals.unique <= bv0) = 0;
+
+% round to nearest bvn
+bvals.unique = round(bvals.unique ./ bvn) * bvn;
+bvals.valnorm = bvals.unique( bvals.uindex );
+%dlmwrite('dwi.bvals', bvals.valnorm, 'delimiter', ' ');
+ 
