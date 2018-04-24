@@ -1,11 +1,65 @@
-function [ fh ] = fnPlotBrainNetwork(centers, cl, sz, mat, lc, nnrm, scale)
-%UNTITLED Summary of this function goes here
-%   Detailed explanation goes here
+function [ fh ] = fnPlotBrainNetwork(centers, cl, sz, mat, eprp, label, scale)
+%fh = fnPlotBrainNetwork(centers, cl, sz, mat, eprp, label, scale); 
+%takes output from the FiNE tools and creates a ball and stick brain-shaped
+%network summary of the data.
 %
-% document / try and break a bit more
-% add text labels of the N highest node values?
-% lc / nnrm should be the same variable and parsed based on shape?
-% be able to set color defaults when weird things are empty
+% It is important that the order of the nodes is the same for every input
+% that is passed. The simplest way to achieve this is to NOT SORT THE OUTPUTS. 
+% 
+% INPUTS:
+%     centers - N x 3 matrix of AC-PC coordinates representing the center
+%               of each cortical node (N is the number of nodes to plot)
+%     cl      - N x 3 matrix of RGB colors for each node (optional)
+%     sz      - N x 1 vector to denote the scaling of each node
+%               (lager value == bigger node) (optional)
+%     mat     - N x N connectivity matrix. If a weighted matrix is passed,
+%               the values weight the line thickness (optional)
+%     eprp    - edge property; values to display along the edge (optional)
+%               M is the number of possible edges. It may be either:
+%                 - a M x 3 vector of RGB values of edge assignments
+%                 - a N x N x nnode matrix of tract profiles
+%     label   - N x 1 cell array of text labels for each node. The highest
+%               weighted 5% are labeled based on sz. If sz is empty, the 
+%               first 5% are labeled (optional)
+%     scale   - a heuristic for the relative scale of the node size and
+%               line thickness. default of 5. Change by single digits.
+%               (optional)
+%
+% OUTPUTS:
+%     fh - a figure handle for the plot
+%               
+% TODO: 
+% - be able to set color defaults when weird things are empty(?)
+%   might already be handled OK
+%   
+% EXAMPLES:
+%
+% % just plot the nodes
+% fh = fnPlotBrainNetwork(centers);
+%
+% % nodes with color
+% fh = fnPlotBrainNetwork(centers, cl);
+%
+% % nodes with color and scaled
+% fh = fnPlotBrainNetwork(centers, cl, sz);
+%
+% % nodes with color, scale, and edges
+% fh = fnPlotBrainNetwork(centers, cl, sz, mat);
+%
+% % same plot as above w/ colored edges
+% fh = fnPlotBrainNetwork(centers, cl, sz, mat, lc);
+%
+% % same plot as above w/ profiles along edges
+% fh = fnPlotBrainNetwork(centers, cl, sz, mat, nnrm);
+% 
+% % same plots w/ a slightly larger scale of the nodes
+% fh = fnPlotBrainNetwork(centers, cl, sz, mat, lc, 7);
+% fh = fnPlotBrainNetwork(centers, cl, sz, mat, nnrm, 7);
+%
+% % add text labels to the nodes
+% fh = fnPlotBrainNetwork(centers, cl, sz, [], [], label);
+%
+% Brent McPherson (c), 2018 - Indiana University 
 %
 
 %% parse inputs to define options
@@ -19,7 +73,7 @@ edge = size(eind, 1);
 
 % if node color isn't passed, set all to default color
 if(~exist('cl', 'var') || isempty(cl))
-    cl = repmat([ .17 .17 .34 ], [ nrois 1 ]);
+    cl = repmat([ .67 .67 .67 ], [ nrois 1 ]);
 end
 
 % if node scale isn't passed, set all to the same size
@@ -32,7 +86,28 @@ if(~exist('mat', 'var') || isempty(mat))
     mat = nan(nrois, nrois);
 end
 
-% if mat of nrois edge weights isn't passed, set to empty
+% if the edge color / profiles are empty, it's empty, otherwise
+if(~exist('eprp', 'var') || isempty(eprp))
+    
+    % set to empty
+    eprp = [];
+    
+else
+    
+    % if it's a edge x 3 matrix of RGB colors
+    if size(eprp, 1) == edge && size(eprp, 2) == 3
+        lc = eprp;
+    end
+    
+    % if it's a nrois x nrois x nnode matrix w/ tract profile data
+    if size(eprp, 1) == nrois && size(eprp, 2) == nrois && size(eprp, 3) > 1
+        nnrm = eprp;
+        nnode = size(eprp, 3);
+    end
+    
+end
+
+% if edge community colors aren't passed, edges are black
 if(~exist('lc', 'var') || isempty(lc))
     lc = repmat([ 0 0 0 ], [ edge 1 ]);
 end
@@ -40,7 +115,17 @@ end
 % if nnrm of nrois edge profiles isn't passed, set to empty
 if(~exist('nnrm', 'var') || isempty(nnrm))
     ewtp = 'ew';
-    nnrm = nan(nrois, nrois, 100);
+    nnrm = [];
+end
+
+% if nnrm of nrois edge profiles isn't passed, set to empty
+if(~exist('label', 'var') || isempty(label))
+    label = {};
+end
+
+% if nnrm exists and mat doesn't exist, throw a warning saying profs aren't plotted
+if(~isempty(nnrm) && all(isnan(mat(:))))
+    warning('The ''mat'' argument must be passed to plot profile weighted edges.');
 end
 
 % if scale is not passed, set to default
@@ -70,6 +155,12 @@ cmap = hot(100);
 % compute normalized node size and scale for display
 % sz = sz * 500; % for scatter3
 sz = (sz / max(sz)) * scale;
+
+% sort node size to find top ranked nodes for potential labels
+[ ~, si ] = sort(sz, 'descend');
+
+% subset to the top 5% of node degree
+nlab = si(1:round(.05 * nrois));
 
 % compute a normalized line thickness
 
@@ -160,9 +251,6 @@ if ~all(isnan(mat(:)))
                         continue
                     end
                     
-                    % grab the number of nodes
-                    nnode = size(y, 1);
-                    
                     % grab each tp node color mapped value
                     nrmy = floor((y / max(y))*100);
                     
@@ -219,7 +307,24 @@ if ~all(isnan(mat(:)))
 
 end
 
-% clear ii n1 n2 val wdth xs ys zs y xyz tp
+% add the labels if they exist
+if ~isempty(label)
+    
+    for K = 1:nrois
+        
+        % if it's in the top 5%
+        if any(nlab == K)
+            
+            % print passed label
+            text(centers(K, 1), centers(K, 2), centers(K, 3), [ '    ' label{K} ], ...
+                 'HorizontalAlignment', 'left', 'FontSize', 10);
+            
+        end
+        
+    end
+end
+
+clear ii K n1 n2 val wdth xs ys zs y xyz tp
 
 % set axes
 set(gca, 'xlim', xlim, 'ylim', ylim, 'zlim', zlim);

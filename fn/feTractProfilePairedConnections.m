@@ -37,7 +37,7 @@ function [ pconn, tprof ] = feTractProfilePairedConnections(fg, pconn, label, ms
 % fibLength = fefgGet(fg, 'length');
 % weights   = feGet(fe, 'fiberweights');
 % dt        = dtiloadDt6('dt6.mat');
-
+%
 % % assign streamlines to edges
 % [ pconn, rois ] = feCreatePairedConnections(parc, fibers, fibLength, weights);
 %

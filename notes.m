@@ -9,13 +9,12 @@
 % - better handle individual / multiple inputs in edge render
 % - set defualt view to minmax(x, y, z) coords + 10%
 %
-% brain shape plot of nodes and edges with size scaling / color / labels?
-%
 % make sure volume fxns can take a loaded .nii or a string
 %
 % feTractProfilePairedConnections - ensure i -> j orientation of profile
 %
 % fnTractProfileTensor - check functionality
+% - add upper diagonal x node output of profiles
 %
 % fnTractProfileModules - check optimization
 %
