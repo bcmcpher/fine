@@ -4,13 +4,6 @@
 
 %% TODO:
 %
-% streamline render fxns
-% - finish / check some functionality
-% - better handle individual / multiple inputs in edge render
-% - set defualt view to minmax(x, y, z) coords + 10%
-%
-% make sure volume fxns can take a loaded .nii or a string
-%
 % feTractProfilePairedConnections - ensure i -> j orientation of profile
 %
 % fnTractProfileTensor - check functionality
@@ -40,6 +33,8 @@
 %
 % fix ALL documentation
 %
+% make sure volume fxns can take a loaded .nii or a string
+%
 % link network functions
 % - add other metrics?
 % - create separate fxn for computing individual edge similarities?
@@ -64,6 +59,8 @@
 % finish feCreatePairedConnectionsFromSurface
 %
 % figure out if single fxn for making matrix field is workable
+%
+% add profile tube to render function
 %
 % feTractProfilePairedConnections
 % - check if the connections are too short for a reasonable profile (?)

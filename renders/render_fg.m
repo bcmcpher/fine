@@ -1,4 +1,4 @@
-function [ fh, lh, fgConn, fgNeig ] = render_fg(fe, indx, persp, slice, conn)
+function [ fh, lh, fgConn, fgNeig ] = render_fg(fe, indx, anat, persp, slice, conn)
 % render_connection() renders an ENCODE object with network connection structure  
 %   Using a fit FE fiber group and pconn indexes, this fxn renders a
 %   connection, path neighborhood, or both with or without cleaning using MBA.
@@ -13,7 +13,7 @@ function [ fh, lh, fgConn, fgNeig ] = render_fg(fe, indx, persp, slice, conn)
 %
 
 % load the anatomy from fe
-anatomy = niftiRead(fe.path.anatomy);
+%anat = niftiRead(fe.path.anatomy);
 
 %% other arguments...
 
@@ -29,7 +29,7 @@ colors = {[.1 .25 .65], [.75 .25 .1]};
 %% run the analysis
 
 % orient fibers
-display('Converting streamlines to ACPC space...');
+disp('Converting streamlines to ACPC space...');
 fg = feGet(fe, 'fg acpc');
 
 % create fiber group object for connection
@@ -42,17 +42,17 @@ end
 
 %% render figure
 
-display('Rendering connection...');
+disp('Rendering connection...');
 
 % if I need the path neighborhood
 switch conn
     case{'path'}
         
-        display('Rendering path...');
+        disp('Rendering path...');
         
     case{'neighborhood', 'both'}
         
-        display('Rending path neighborhood...');
+        disp('Rending path neighborhood...');
         
         % pull path neighborhood indices
         ind2 = feGet(fe, 'Path Neighborhood', ind1);
@@ -111,7 +111,7 @@ for ii = 1:length(persp)
     end
     
     % plot the brain slice
-    fh = mbaDisplayBrainSlice(anatomy, indx, gca); hold on;
+    fh = mbaDisplayBrainSlice(anat, indx, gca); hold on;
     
 end
 
