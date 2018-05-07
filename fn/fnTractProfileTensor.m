@@ -1,4 +1,4 @@
-function [ pmat ] = fnTractProfileTensor(pconn, label, prof, srt)
+function [ pmat, tpmat ] = fnTractProfileTensor(pconn, label, prof, srt)
 %fnCreateTractProfileTensor() creates an NxNxNodes tensor of all
 % precomputed tract profiles. Empty profiles are composed of NaNs. 
 %   
@@ -18,11 +18,9 @@ function [ pmat ] = fnTractProfileTensor(pconn, label, prof, srt)
 %             'dt6.<value>' where value is any of the following: fa, md, rd, ad, cl, cp, cs
 %
 % OUTPUTS:
-%     pmat - 3d array containing (nodes x nodes x profile) of tract profiles
+%     pmat  - 3d array containing (nodes x nodes x profile) of tract profiles
+%     tpmat - 2d array containing (connection x profile) tract profiles ordered by the upper diagonal 
 % 
-% TODO:
-% - make sure flip of ij / ji profile is done correctly
-% - check that srt argument reorders profiles correctly
 %
 % EXAMPLE:
 %
@@ -78,6 +76,7 @@ pairs = nchoosek(1:nlabs, 2);
 
 % pre-allocate output to fill in profiles
 pmat = zeros(nlabs, nlabs, nnodes);
+tpmat = nan(size(pairs, 1), nnodes);
 
 display(['Extracting tract profiles from ' label ' ...']);
 
@@ -99,6 +98,7 @@ for ii = 1:size(pairs, 1)
     % assign profile to profile tensor
     pmat(grp1, grp2, :) = tmp;
     pmat(grp2, grp1, :) = fliplr(tmp);
+    tpmat(ii, :) = tmp;
     
 end
 

@@ -4,9 +4,6 @@
 
 %% TODO:
 %
-% fnTractProfileTensor - check functionality
-% - add upper diagonal x node output of profiles
-%
 % fnTractProfileModules - check optimization
 %
 % fnVirtualLesionModules - failed on 101431; see if it can be fixed
