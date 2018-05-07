@@ -4,8 +4,6 @@
 
 %% TODO:
 %
-% feTractProfilePairedConnections - ensure i -> j orientation of profile
-%
 % fnTractProfileTensor - check functionality
 % - add upper diagonal x node output of profiles
 %

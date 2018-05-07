@@ -79,12 +79,12 @@ end
 % check if the first profile label already exists alongside clobber for a
 % faster exit from function if things shouldn't be recomputed.
 if isfield(pconn{1}.(label), 'profile')
-    if isfield(pconn{1}.(label).profile, mslab) && clobber == 0;
+    if isfield(pconn{1}.(label).profile, mslab) && clobber == 0
         error('Tract profiles with ''%s'' label already exist.\nPlease set clobber to 1 to explicitly overwrite existing profiles.', mslab);
     end
 end
 
-% check if average length is long enough for a profile to be reasonable?
+% check if the length is too short for a profile to be reasonable?
 
 % preallocate tract profile output
 tprof = cell(length(pconn), 1);
@@ -104,8 +104,12 @@ parfor ii = 1:length(pconn)
     if size(tmp.indices, 1) > minNum
         
         % create tract-wise fg
-        
         tract = fgCreate('fibers', fibers(tmp.indices));
+        ntfib = size(tmp.indices, 1);
+        
+        % pull roi centers
+        roi1 = pconn{ii}.roi1ct;
+        roi2 = pconn{ii}.roi2ct;
         
         % if the variance of the streamlines distance is far, too many
         % streamlines are dropped to reliably compute profile
@@ -113,15 +117,61 @@ parfor ii = 1:length(pconn)
             
             if(isdt6)
                 
+                % compute all the tract profiles
                 [ tprof{ii}.dt6_fa, tprof{ii}.dt6_md, tprof{ii}.dt6_rd, ...
                   tprof{ii}.dt6_ad, tprof{ii}.dt6_cl, ~, ~, ...
-                  tprof{ii}.dt6_cp, tprof{ii}.dt6_cs ] = ...
+                  tprof{ii}.dt6_cp, tprof{ii}.dt6_cs, fgFlip ] = ...
                   dtiComputeDiffusionPropertiesAlongFG(tract, msobj, [], [], nnodes);
+              
+                % grab the flipped, resampled end points
+                iep = nan(ntfib, 3);
+                for jj = 1:ntfib
+                    iep(jj, :) = fgFlip.fibers{jj}(:, 1)';
+                end
                 
+                % find the distance from ROIs to the profile i end points
+                roi1_tpi = mean(pdist2(roi1, iep), 'omitnan');
+                roi2_tpi = mean(pdist2(roi2, iep), 'omitnan');
+                
+                % if roi2 (j) is closer to tract profile end point i
+                if (roi2_tpi < roi1_tpi)
+                    
+                    % flip the profiles
+                    tprof{ii}.dt6_fa = flipud(tprof{ii}.dt6_fa);
+                    tprof{ii}.dt6_md = flipud(tprof{ii}.dt6_md);
+                    tprof{ii}.dt6_rd = flipud(tprof{ii}.dt6_rd);
+                    tprof{ii}.dt6_ad = flipud(tprof{ii}.dt6_ad);
+                    tprof{ii}.dt6_cl = flipud(tprof{ii}.dt6_cl);
+                    tprof{ii}.dt6_cp = flipud(tprof{ii}.dt6_cp);
+                    tprof{ii}.dt6_cs = flipud(tprof{ii}.dt6_cs);
+                    
+                end
+                % otherwise it doesn't change
+                                
             else
                 
-                % compute tract profile
-                tprof{ii} = dtiComputeDiffusionPropertiesAlongFG(tract, msobj, [], [], nnodes);
+                % compute the tract profile
+                [ tprof{ii}, ~, ~, ~, ~, ...
+                  ~, ~, ~, ~, fgFlip ]= dtiComputeDiffusionPropertiesAlongFG(tract, msobj, [], [], nnodes);
+                
+                % grab the flipped, resampled end points
+                iep = nan(ntfib, 3);
+                for jj = 1:ntfib
+                    iep(jj, :) = fgFlip.fibers{jj}(:, 1)';
+                end
+                
+                % find the distance from ROIs to the profile i end points
+                roi1_tpi = mean(pdist2(roi1, iep), 'omitnan');
+                roi2_tpi = mean(pdist2(roi2, iep), 'omitnan');
+                
+                % if roi2 (j) is closer to tract profile end point i
+                if (roi2_tpi < roi1_tpi)
+                    
+                    % flip the profile
+                    tprof{ii} = flipud(tprof{ii});
+                    
+                end
+                % otherwise it doesn't change
                 
             end
             

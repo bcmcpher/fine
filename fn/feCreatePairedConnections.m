@@ -181,6 +181,10 @@ parfor ii = 1:length(pairs)
     pconn{ii}.roi1sz = roi1.size;
     pconn{ii}.roi2sz = roi2.size;
  
+    % catch ROI centers for profile alignment
+    pconn{ii}.roi1ct = roi1.centroid.acpc;
+    pconn{ii}.roi2ct = roi2.centroid.acpc;
+        
     % assign intersections of terminating streamlines
     pconn{ii}.all.indices = intersect(roi1.end.fibers, roi2.end.fibers);
     pconn{ii}.all.lengths = fibLength(pconn{ii}.all.indices);
