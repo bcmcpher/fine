@@ -50,11 +50,6 @@ function [ pmat, tpmat ] = fnTractProfileTensor(pconn, label, prof, srt)
 % Brent McPherson (c), 2017 - Indiana University
 %
 
-% parse optional arguments
-%if(~exist('nnodes', 'var') || isempty(nnodes))
-%    nnodes = 100;
-%end
-
 if(~exist('srt', 'var') || isempty(srt))
     srt = [];
 end

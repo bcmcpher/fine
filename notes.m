@@ -4,8 +4,6 @@
 
 %% TODO:
 %
-% fnTractProfileModuels - only use upper diagonal for averages
-%
 % fnVirtualLesionModules - failed on 101431; see if it can be fixed
 %
 % fnPlotModulePoints - plot individuals by color or group average w/ error bars

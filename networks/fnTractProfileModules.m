@@ -25,13 +25,13 @@ mnten = nan(nmod, nmod, nnodes);
 seten = nan(nmod, nmod, nnodes);
 
 % find lower diagonal (between modules)
-lowd = nchoosek(1:nmod, 2);
+uppd = nchoosek(1:nmod, 2);
 
 % find diagonal (within modules)
 diag = [ 1:nmod; 1:nmod ]';
 
 % combine the module indices to compare
-pairs = [ diag; lowd ];
+pairs = [ diag; uppd ];
 
 % sort into upper diagonal indices
 pairs = sortrows(pairs, [ 1 2 ]);
@@ -54,10 +54,23 @@ for ii = 1:size(pairs, 1)
     % subset the input matrix by modules
     Mij = tptens(iind, jind, :);
     
-    % ONLY KEEP UPPER DIAGONAL
+    % find upper diagonal (between modules)
+    Mud = nchoosek(1:size(Mij, 1), 2);
+    
+    % find diagonal (within modules)
+    Mdg = [ 1:size(Mij, 1); 1:size(Mij, 1) ]';
+    
+    % combine the module indices to compare
+    tpPairs = [ Mdg; Mud ];
+    
+    % sort into upper diagonal indices
+    tpPairs = sortrows(tpPairs, [ 1 2 ]);
     
     % reshape into profile in module x 100 matrix
-    Mpf = reshape(Mij, [ (size(Mij, 1) * size(Mij, 2)) 100 ]);
+    Mpf = nan(size(tpPairs, 1), nnodes);
+    for jj = 1:size(tpPairs, 1)
+        Mpf(jj, :) = squeeze(Mij(tpPairs(jj, 1), tpPairs(jj, 2), :))';
+    end
     
     % drop all missing and all zeros
     Mpf(isnan(Mpf)) = 0; % set NaN to zero
@@ -81,8 +94,8 @@ for ii = 1:size(pairs, 1)
             if mod1 ~= mod2
                 
                 % add flipped 
-                mnten(mod2, mod1, :) = tpmn;
-                seten(mod2, mod1, :) = tpse;
+                mnten(mod2, mod1, :) = fliplr(tpmn);
+                seten(mod2, mod1, :) = fliplr(tpse);
                 
             end
             
@@ -102,8 +115,8 @@ for ii = 1:size(pairs, 1)
             if mod1 ~= mod2
                 
                 % add flipped 
-                mnten(mod2, mod1, :) = tpmn;
-                seten(mod2, mod1, :) = tpse;
+                mnten(mod2, mod1, :) = fliplr(tpmn);
+                seten(mod2, mod1, :) = fliplr(tpse);
                 
             end            
             
@@ -138,8 +151,8 @@ for ii = 1:size(pairs, 1)
             if mod1 ~= mod2
                 
                 % add flipped 
-                mnten(mod2, mod1, :) = tpmn;
-                seten(mod2, mod1, :) = tpse;
+                mnten(mod2, mod1, :) = fliplr(tpmn);
+                seten(mod2, mod1, :) = fliplr(tpse);
                 
             end            
                 
