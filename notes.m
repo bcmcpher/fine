@@ -4,7 +4,7 @@
 
 %% TODO:
 %
-% fnTractProfileModules - check optimization
+% fnTractProfileModuels - only use upper diagonal for averages
 %
 % fnVirtualLesionModules - failed on 101431; see if it can be fixed
 %

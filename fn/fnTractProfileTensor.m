@@ -97,7 +97,7 @@ for ii = 1:size(pairs, 1)
     
     % assign profile to profile tensor
     pmat(grp1, grp2, :) = tmp;
-    pmat(grp2, grp1, :) = fliplr(tmp);
+    pmat(grp2, grp1, :) = flipud(tmp);
     tpmat(ii, :) = tmp;
     
 end

@@ -1,128 +1,158 @@
-function [ mnten, seten, dbg ] = fnTractProfileModules(tptens, srt, method)
+function [ mnten, seten, mnmat, semat ] = fnTractProfileModules(tptens, srt, method, nrep)
 %fnTractProfileModules() takes a tract profile tensor and averages the
 % profiles into modules for a summary. Returns mean and standard error of
 % the modules.
-%   
-% TODO:
-% - set up to use nchoosek(1:nmod, 2) instead of nested loops
-%
+% 
 
 % parse optional arguments
 if(~exist('method', 'var') || isempty(method))
     method = 'mean';
 end
 
+% assign bootstrap replications by default
+if(~exist('nrep', 'var') || isempty(nrep))
+    nrep = 10000;
+end
+
 % grab number of nodes from input
 nnodes = size(tptens, 3);
 
 % find maximum number of modules
-nmod = max(srt);
+nmod = size(unique(srt), 2);
 
 % create empty output matrix
 mnten = nan(nmod, nmod, nnodes);
 seten = nan(nmod, nmod, nnodes);
 
-% total count of debug outputs 
-dbg = cell(1, nmod^2);
-dbc = 1;
+% find lower diagonal (between modules)
+lowd = nchoosek(1:nmod, 2);
 
-% for every module 'row'
-for i = 1:nmod
+% find diagonal (within modules)
+diag = [ 1:nmod; 1:nmod ]';
+
+% combine the module indices to compare
+pairs = [ diag; lowd ];
+
+% sort into upper diagonal indices
+pairs = sortrows(pairs, [ 1 2 ]);
+
+% create pairs/nmod x nnodes average matrices
+mnmat = nan(size(pairs, 1), nnodes);
+semat = nan(size(pairs, 1), nnodes);
+
+% for every combination of modules, including diagonal
+for ii = 1:size(pairs, 1)
     
-    % pull the 'row' indices for the module
-    iind = logical(srt == i);
+    % pull module references
+    mod1 = pairs(ii, 1);
+    mod2 = pairs(ii, 2);
     
-    % for every module 'col'
-    for j = 1:nmod
+    % grab the logical indices for the module combination
+    iind = logical(srt == mod1);
+    jind = logical(srt == mod2);
+    
+    % subset the input matrix by modules
+    Mij = tptens(iind, jind, :);
+    
+    % ONLY KEEP UPPER DIAGONAL
+    
+    % reshape into profile in module x 100 matrix
+    Mpf = reshape(Mij, [ (size(Mij, 1) * size(Mij, 2)) 100 ]);
+    
+    % drop all missing and all zeros
+    Mpf(isnan(Mpf)) = 0; % set NaN to zero
+    Mpf = Mpf(any(Mpf, 2), :); % drop all zeros
+    
+    switch method
         
-        % pull the 'col' indices for the module
-        jind = logical(srt == j);
-        
-        % subset the input matrix by modules
-        Mij = tptens(iind, jind, :);
-                
-        % initialize output data
-        moddat = nan(1, nnodes);
-        iter = 1;
-        
-        % for every unique profile
-        for k1 = 1:size(Mij, 1)
-            for k2 = 1:size(Mij, 2)
-                            
-                % drop dimensions before adding it to data
-                dat = squeeze(Mij(k1, k2, :))';
+        case {'mean', 'mn-sd'}
             
-                % stack the data
-                moddat = [ moddat; dat ];
+            % compute the mean / sd of the profiles
+            tpmn = mean(Mpf, 'omitnan');
+            tpse = std(Mpf, 'omitnan');
+            
+            % add to output
+            mnten(mod1, mod2, :) = tpmn;
+            seten(mod1, mod2, :) = tpse;
+            mnmat(ii, :) = tpmn;
+            semat(ii, :) = tpse;
+            
+            % if it's not on the diagonal
+            if mod1 ~= mod2
                 
-                % iterate counter
-                iter = iter + 1;
+                % add flipped 
+                mnten(mod2, mod1, :) = tpmn;
+                seten(mod2, mod1, :) = tpse;
                 
             end
-        end
-        
-        % drop the initializing nan row
-        moddat = moddat(2:end, :);
-        
-        % catch cell array of more usefully sorted data frames
-        dbg{dbc} = moddat(all(~isnan(moddat),2),:);
-        dbc = dbc + 1;
-        
-        % define the type of edge summary to compute
-        switch method
             
-            case 'mean'
+        case 'mn-se'
+            
+            % compute the mean / se of the profiles
+            tpmn = mean(Mpf, 'omitnan');
+            tpse = std(Mpf, 'omitnan') ./ sqrt(size(Mpf, 1));
+            
+            % add to output
+            mnten(mod1, mod2, :) = tpmn;
+            seten(mod1, mod2, :) = tpse;
+            mnmat(ii, :) = tpmn;
+            semat(ii, :) = tpse;
+            
+            % if it's not on the diagonal
+            if mod1 ~= mod2
                 
-                % directly compute mean and standard error
-                mnten(i, j, :) = nanmean(moddat, 1);
-                seten(i, j, :) = nanstd(moddat, 1);
+                % add flipped 
+                mnten(mod2, mod1, :) = tpmn;
+                seten(mod2, mod1, :) = tpse;
                 
-                % replace any nan w/ zero (all connections are missing)
-                x = mnten(i, j, :);
-                y = seten(i, j, :);
-                x(isnan(x)) = 0;
-                y(isnan(y)) = 0;
-                mnten(i, j, :) = x;
-                seten(i, j, :) = y;
+            end            
+            
+        case 'boot'
+            
+            % define size and output of bootstrapping procedure
+            nobs = size(Mpf, 1);
+            boot = zeros(nrep, nnodes);
+            
+            % for a fixed, reasonable number of permutations
+            for perm = 1:nrep
                 
-            case 'boot'
+                % sample data with replacement
+                p = randsample(1:nobs, nobs, true);
                 
-                % define size and output of bootstrapping procedure
-                nrep = 10000;
-                nobs = size(moddat, 1);
-                boot = zeros(nrep, nnodes);
+                % store the mean of the random samples
+                boot(perm, :) = mean(Mpf(p, :), 1);
                 
-                % for a fixed, reasonable number of permutations
-                for perm = 1:nrep
-                    
-                    % sample data with replacement
-                    p = randsample(1:nobs, nobs, true);
-                    
-                    % store the mean of the random samples
-                    boot(perm, :) = nanmean(moddat(p, :), 1);
-                    
-                end
+            end
+            
+            % compute the mean of means for bootstrapped module value
+            tpmn = mean(boot, 'omitnan');
+            tpse = std(boot, 'omitnan') ./ nrep;
+            
+            % add to output
+            mnten(mod1, mod2, :) = tpmn;
+            seten(mod1, mod2, :) = tpse;
+            mnmat(ii, :) = tpmn;
+            semat(ii, :) = tpse;
+            
+            % if it's not on the diagonal
+            if mod1 ~= mod2
                 
-                % compute the mean of means for bootstrapped module value
-                mnten(i, j, :) = nanmean(boot, 1);
-                seten(i, j, :) = nanstd(boot, 1) ./ nrep;
+                % add flipped 
+                mnten(mod2, mod1, :) = tpmn;
+                seten(mod2, mod1, :) = tpse;
                 
-                % replace any nan w/ zero (all connections are missing)
-                x = mnten(i, j, :);
-                y = seten(i, j, :);
-                x(isnan(x)) = 0;
-                y(isnan(y)) = 0;
-                mnten(i, j, :) = x;
-                seten(i, j, :) = y;
+            end            
                 
-            otherwise
-                
-                error('Invalid method of summarizing provided.');
-                
-        end
+        otherwise
+            
+            error('Invalid method of summarizing provided.');
+            
     end
+    
 end
-
-end
-
-
+   
+% set any final nan to zero
+mnten(isnan(mnten)) = 0;
+seten(isnan(seten)) = 0;
+mnmat(isnan(mnmat)) = 0;
+semat(isnan(semat)) = 0;
