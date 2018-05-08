@@ -4,9 +4,6 @@
 
 %% TODO:
 %
-% fnVirtualLesionModules
-% - does not assing all streamlines to module connections
-%
 % fnPlotModulePoints - plot individuals by color or group average w/ error bars
 %
 % create classified fiber structure Dan wants

@@ -6,7 +6,7 @@ function [ fh ] = fnPlotModulePoints(mats, clr)
 % Recreates Figure ##.# from paper TBD.
 %
 % INPUTS:
-%     mats - a N x N x subj matrix of mean tract profile tensors
+%     mats - a N x N x subj matrix of network modules
 %     clr  - a N x subj cell array of colors to plot subjects' points
 %
 % OUTPUTS:
