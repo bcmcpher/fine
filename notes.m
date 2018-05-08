@@ -4,7 +4,8 @@
 
 %% TODO:
 %
-% fnVirtualLesionModules - failed on 101431; see if it can be fixed
+% fnVirtualLesionModules
+% - does not assing all streamlines to module connections
 %
 % fnPlotModulePoints - plot individuals by color or group average w/ error bars
 %
@@ -38,6 +39,8 @@
 % fxn estimating neural conduction speed / bitrate for all edges
 %
 % summary fxn(s?) of Bassett's network tools
+%
+% dual color diagonal adjacency plot - mean / sd in different colors
 %
 % simple shape analysis of cortical node centers; geometric morphometric analysis
 % - procrustes alignment
