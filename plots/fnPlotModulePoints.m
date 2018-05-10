@@ -37,13 +37,13 @@ indx = [ diag; updg ];
 % total number of data points
 npts = size(indx, 1);
 
-% create module labels
+% create module labels for axis
 labs = cell(npts, 1);
 for lab = 1:npts
     labs{lab} = [ num2str(indx(lab, 1)) '-' num2str(indx(lab, 2)) ];
 end
 
-% define subject jitter
+% define jitter between points
 jitter = linspace(-0.20, 0.20, length(1:nsubj));
 
 % plot the data

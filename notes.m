@@ -4,8 +4,6 @@
 
 %% TODO:
 %
-% fnPlotModulePoints - plot individuals by color or group average w/ error bars
-%
 % create classified fiber structure Dan wants
 %
 % parallel pool fxn
@@ -38,6 +36,8 @@
 % summary fxn(s?) of Bassett's network tools
 %
 % dual color diagonal adjacency plot - mean / sd in different colors
+%
+% merge fnPlotModulePoints and fnPlotModuleGroups - they're nearly the same
 %
 % simple shape analysis of cortical node centers; geometric morphometric analysis
 % - procrustes alignment
