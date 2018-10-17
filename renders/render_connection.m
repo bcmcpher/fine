@@ -44,6 +44,7 @@ function [ fh, lh, fgOut, pnOut, xyz ] = render_connection(fe, pconn, label, tra
 %
 % TODO:
 % - add tract profile tube
+% - add check for informative error if requested connection is empty
 %
 % Examples:
 % 

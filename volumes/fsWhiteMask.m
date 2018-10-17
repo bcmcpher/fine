@@ -13,6 +13,8 @@ wm = niftiRead(aparc);
 
 % define labels to convert into WM mask
 invals  = [2 41 16 17 28 60 51 53 12 52 13 18 54 50 11 251 252 253 254 255 10 49 46 7];
+%invals  = [251 252 253 254 255];
+
 origvals = unique(wm.data(:));
 
 % convert multiple labels to binary image

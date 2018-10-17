@@ -103,7 +103,7 @@ end
 % fix impossible values
 omat(isnan(omat)) = 0;
 omat(isinf(omat)) = 0;
-omat(omat < 0) = 0;
+%omat(omat < 0) = 0;
 
 % sort the cortical nodes given a vector
 if ~isempty(srt)
