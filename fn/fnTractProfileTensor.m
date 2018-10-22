@@ -73,7 +73,7 @@ pairs = nchoosek(1:nlabs, 2);
 pmat = zeros(nlabs, nlabs, nnodes);
 tpmat = nan(size(pairs, 1), nnodes);
 
-display(['Extracting tract profiles from ' label ' ...']);
+display(['Extracting tract profiles from ''' label '''...']);
 
 % for every possible connection
 for ii = 1:size(pairs, 1)

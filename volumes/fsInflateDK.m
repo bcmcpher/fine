@@ -59,8 +59,10 @@ olabs.fname = 'original_labels.nii.gz';
 % predefined cortex labels for this parcellation
 ctxvals = [ 1001:1035 2001:2035 ];
 
-% predefined extra 10 subcortical / cerebellum in each hemi + brain stem
-sbcvals = [ 8 10 11 12 13 16 17 18 26 28 47 49 50 51 52 53 54 58 60 ];
+% predefined extra 7 subcortical in each hemi
+sbcvals = [ 10 11 12 13 17 18 26 49 50 51 52 53 54 58 ];
+
+% cerebellum / brainstem?
 
 % missing labels of useful but otherwise covered (?) regions
 % l/r thalamus: 9 48

@@ -30,7 +30,7 @@ function [ pconn, rois, out ] = feCreatePairedConnections(parc, fibers, fibLengt
 
 %% extract fibers to acpc space and identify endpoint coordinates
 
-display('Assigning streamline endpoints to ROI labels...')
+disp('Assigning streamline endpoints to ROI labels...')
 
 % catch xform matrices for parc
 parc_acpc2img = niftiGet(parc, 'qto_ijk');
