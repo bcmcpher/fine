@@ -136,7 +136,7 @@ parfor ii = 1:length(labels)
     rois{ii}.roi = dtiNewRoi(num2str(labels(ii)), 'red', [ ep1(roi_ep1, :); ep2(roi_ep2, :) ]);
     
     % create ROI centroid
-    rois{ii}.centroid.img = round(mean(imgCoords) + 1);
+    rois{ii}.centroid.img = round(mean(imgCoords, 1) + 1);
     rois{ii}.centroid.acpc = mrAnatXformCoords(parc_img2acpc, rois{ii}.centroid.img);
     
     % throw a warning if no terminations are in a label
