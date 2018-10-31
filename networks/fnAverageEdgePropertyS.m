@@ -143,6 +143,7 @@ for ii = 1:length(pconn)
         % fill in empty voxel coords
         conn.(dtype).raw = [];
         conn.(dtype).(meas) = 0;
+        vals = [];
         
     else
         
