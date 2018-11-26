@@ -168,6 +168,33 @@ for ii = 1:length(pconn)
             % create the mask
             coords = unique(round(snd), 'rows');
             
+            % replace 0 indices w/ 1
+            coords(coords <= 0) = 1;
+            
+            % replace indices exceeding max w/ max index
+            mnmx = size(vol.data);
+            coords(coords(:, 1) > mnmx(1), 1) = mnmx(1);
+            coords(coords(:, 2) > mnmx(2), 2) = mnmx(2);
+            coords(coords(:, 3) > mnmx(3), 3) = mnmx(3);
+            
+            % dev - code to dilate volume for central tendency
+            % makes edges much larger (~4x) and MUCH, MUCH slower (1 min to 4 hours)
+            % would this be the volume of edges as well?
+            
+%             % create a mask volume of tract
+%             tvol = zeros(mnmx);
+%             for jj = 1:size(coords, 1)
+%                 tvol(coords(jj, 1), coords(jj, 2), coords(jj, 3)) = 1; 
+%             end
+%             % dilate / fill / erode mask for a more even volume?
+%             se1 = strel('cube', 2);
+%             se2 = strel('cube', 1);
+%             ivol = imdilate(tvol, se1); 
+%             ivol = imfill(ivol, 'holes');
+%             ivol = imerode(ivol, se2);
+%             % pull vals for volume for central tendency
+%             vals = vol.data(ivol == 1);
+            
             % extract the micro data for the edge
             vals = nan(size(coords, 1), 1);
             for coord = 1:size(coords, 1)
@@ -206,5 +233,3 @@ time = toc;
 disp([ 'Found the ' meas ' of ' name ' for all edges in ' num2str(time) ' seconds.' ]);
 
 end
-
-
