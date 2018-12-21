@@ -8,6 +8,7 @@
 %
 % parallel pool fxn
 % - see if this is actually necessary - maybe a local problem?
+% - parallel pool optional? check if open and run different fxn?
 %
 % change all display to sprintf
 %
