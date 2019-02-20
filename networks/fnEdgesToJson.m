@@ -45,7 +45,7 @@ for ii = 1:size(pconn, 1)
     
     % grab every edge weight that is found (need to loop / generalize)
     jout(ii).weights.count = pconn{ii}.all.matrix.count;
-    jout(ii).weights.density = round(pconn{ii}.all.matrix.density, 3);
+    jout(ii).weights.density = round(pconn{ii}.all.matrix.density, 5);
     
     % grab the streamlines from fg
     tcoord = fg.fibers(pconn{ii}.all.indices);
@@ -55,7 +55,7 @@ for ii = 1:size(pconn, 1)
         % for every streamline
         for kk = 1:size(tcoord, 1)
             % store the streamline nodes in a nested array
-            coords{jj}{kk} = round(tcoord{kk}, 1);
+            coords{jj}{kk} = round(tcoord{kk}, 2);
         end
     end
     
