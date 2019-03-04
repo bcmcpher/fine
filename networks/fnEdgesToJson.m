@@ -46,6 +46,8 @@ for ii = 1:size(pconn, 1)
     % grab every edge weight that is found (need to loop / generalize)
     jout(ii).weights.count = pconn{ii}.all.matrix.count;
     jout(ii).weights.density = round(pconn{ii}.all.matrix.density, 5);
+    jout(ii).weights.length = round(pconn{ii}.all.matrix.length, 5);
+    jout(ii).weights.denlen = round(pconn{ii}.all.matrix.denlen, 5);
     
     % grab the streamlines from fg
     tcoord = fg.fibers(pconn{ii}.all.indices);
@@ -69,7 +71,7 @@ for ii = 1:size(pconn, 1)
     else
     % otherwise assign a name and index for the app
         jout(ii).filename = tname;
-        jout(ii).idx = jj-1;    
+        jout(ii).idx = jj-1; % already off by one, correct for 2?    
         jj = jj + 1;
     end
     
