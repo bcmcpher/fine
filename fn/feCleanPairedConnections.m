@@ -1,4 +1,4 @@
-function [ pconn, cln ] = feCleanPairedConnections(fg, pconn, label, minLength, maxDist, maxLengthStd, numNodes, maxIter, minNum)
+function [ netw ] = feCleanPairedConnections(netw, fg, minLength, maxDist, maxLengthStd, numNodes, maxIter, minNum)
 %feCleanPairedConnections cleans the outlier fibers from connections inside 
 % a paired connection (pconn) cell array. 
 %
@@ -73,102 +73,130 @@ if(~exist('minNum', 'var') || isempty(minNum))
     minNum = 3;
 end
 
-% preallocate cleaned edge structure
-cln = cell(length(pconn), 1);
-clncnt = 0;
-clntot = 0;
+% add cleaning parameters to output
+netw.clean.minLength = minLength;
+netw.clean.maxDist = maxDist;
+netw.clean.maxLengthStd = maxLengthStd;
+netw.clean.numNodes = numNodes;
+netw.clean.maxIter = maxIter;
+netw.clean.minNum = minNum;
 
-display(['Started cleaning ' num2str(length(pconn)) ' paired connections...']);
+disp(['Started cleaning ' num2str(size(netw.pconn, 1)) ' connections...']);
+
+% initialize a count of before / after cleaning edges
+bfcln = zeros(size(netw.pconn, 1), 1);
+afcln = zeros(size(netw.pconn, 1), 1);
+
+% extract pconn for parallel run
+pconn = netw.pconn;
 
 tic;
-parfor ii = 1:length(pconn)
+parfor ii = 1:size(pconn, 1)
     
-    % get the requested field
-    tmp = pconn{ii}.(label);
+    % get the requested edge
+    edge = pconn{ii};
     
-    if ~isempty(tmp.indices)
-        
-        % pull indices of connection
-        cln{ii}.indices = tmp.indices;
-        cln{ii}.lengths = tmp.lengths;
-        cln{ii}.weights = tmp.weights;
-        
+    % grab the before count
+    bfcln(ii) = size(pconn{ii}.fibers.indices, 1);    
+    
+    % if the connection isn't empty
+    if ~isempty(edge.fibers.indices)
+                
         % drop indices less than a particular length
-        cln{ii}.lenindx = cln{ii}.lengths > minLength;
-        cln{ii}.indices = cln{ii}.indices(cln{ii}.lenindx);
-        cln{ii}.lengths = cln{ii}.lengths(cln{ii}.lenindx);
-        cln{ii}.weights = cln{ii}.weights(cln{ii}.lenindx);
-        
+        keep_idx = edge.fibers.lengths > minLength;
+                
         % if there are too few streamlines, fill in empty and move on
-        if(size(cln{ii}.indices, 1) < minNum)
-            cln{ii}.out.indices = [];
-            cln{ii}.out.lengths = [];
-            cln{ii}.out.weights = [];
-            %cln{ii}.out.pvoxels = [];
+        if(sum(keep_idx) < minNum)
+            edge.fibers = structfun(@(x) [], edge.fibers, 'UniformOutput', false);
+            pconn{ii} = edge;
+            continue
+        else
+           % filter other values before fg cleaning
+           edge.fibers = structfun(@(x) x(keep_idx), edge.fibers, 'UniformOutput', false);
+        end
+        
+        % create an fg group of the filtered edge
+        tfg = fgExtract(fg, edge.fibers.indices, 'keep');
+        
+        % try and clean the pruned length / count, fail over to empty 
+        try
+            % for all streamlines, compute outliers
+            % cln is a logical of the streamlines to keep
+            [ ~, cln ] = mbaComputeFibersOutliers(tfg, maxDist, maxLengthStd, numNodes, 'mean', 0, maxIter);
+            
+            % filter edge down to cleaned fg
+            edge.fibers = structfun(@(x) x(cln), edge.fibers, 'UniformOutput', false);
+            
+        catch
+            warning('Cleaning of edge index %d failed. Assigning empty values in network structure.', ii);
+            edge.fibers = structfun(@(x) [], edge.fibers, 'UniformOutput', false);
+            pconn{ii} = edge;
             continue
         end
         
-        % create an fg group of the connection
-        cln{ii}.connfib = fgExtract(fg, cln{ii}.indices, 'keep');
-        
-        % for all streamlines, compute outliers
-        [ ~, cln{ii}.all ] = mbaComputeFibersOutliers(cln{ii}.connfib, maxDist, maxLengthStd, numNodes, 'mean', 0, maxIter);
-
-        % catch outputs
-        cln{ii}.out.indices = cln{ii}.indices(cln{ii}.all);
-        cln{ii}.out.lengths = cln{ii}.lengths(cln{ii}.all);
-        cln{ii}.out.weights = cln{ii}.weights(cln{ii}.all);
-        
         % keep count of cleaned connections
-        clncnt = clncnt + 1;
-        clntot(ii) = sum(cln{ii}.all);
+        afcln(ii) = bfcln(ii) - sum(cln);
         
     else 
         
         % fill in empty cells and skip to next connection
-        cln{ii}.out.indices = [];
-        cln{ii}.out.lengths = [];
-        cln{ii}.out.weights = [];
-        %cln{ii}.out.pvoxels = [];
+        edge.fibers = structfun(@(x) [], edge.fibers, 'UniformOutput', false);
         continue
         
     end
     
+    % reassign the cleaned edge to the list
+    pconn{ii} = edge;
+    
 end
 time = toc;
 
-display(['Cleaned outlier streamlines from ' num2str(clncnt) ' edges in ' num2str(round(time)/60) ' minutes.']);
-display(['Kept ' num2str(sum(clntot)) ' streamlines.']);
-clear ii tmp
+clear ii edge keep_idx tfg cln
 
-% create new output in pconn
-newout = strcat(label, '_clean');
+% reassign paired connection
+netw.pconn = pconn;
 
-% add cleaned streamlines to pconn
-parfor ii = 1:length(pconn)
+% compute how many are kept vs. dropped
+diffs = bfcln - afcln;
 
-    % values used to calculate newly cleaned connections
-    psz = pconn{ii}.roi1sz + pconn{ii}.roi2sz;
-    cnt = size(cln{ii}.out.indices, 1);
-    len = mean(cln{ii}.out.lengths);
-    if isempty(cln{ii}.out.lengths) % if there are no nz lengths
-        dln = 0;
-    else
-        dln = sum(1 / cln{ii}.out.lengths);
-    end
-    
-    % create structure with all the cleaned field data
-    tmp = struct('indices', cln{ii}.out.indices, ...
-                 'lengths', cln{ii}.out.lengths, ...
-                 'weights', cln{ii}.out.weights);
-             
-    % assign cleaned count matrix
-    pconn{ii}.(newout) = tmp;
-    pconn{ii}.(newout).matrix.count = cnt;
-    pconn{ii}.(newout).matrix.density = (2 * cnt) / psz;
-    pconn{ii}.(newout).matrix.length = len;
-    pconn{ii}.(newout).matrix.denlen = (2 / psz) * dln;
-    
-end
+disp(['Cleaned outlier streamlines from ' num2str(sum(afcln ~= bfcln)) ' edges in ' num2str(round(time)/60) ' minutes.']);
+disp(['Removed ' num2str(sum(afcln)) ', keeping ' num2str(sum(diffs)) ' streamlines of ' num2str(sum(bfcln)) '.']);
+
+% track total streamlines dropped
+netw.clean.drop = sum(afcln);
+netw.clean.diffs = diffs;
+
+% will need to rerun fnComputeMatrixField() 
+% or plan to run it at the very end after cleaning.
+
+% % create new output in pconn
+% newout = strcat(label, '_clean');
+% 
+% % add cleaned streamlines to pconn
+% for ii = 1:length(pconn)
+% 
+%     % values used to calculate newly cleaned connections
+%     psz = pconn{ii}.roi1sz + pconn{ii}.roi2sz;
+%     cnt = size(cln{ii}.out.indices, 1);
+%     len = mean(cln{ii}.out.lengths);
+%     if isempty(cln{ii}.out.lengths) % if there are no nz lengths
+%         dln = 0;
+%     else
+%         dln = sum(1 / cln{ii}.out.lengths);
+%     end
+%     
+%     % create structure with all the cleaned field data
+%     tmp = struct('indices', cln{ii}.out.indices, ...
+%                  'lengths', cln{ii}.out.lengths, ...
+%                  'weights', cln{ii}.out.weights);
+%              
+%     % assign cleaned count matrix
+%     pconn{ii}.(newout) = tmp;
+%     pconn{ii}.(newout).matrix.count = cnt;
+%     pconn{ii}.(newout).matrix.density = (2 * cnt) / psz;
+%     pconn{ii}.(newout).matrix.length = len;
+%     pconn{ii}.(newout).matrix.denlen = (2 / psz) * dln;
+%    
+% end
     
 end

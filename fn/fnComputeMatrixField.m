@@ -1,4 +1,4 @@
-function [ out ] = fnComputeMatrixField(conn, label)
+function [ netw ] = fnComputeMatrixField(netw, clobber)
 %fnComputeMatrixField creates the valuest that are assigned to adjacency
 % matrices for the pconn list object. New measures should be added here.
 %
@@ -6,37 +6,74 @@ function [ out ] = fnComputeMatrixField(conn, label)
 % How should this fxn do that? 
 % 
 
-% calculate combined size of ROI
-psz = conn.roi1sz + conn.roi2sz;
+%% parse arguments
 
-% pull the streamline count
-cnt = size(conn.(label).indices, 1);
-
-% pull the average streamline length
-len = mean(conn.(label).lengths);
-
-% create 1 / sum of lengths for Hagmann's correction
-if isempty(conn{ii}.(label).lengths) 
-    dln = 0;
-else
-    dln = sum(1 / conn{ii}.(label).lengths);
+if(~exist('clobber', 'var') || isempty(clobber))
+    clobber = 0;
 end
 
-% compute tract volume - number of voxels
-%size(conn.pvoxel, 1)
-% scale by voxel dimesions too?
+if clobber == 0 && isfield(netw.pconn{1}, 'matrix')
+    error('Matrix field has already been computed. Set clobber to true to recompute values.');
+end
 
-% compute average microstructural value
-% needs whole fe structure?
-% have to do separately?
+if clobber == 1 && isfield(netw.pconn{1}, 'matrix')
+    disp('Matrix field will be overwritten for every edge...');
+end
 
-% create all streamline counts
-out.matrix.count = cnt;
-out.matrix.density = (2 * cnt) / psz;
-out.matrix.length = len;
-out.matrix.denlen = (2 / psz) * dln;
-% out.matrix.afdconn = []; % tract volume / len
-% out.matrix.avgmsv = []; % averaged microstructural value
+%% compute the matrix fields
+
+% grab the sorted indice pairs
+pairs = netw.parc.pairs;
+
+% for every connection
+for ii = 1:size(netw.pconn, 1)
+    
+    % pull the rois for the pair and the edge information
+    roi1 = netw.rois{pairs(ii, 1)};
+    roi2 = netw.rois{pairs(ii, 2)};
+    edge = netw.pconn{ii};
+    
+    % calculate combined size of ROI (voxel count / volume in mm^2)
+    psz = roi1.size + roi2.size;
+    pvl = roi1.volume + roi2.volume;
+    
+    % pull the streamline count
+    cnt = size(edge.fibers.indices, 1);
+    
+    % pull the average streamline length, replace w/ 0 if it's empty
+    len = mean(edge.fibers.lengths, 'omitnan');
+    if isnan(len)
+        len = 0;
+    end
+    
+    % create 1 / sum of lengths for Hagmann's correction
+    if isempty(edge.fibers.lengths)
+        dln = 0;
+    else
+        dln = sum(1 / edge.fibers.lengths);
+    end
+
+    % create all edge measures
+    matrix.count = cnt;
+    matrix.densz = (2 * cnt) / psz;
+    matrix.denvl = (2 * cnt) / pvl;
+    matrix.length = len;
+    matrix.densln = (2 / psz) * dln;
+    matrix.denvln = (2 / pvl) * dln;
+            
+    % if volume is present, compute the volume measure
+    
+    % if microstructure is present, compute mn/std microstructural values
+    
+    % what else is optional?
+    
+    % assign the output back
+    edge.matrix = matrix;
+    
+    % reassign edge
+    netw.pconn{ii} = edge;
+    
+end
 
 end
 

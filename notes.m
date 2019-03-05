@@ -4,6 +4,9 @@
 
 %% TODO:
 %
+% feCreatePairedConnections 
+% - simplify how fibers / weights are stored? too big a change? used later?
+%
 % create classified fiber structure Dan wants
 %
 % parallel pool fxn
@@ -47,12 +50,7 @@
 %
 % better default axes in virtual lesion measures plot 
 %
-% feCreatePairedConnections 
-% - simplify how fibers / weights are stored? too big a change? used later?
-%
 % finish feCreatePairedConnectionsFromSurface
-%
-% figure out if single fxn for making matrix field is workable
 %
 % add profile tube to render function
 %
