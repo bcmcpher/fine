@@ -29,7 +29,6 @@ function [ netw, out ] = feCreatePairedConnections(parc, fg, names, varargin)
 %
 
 % merge pconn / rois
-% make weights a varargin type of named input
 % change endpoint roi to a heatmap in parc space - do at the end to only be eps in network?
 % determine the best rounding of endpoints
 % make ROI labels more robust / clean

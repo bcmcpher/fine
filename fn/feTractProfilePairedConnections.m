@@ -52,7 +52,7 @@ function [ netw ] = feTractProfilePairedConnections(netw, fg, msobj, mslab, nnod
 
 % parse optional arguments
 if(~exist('nnodes', 'var') || isempty(nnodes))
-    nnodes = 20;
+    nnodes = 100;
 end
 
 if(~exist('minNum', 'var') || isempty(minNum))
@@ -82,7 +82,7 @@ end
 if isfield(netw.pconn{1}, 'profile')
     disp('Some profiles have already been computed.');
     if isfield(netw.pconn{1}.profile, mslab) && clobber == 0
-        error('Tract profiles with ''%s'' label already exist.\nSet clobber to 1 to explicitly overwrite existing profiles.', mslab);
+        error('Tract profiles with ''%s'' label already exist.\nSet clobber to 1 to explicitly overwrite the pre-existing profile(s).', mslab);
     end
 end
 
@@ -109,16 +109,30 @@ parfor ii = 1:size(pconn, 1)
     % in testing, need minimum of 4 streamlines to compute profile
     if size(edge.fibers.indices, 1) > minNum
         
-        % create tract-wise fg
+        % create tract-wise fg and reorient / resample
         tract = fgCreate('fibers', fibers(edge.fibers.indices));
-        ntfib = size(edge.fibers.indices, 1);
+        tfg = dtiReorientFibers(tract, nnodes);
+        
+        % grab all endpoints of endpoint i
+        iep = cellfun(@(x) x(:,1), tfg.fibers, 'UniformOutput', false);
+        iep = cat(2, iep{:})'; 
         
         % pull roi centers in acpc space
         roi1 = netw.rois{r1_idx}.centroid.acpc;
         roi2 = netw.rois{r2_idx}.centroid.acpc;
         
+        % find the distance from ROIs to the profile i end points
+        roi1_tpi = mean(pdist2(roi1, iep), 'omitnan');
+        roi2_tpi = mean(pdist2(roi2, iep), 'omitnan');
+        
+        % if roi2 (j) is closer to the beginning of the 
+        % tract profile than roi1 (i), flip the fibers
+        if (roi2_tpi < roi1_tpi)
+            tfg.fibers = cellfun(@(x) fliplr(x), tfg.fibers, 'UniformOutput', false);
+        end
+        
         % if the variance of the streamlines distance is far, too many
-        % streamlines are dropped to reliably compute profile
+        % streamlines are dropped to reliably compute profile, so try / catch
         try
             
             if(isdt6)
@@ -126,58 +140,62 @@ parfor ii = 1:size(pconn, 1)
                 % compute all the tract profiles
                 [ edge.profile.dt6_fa, edge.profile.dt6_md, edge.profile.dt6_rd, ...
                   edge.profile.dt6_ad, edge.profile.dt6_cl, ~, ~, ...
-                  edge.profile.dt6_cp, edge.profile.dt6_cs, fgFlip ] = ...
-                  dtiComputeDiffusionPropertiesAlongFG(tract, msobj, [], [], nnodes);
+                  edge.profile.dt6_cp, edge.profile.dt6_cs ] = ...
+                  dtiComputeDiffusionPropertiesAlongFG(tfg, msobj, [], [], nnodes);
               
-                % grab the flipped, resampled end points
-                iep = nan(ntfib, 3);
-                for jj = 1:ntfib
-                    iep(jj, :) = fgFlip.fibers{jj}(:, 1)';
-                end
-                
-                % find the distance from ROIs to the profile i end points
-                roi1_tpi = mean(pdist2(roi1, iep), 'omitnan');
-                roi2_tpi = mean(pdist2(roi2, iep), 'omitnan');
-                
-                % if roi2 (j) is closer to tract profile end point i
-                if (roi2_tpi < roi1_tpi)
-                    
-                    % flip the profiles
-                    edge.profile.dt6_fa = flipud(edge.profile.dt6_fa);
-                    edge.profile.dt6_md = flipud(edge.profile.dt6_md);
-                    edge.profile.dt6_rd = flipud(edge.profile.dt6_rd);
-                    edge.profile.dt6_ad = flipud(edge.profile.dt6_ad);
-                    edge.profile.dt6_cl = flipud(edge.profile.dt6_cl);
-                    edge.profile.dt6_cp = flipud(edge.profile.dt6_cp);
-                    edge.profile.dt6_cs = flipud(edge.profile.dt6_cs);
-                    
-                end
-                % otherwise it doesn't change
+%                 % grab the flipped, resampled end points
+%                 iep = nan(ntfib, 3);
+%                 for jj = 1:ntfib
+%                     iep(jj, :) = fgFlip.fibers{jj}(:, 1)';
+%                 end
+%                 
+%                 % find the distance from ROIs to the profile i end points
+%                 roi1_tpi = mean(pdist2(roi1, iep), 'omitnan');
+%                 roi2_tpi = mean(pdist2(roi2, iep), 'omitnan');
+%                 
+%                 % if roi2 (j) is closer to tract profile end point i
+%                 if (roi2_tpi < roi1_tpi)
+%                     
+%                     % flip the profiles
+%                     edge.profile.dt6_fa = flipud(edge.profile.dt6_fa);
+%                     edge.profile.dt6_md = flipud(edge.profile.dt6_md);
+%                     edge.profile.dt6_rd = flipud(edge.profile.dt6_rd);
+%                     edge.profile.dt6_ad = flipud(edge.profile.dt6_ad);
+%                     edge.profile.dt6_cl = flipud(edge.profile.dt6_cl);
+%                     edge.profile.dt6_cp = flipud(edge.profile.dt6_cp);
+%                     edge.profile.dt6_cs = flipud(edge.profile.dt6_cs);
+%                     
+%                 end
+%                 % otherwise it doesn't change
                                 
             else
                 
                 % compute the tract profile
                 [ edge.profile.(mslab), ~, ~, ~, ~, ...
-                  ~, ~, ~, ~, fgFlip ]= dtiComputeDiffusionPropertiesAlongFG(tract, msobj, [], [], nnodes);
+                  ~, ~, ~, ~ ]= dtiComputeDiffusionPropertiesAlongFG(tract, msobj, [], [], nnodes);
                 
-                % grab the flipped, resampled end points of the "first" ep
-                iep = nan(ntfib, 3);
-                for jj = 1:ntfib
-                    iep(jj, :) = fgFlip.fibers{jj}(:, 1)';
-                end
-                
-                % find the distance from centroids to the profile end points
-                roi1_tpi = mean(pdist2(roi1, iep), 'omitnan');
-                roi2_tpi = mean(pdist2(roi2, iep), 'omitnan');
-                
-                % if roi2 (j) is closer to the first tract profile end point (i)
-                if (roi2_tpi < roi1_tpi)
-                    
-                    % flip the profile
-                    edge.profile.(mslab) = flipud(edge.profile.(mslab));
-                    
-                end
-                % otherwise it doesn't change
+%                 % grab the flipped, resampled end points of the "first" ep
+%                 iep = nan(ntfib, 3);
+%                 for jj = 1:ntfib
+%                     iep(jj, :) = fgFlip.fibers{jj}(:, 1)';
+%                 end
+%                 
+%                 % grab the flipped / resampled endpoints of endpoint i
+%                 iep = cellfun(@(x) x(:,1), fgFlip.fibers, 'UniformOutput', false);
+%                 iep = cat(2, iep{:})'; 
+%                 
+%                 % find the distance from centroids to the profile end points
+%                 roi1_tpi = mean(pdist2(roi1, iep), 'omitnan');
+%                 roi2_tpi = mean(pdist2(roi2, iep), 'omitnan');
+%                 
+%                 % if roi2 (j) is closer to the first tract profile end point (i)
+%                 if (roi2_tpi < roi1_tpi)
+%                     
+%                     % flip the profile
+%                     edge.profile.(mslab) = flipud(edge.profile.(mslab));
+%                     
+%                 end
+%                 % otherwise it doesn't change
                 
             end
             
@@ -207,7 +225,7 @@ parfor ii = 1:size(pconn, 1)
         
     else
         
-        % too few streamlines exist to compute a profile
+        % too few streamlines exist to compute a profile / it's empty
         
         % fill in empty dt6 fields
         if(isdt6)
@@ -221,7 +239,7 @@ parfor ii = 1:size(pconn, 1)
             
         else
             
-            % fill in empty single node profiles
+            % fill in empty single node profile
             edge.profile.(mslab) = nan(nnodes, 1);
             
         end
