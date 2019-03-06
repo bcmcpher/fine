@@ -1,4 +1,4 @@
-function [ netw, vltry ] = feVirtualLesionPairedConnections(netw, wlab, M, dsig, nTheta, S0, clobber)
+function [ netw, vltry ] = feVirtualLesionPairedConnections(netw, wlab, M, dsig, nTheta, vl, S0, clobber)
 %feVirtualLesionPairedConnections runs virtual lesion on all edges store in pconn.
 %
 % INPUTS:
@@ -96,12 +96,11 @@ for ii = 1:size(pconn, 1)
     
     % pull the edge
     edge = pconn{ii};
-    indx = pconn{ii}.fibers.indices;
-    wght = pconn{ii}.fibers.(wlab);
+    wght = edge.fibers.(wlab);
     
     % if the weights field is mepty
     if sum(wght) == 0
-        
+                
         % set to zero and continue
         edge.vl.s.mean  = 0;
         edge.vl.em.mean = 0;
@@ -110,12 +109,17 @@ for ii = 1:size(pconn, 1)
                 
     else
         
+        % only keep weighted indices
+        keep = wght > 0;
+        indx = edge.fibers.indices(keep);
+        wght = wght(keep);
+        
         if(norm)
             
             try
                 % compute a normalized virtual lesion
                 [ ewVL, ewoVL ] = feComputeVirtualLesionM_norm(M, wght, dsig, nTheta, indx, S0);
-                edge.vl         = feComputeEvidence_norm(ewoVL, ewVL);
+                edge.vl         = feComputeEvidence(ewoVL, ewVL); % _norm?
                 vlcnt = vlcnt + 1;
             catch
                 vltry = vltry + 1;
