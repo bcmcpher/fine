@@ -1,4 +1,4 @@
-function [ pconn, vlout ] = feVirtualLesionPairedConnections(pconn, label, M, weights, measured_dsig, nTheta, S0, clobber)
+function [ netw, vltry ] = feVirtualLesionPairedConnections(netw, wlab, M, dsig, nTheta, S0, clobber)
 %feVirtualLesionPairedConnections runs virtual lesion on all edges store in pconn.
 %
 % INPUTS:
@@ -52,14 +52,18 @@ function [ pconn, vlout ] = feVirtualLesionPairedConnections(pconn, label, M, we
 % Brent McPherson (c), 2017 - Indiana University
 %
 
+if ~isfield(netw.pconn{1}.fibers, wlab)
+    error('Fiber weights field ''wlab'' does not exist.');
+end
+
 % parse optional arguments to determine if regular or normed vl is run
 if(~exist('S0', 'var') || isempty(S0))
     S0 = [];
     norm = 0;
-    display('Computing virtual lesions on raw diffusion signal.');
+    disp('Computing virtual lesions on raw diffusion signal.');
 else
     norm = 1;
-    display('Computing virtual lesions on demeaned diffusion signal.');
+    disp('Computing virtual lesions on demeaned diffusion signal.');
 end
 
 if(~exist('clobber', 'var') || isempty(clobber))
@@ -68,90 +72,120 @@ end
 
 % check if vl already exists
 if(norm)
-    if (isfield(pconn{1}.(label), 'vl_nrm') && clobber == 0)
-        error('Normed virtual lesions of these parameters already exist. Please set clobber to 1 to explicitly overwrite existing values.');
-    end
-    
+    if(isfield(netw.pconn{1}, 'vl_nrm') && clobber == 0)
+        error('Virtual lesions on the normalized signal already exist. Please set clobber to 1 to explicitly overwrite existing values.');
+    end    
 else
-    if (isfield(pconn{1}.(label), 'vl_raw') && clobber == 0)
-        error('Raw virtual lesions of these parameters already exist. Please set clobber to 1 to explicitly overwrite existing values.');
+    if(isfield(netw.pconn{1}, 'vl_raw') && clobber == 0)
+        error('Virtual lesions on the raw signal already exist. Please set clobber to 1 to explicitly overwrite existing values.');
     end
 end
 
 % preallocate virtual lesion output
-vlout = cell(length(pconn), 1);
+%vlout = cell(length(pconn), 1);
 vlcnt = 0;
+vltry = 0;
+
+% extract the edge list
+pconn = netw.pconn;
+
+disp(['Computing virtual lesion on a possible ' num2str(size(pconn, 1)) ' edges...']);
 
 tic;
-parfor ii = 1:length(pconn)
+for ii = 1:size(pconn, 1)
     
-    % pull field requested
-    tmp = pconn{ii}.(label);
+    % pull the edge
+    edge = pconn{ii};
+    indx = pconn{ii}.fibers.indices;
+    wght = pconn{ii}.fibers.(wlab);
     
-    if sum(tmp.weights) == 0
+    % if the weights field is mepty
+    if sum(wght) == 0
         
         % set to zero and continue
-        vlout{ii}.s.mean  = 0;
-        vlout{ii}.em.mean = 0;
-        vlout{ii}.j.mean  = 0;
-        vlout{ii}.kl.mean = 0;
-        continue
-        
+        edge.vl.s.mean  = 0;
+        edge.vl.em.mean = 0;
+        edge.vl.j.mean  = 0;
+        edge.vl.kl.mean = 0;
+                
     else
         
         if(norm)
             
-            % compute a normalized virtual lesion
-            [ ewVL, ewoVL ] = feComputeVirtualLesionM_norm(M, weights, measured_dsig, nTheta, tmp.indices, S0);
-            vlout{ii}       = feComputeEvidence(ewoVL, ewVL);
-            vlcnt = vlcnt + 1;
+            try
+                % compute a normalized virtual lesion
+                [ ewVL, ewoVL ] = feComputeVirtualLesionM_norm(M, wght, dsig, nTheta, indx, S0);
+                edge.vl         = feComputeEvidence_norm(ewoVL, ewVL);
+                vlcnt = vlcnt + 1;
+            catch
+                vltry = vltry + 1;
+                edge.vl.s.mean  = 0;
+                edge.vl.em.mean = 0;
+                edge.vl.j.mean  = 0;
+                edge.vl.kl.mean = 0;
+            end
             
         else
- 
-            % compute a raw virtual lesion
-            [ ewVL, ewoVL ] = feComputeVirtualLesionM(M, weights, measured_dsig, nTheta, tmp.indices);
-            vlout{ii}       = feComputeEvidence(ewoVL, ewVL);
-            vlcnt = vlcnt + 1;
+            
+            try
+                % compute a raw virtual lesion
+                [ ewVL, ewoVL ] = feComputeVirtualLesionM(M, wght, dsig, nTheta, indx);
+                edge.vl         = feComputeEvidence(ewoVL, ewVL);
+                vlcnt = vlcnt + 1;
+            catch
+                vltry = vltry + 1;
+                edge.vl.s.mean  = 0;
+                edge.vl.em.mean = 0;
+                edge.vl.j.mean  = 0;
+                edge.vl.kl.mean = 0;
+            end
+            
         end
         
     end
     
+    % reassign edge w/ computed virtual lesion
+    pconn{ii} = edge;
+    
 end
 time = toc;
 
-display(['Computed ' num2str(vlcnt) ' vitual lesions in ' num2str(round(time)/60) ' minutes.']);
+% reassign edges with virtual lesion added
+netw.pconn = pconn;
+
+disp(['Computed ' num2str(vlcnt) ' vitual lesions in ' num2str(round(time)/60) ' minutes.']);
 
 clear ii vlcnt ewVL ewoVL time
 
-% add virtual lesion to pconn object
-for ii = 1:length(pconn)
-    
-    % pull subset field
-    tmp = pconn{ii}.(label);
-    
-    % add vl output as normed or raw
-    if(norm)
-        tmp.vl_nrm = vlout{ii};
-        
-        % assign virtual lesion matrix entries
-        tmp.matrix.soe_nrm = vlout{ii}.s.mean;
-        tmp.matrix.emd_nrm = vlout{ii}.em.mean;
-        tmp.matrix.kl_nrm  = mean(vlout{ii}.kl.mean);
-        tmp.matrix.jd_nrm  = mean(vlout{ii}.j.mean);
-    else
-        tmp.vl_raw = vlout{ii};
-        
-        % assign virtual lesion matrix entries
-        tmp.matrix.soe_raw = vlout{ii}.s.mean;
-        tmp.matrix.emd_raw = vlout{ii}.em.mean;
-        tmp.matrix.kl_raw  = vlout{ii}.kl.mean;
-        tmp.matrix.jd_raw  = vlout{ii}.j.mean;
-    end
-    
-    % reassign virtual lesions to paired connection array
-    pconn{ii}.(label) = tmp;
-    
-end
+% % add virtual lesion to pconn object
+% for ii = 1:length(pconn)
+%     
+%     % pull subset field
+%     tmp = pconn{ii}.(label);
+%     
+%     % add vl output as normed or raw
+%     if(norm)
+%         tmp.vl_nrm = vlout{ii};
+%         
+%         % assign virtual lesion matrix entries
+%         tmp.matrix.soe_nrm = vlout{ii}.s.mean;
+%         tmp.matrix.emd_nrm = vlout{ii}.em.mean;
+%         tmp.matrix.kl_nrm  = mean(vlout{ii}.kl.mean);
+%         tmp.matrix.jd_nrm  = mean(vlout{ii}.j.mean);
+%     else
+%         tmp.vl_raw = vlout{ii};
+%         
+%         % assign virtual lesion matrix entries
+%         tmp.matrix.soe_raw = vlout{ii}.s.mean;
+%         tmp.matrix.emd_raw = vlout{ii}.em.mean;
+%         tmp.matrix.kl_raw  = vlout{ii}.kl.mean;
+%         tmp.matrix.jd_raw  = vlout{ii}.j.mean;
+%     end
+%     
+%     % reassign virtual lesions to paired connection array
+%     pconn{ii}.(label) = tmp;
+%     
+% end
 
 end
 

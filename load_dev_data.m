@@ -4,6 +4,12 @@
 load('/N/dc2/projects/lifebid/HCP/Brent/fine_res_test/fe_structure_105115_STC_run01_SD_PROB_lmax8_connNUM01.mat');
 fg = feGet(fe, 'fibersacpc');
 wght = feGet(fe, 'fiberweights');
+
+nTheta = feGet(fe, 'nbvals');
+M = feGet(fe, 'model');
+dsig = feGet(fe, 'dsigdemeaned by voxel');
+S0 = feGet(fe, 'b0signalimage');
+
 clear fe
 
 parc = niftiRead('/N/dc2/projects/lifebid/HCP/Brent/fine_res_test/labels_anat.nii.gz');
