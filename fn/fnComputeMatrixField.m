@@ -40,12 +40,18 @@ for ii = 1:size(netw.pconn, 1)
     % pull the streamline count
     cnt = size(edge.fibers.indices, 1);
     
-    % pull the average streamline length, replace w/ 0 if it's empty
+    % pull the average streamline length
     len = mean(edge.fibers.lengths, 'omitnan');
+    
+    % compute standard error of length
+    len_se = std(edge.fibers.lengths, 'omitnan') / sqrt(size(edge.fibers.lengths, 1));
+    
+    % Replace mean/se of length w/ 0 if it's empty
     if isnan(len)
         len = 0;
+        len_se = 0;
     end
-    
+        
     % create 1 / sum of lengths for Hagmann's correction
     if isempty(edge.fibers.lengths)
         dln = 0;
@@ -53,15 +59,34 @@ for ii = 1:size(netw.pconn, 1)
         dln = sum(1 / edge.fibers.lengths);
     end
 
-    % create all edge measures
+    % create all count edge measures
     matrix.count = cnt;
     matrix.densz = (2 * cnt) / psz;
     matrix.denvl = (2 * cnt) / pvl;
     matrix.length = len;
+    matrix.len_se = len_se;
     matrix.densln = (2 / psz) * dln;
     matrix.denvln = (2 / pvl) * dln;
-            
-    % if volume is present, compute the volume measure
+    
+    % if norm virtual lesion is present, store the values
+    if isfield(edge, 'vl_nrm')
+        matrix.soe_nrm_mn = edge.vl_nrm.s.mean;
+        matrix.soe_nrm_sd = edge.vl_nrm.s.std;
+        matrix.emd_nrm = edge.vl_nrm.em.mean;
+        matrix.kld_nrm = edge.vl_nrm.kl.mean;
+        matrix.jef_nrm = edge.vl_nrm.j.mean;
+    end
+    
+    % if raw virtual lesion is present, store the values
+    if isfield(edge, 'vl_raw')
+        matrix.soe_raw_mn = edge.vl_raw.s.mean;
+        matrix.soe_raw_sd = edge.vl_raw.s.std;
+        matrix.emd_raw = edge.vl_raw.em.mean;
+        matrix.kld_raw = edge.vl_raw.kl.mean;
+        matrix.jef_raw = edge.vl_raw.j.mean;
+    end
+    
+    % if volume is present, compute the volume measures
     
     % if microstructure is present, compute mn/std microstructural values
     

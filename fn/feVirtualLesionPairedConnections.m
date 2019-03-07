@@ -1,4 +1,4 @@
-function [ netw, vltry ] = feVirtualLesionPairedConnections(netw, wlab, M, dsig, nTheta, vl, S0, clobber)
+function [ netw ] = feVirtualLesionPairedConnections(netw, M, weights, dsig, nTheta, S0, clobber)
 %feVirtualLesionPairedConnections runs virtual lesion on all edges store in pconn.
 %
 % INPUTS:
@@ -23,7 +23,7 @@ function [ netw, vltry ] = feVirtualLesionPairedConnections(netw, wlab, M, dsig,
 %     vlout - debugging output; the cell array that is added internally to pconn
 %
 % TODO:
-% - none
+% - add std for SOE to empty conditions
 %
 % EXAMPLE:
 %
@@ -49,12 +49,8 @@ function [ netw, vltry ] = feVirtualLesionPairedConnections(netw, wlab, M, dsig,
 % % create a normalized virtual lesion for every connection with non-zero weighted fibers
 % pconn = feVirtualLesionPairedConnections(pconn, 'nzw', M, weights, measured_dsig, nTheta, S0);
 %
-% Brent McPherson (c), 2017 - Indiana University
+% Brent McPherson & Franco Pestilli (c), 2017 - Indiana University
 %
-
-if ~isfield(netw.pconn{1}.fibers, wlab)
-    error('Fiber weights field ''wlab'' does not exist.');
-end
 
 % parse optional arguments to determine if regular or normed vl is run
 if(~exist('S0', 'var') || isempty(S0))
@@ -70,12 +66,13 @@ if(~exist('clobber', 'var') || isempty(clobber))
     clobber = 0;
 end
 
-% check if vl already exists
+% check if vl_* already exists based on what's going to run
 if(norm)
     if(isfield(netw.pconn{1}, 'vl_nrm') && clobber == 0)
         error('Virtual lesions on the normalized signal already exist. Please set clobber to 1 to explicitly overwrite existing values.');
-    end    
+    end
 else
+    % check if vl_raw already exists
     if(isfield(netw.pconn{1}, 'vl_raw') && clobber == 0)
         error('Virtual lesions on the raw signal already exist. Please set clobber to 1 to explicitly overwrite existing values.');
     end
@@ -92,56 +89,67 @@ pconn = netw.pconn;
 disp(['Computing virtual lesion on a possible ' num2str(size(pconn, 1)) ' edges...']);
 
 tic;
-for ii = 1:size(pconn, 1)
+parfor ii = 1:size(pconn, 1)
     
-    % pull the edge
+    % pull the edge and weights
     edge = pconn{ii};
-    wght = edge.fibers.(wlab);
+    wght = weights(edge.fibers.indices);
     
     % if the weights field is mepty
     if sum(wght) == 0
-                
-        % set to zero and continue
-        edge.vl.s.mean  = 0;
-        edge.vl.em.mean = 0;
-        edge.vl.j.mean  = 0;
-        edge.vl.kl.mean = 0;
+        
+        if(norm)
+            % set to zero and continue
+            edge.vl_nrm.s.mean  = 0;
+            edge.vl_nrm.s.std   = 0;
+            edge.vl_nrm.em.mean = 0;
+            edge.vl_nrm.j.mean  = 0;
+            edge.vl_nrm.kl.mean = 0;
+        else
+            % set to zero and continue
+            edge.vl_raw.s.mean  = 0;
+            edge.vl_raw.s.std   = 0;
+            edge.vl_raw.em.mean = 0;
+            edge.vl_raw.j.mean  = 0;
+            edge.vl_raw.kl.mean = 0;
+        end
                 
     else
         
         % only keep weighted indices
         keep = wght > 0;
         indx = edge.fibers.indices(keep);
-        wght = wght(keep);
         
         if(norm)
             
             try
                 % compute a normalized virtual lesion
-                [ ewVL, ewoVL ] = feComputeVirtualLesionM_norm(M, wght, dsig, nTheta, indx, S0);
-                edge.vl         = feComputeEvidence(ewoVL, ewVL); % _norm?
+                [ ewVL, ewoVL ] = feComputeVirtualLesionM_norm(M, weights, dsig, nTheta, indx, S0);
+                edge.vl_nrm     = feComputeEvidence(ewoVL, ewVL); 
                 vlcnt = vlcnt + 1;
             catch
                 vltry = vltry + 1;
-                edge.vl.s.mean  = 0;
-                edge.vl.em.mean = 0;
-                edge.vl.j.mean  = 0;
-                edge.vl.kl.mean = 0;
+                edge.vl_nrm.s.mean  = 0;
+                edge.vl_nrm.s.std   = 0;
+                edge.vl_nrm.em.mean = 0;
+                edge.vl_nrm.j.mean  = 0;
+                edge.vl_nrm.kl.mean = 0;
             end
             
         else
             
             try
                 % compute a raw virtual lesion
-                [ ewVL, ewoVL ] = feComputeVirtualLesionM(M, wght, dsig, nTheta, indx);
-                edge.vl         = feComputeEvidence(ewoVL, ewVL);
+                [ ewVL, ewoVL ] = feComputeVirtualLesionM(M, weights, dsig, nTheta, indx);
+                edge.vl_raw     = feComputeEvidence(ewoVL, ewVL);
                 vlcnt = vlcnt + 1;
             catch
                 vltry = vltry + 1;
-                edge.vl.s.mean  = 0;
-                edge.vl.em.mean = 0;
-                edge.vl.j.mean  = 0;
-                edge.vl.kl.mean = 0;
+                edge.vl_raw.s.mean  = 0;
+                edge.vl_raw.s.std   = 0;
+                edge.vl_raw.em.mean = 0;
+                edge.vl_raw.j.mean  = 0;
+                edge.vl_raw.kl.mean = 0;
             end
             
         end
@@ -159,7 +167,9 @@ netw.pconn = pconn;
 
 disp(['Computed ' num2str(vlcnt) ' vitual lesions in ' num2str(round(time)/60) ' minutes.']);
 
-clear ii vlcnt ewVL ewoVL time
+if vltry > 0
+    disp(['Attempted and failed to estimate ' num2str(vltry) ' vitual lesions.']);
+end
 
 % % add virtual lesion to pconn object
 % for ii = 1:length(pconn)
