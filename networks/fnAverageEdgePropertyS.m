@@ -24,6 +24,7 @@ function [ pconn ] = fnAverageEdgePropertyS(pconn, label, fg, vol, dtype, meas, 
 %                 - mean
 %                 - median
 %                 - std
+%                 - se
 %                 - var
 %
 %     clobber - whether or not to overwrite data if the field(s) already exist 
@@ -214,6 +215,8 @@ for ii = 1:length(pconn)
                 conn.(dtype).(meas) = median(vals, 'omitnan');
             case {'std', 'sd'}
                 conn.(dtype).(meas) = std(vals, 'omitnan');
+            case {'se'}
+                conn.(dtype).(meas) = std(vals, 'omitnan') / sqrt(size(vals, 1));
             case {'var', 'variance'}
                 conn.(dtype).(meas) = var(vals, 'omitnan');
             otherwise
