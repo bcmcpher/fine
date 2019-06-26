@@ -17,7 +17,11 @@ if ~exist('lines', 'var') || isempty(lines)
 end
 
 if ~exist('crng', 'var') || isempty(crng)
-    crng = [ 0 max(max(mat)); ];
+    if max(mat(:)) > 0
+        crng = [ 0 max(mat(:)) ];
+    else
+        crng = [ max(mat(:)) 0 ];
+    end
 end
 
 fh = figure('Position', [580 580 1080 680]);
