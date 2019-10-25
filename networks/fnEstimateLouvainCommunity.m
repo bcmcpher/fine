@@ -48,7 +48,7 @@ if(~exist('gamma', 'var') || isempty(gamma))
 end
 
 if(~exist('tau', 'var') || isempty(tau))
-    tau = 1;
+    tau = 0;
 end
 
 % parse gamma for size
@@ -72,6 +72,7 @@ for ii = 1:ngam
     end
 end
 
+% THIS SHOULD BE THE LONGEST UNCHANGED Q STAT, NOT THE HIGHEST
 % take the highest q-value (community structure statistic)
 % - find the highest estimated number of neighborhoods
 % - sort by neighborhoods
@@ -85,8 +86,8 @@ glob.qstat = qmax;
 glob.gamma = gamma(max(g_max));
 
 % group nodes
-ci_max = ci(:, g_max, i_max);
-node.assign = ci_max;
+node.assign = ci(:, g_max, i_max);
+ci_max = squeeze(ci(:, g_max, i_max));
 
 % sort matrix by nodes
 [ ~, bb ] = sort(ci_max);
