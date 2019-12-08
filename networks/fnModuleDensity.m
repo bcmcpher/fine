@@ -85,8 +85,8 @@ for ii = 1:size(pairs, 1)
     jind = logical(ci == m2);
     
     % create the full matrix of upper / lower module values
-    ind1 = iind * jind';
-    ind2 = jind * iind';
+    ind1 = iind .* jind';
+    ind2 = jind .* iind';
     ind = ind1 + ind2;
     
     % combine upper diagonal with specific module
