@@ -56,10 +56,10 @@ function [ pconn, vlout ] = feVirtualLesionPairedConnections(pconn, label, M, we
 if(~exist('S0', 'var') || isempty(S0))
     S0 = [];
     norm = 0;
-    display('Computing virtual lesions on raw diffusion signal.');
+    disp('Computing virtual lesions on raw diffusion signal...');
 else
     norm = 1;
-    display('Computing virtual lesions on demeaned diffusion signal.');
+    disp('Computing virtual lesions on demeaned diffusion signal...');
 end
 
 if(~exist('clobber', 'var') || isempty(clobber))
@@ -91,10 +91,25 @@ parfor ii = 1:length(pconn)
     if sum(tmp.weights) == 0
         
         % set to zero and continue
-        vlout{ii}.s.mean  = 0;
-        vlout{ii}.em.mean = 0;
-        vlout{ii}.j.mean  = 0;
-        vlout{ii}.kl.mean = 0;
+        vlout{ii}.s.mean = nan;
+        vlout{ii}.s.std = nan;
+        vlout{ii}.s.pval = nan;
+        vlout{ii}.em.mean = nan;
+        vlout{ii}.em.se = nan;
+        vlout{ii}.em.pval = nan;
+        vlout{ii}.j.mean = nan;
+        vlout{ii}.j.se = nan;
+        vlout{ii}.j.pval = nan;
+        vlout{ii}.kl.mean = nan;
+        vlout{ii}.kl.se = nan;
+        vlout{ii}.kl.pval = nan;
+        vlout{ii}.dis.mean = nan;
+        vlout{ii}.dis.se = nan;
+        vlout{ii}.dis.pval = nan;
+        vlout{ii}.cos.mean = nan;
+        vlout{ii}.cos.se = nan;
+        vlout{ii}.cos.pval = nan;
+        
         continue
         
     else
@@ -103,14 +118,14 @@ parfor ii = 1:length(pconn)
             
             % compute a normalized virtual lesion
             [ ewVL, ewoVL ] = feComputeVirtualLesionM_norm(M, weights, measured_dsig, nTheta, tmp.indices, S0);
-            vlout{ii}       = feComputeEvidence(ewoVL, ewVL);
+            vlout{ii}       = feComputeEvidence_new(ewoVL, ewVL);
             vlcnt = vlcnt + 1;
             
         else
  
             % compute a raw virtual lesion
             [ ewVL, ewoVL ] = feComputeVirtualLesionM(M, weights, measured_dsig, nTheta, tmp.indices);
-            vlout{ii}       = feComputeEvidence(ewoVL, ewVL);
+            vlout{ii}       = feComputeEvidence(ewoVL, ewVL); % needs to be updated to match _norm fxn
             vlcnt = vlcnt + 1;
         end
         
@@ -119,7 +134,7 @@ parfor ii = 1:length(pconn)
 end
 time = toc;
 
-display(['Computed ' num2str(vlcnt) ' vitual lesions in ' num2str(round(time)/60) ' minutes.']);
+disp(['Computed ' num2str(vlcnt) ' vitual lesions in ' num2str(round(time)/60) ' minutes.']);
 
 clear ii vlcnt ewVL ewoVL time
 
@@ -135,17 +150,30 @@ for ii = 1:length(pconn)
         
         % assign virtual lesion matrix entries
         tmp.matrix.soe_nrm = vlout{ii}.s.mean;
+        tmp.matrix.std_nrm = vlout{ii}.s.std;
+        tmp.matrix.spv_nrm = vlout{ii}.s.pval;
+        
         tmp.matrix.emd_nrm = vlout{ii}.em.mean;
         tmp.matrix.kl_nrm  = mean(vlout{ii}.kl.mean);
         tmp.matrix.jd_nrm  = mean(vlout{ii}.j.mean);
+        
+        tmp.matrix.dis_nrm = vlout{ii}.dis.mean;
+        tmp.matrix.cos_nrm = vlout{ii}.cos.mean;
+        
     else
         tmp.vl_raw = vlout{ii};
         
         % assign virtual lesion matrix entries
         tmp.matrix.soe_raw = vlout{ii}.s.mean;
+        
         tmp.matrix.emd_raw = vlout{ii}.em.mean;
         tmp.matrix.kl_raw  = vlout{ii}.kl.mean;
         tmp.matrix.jd_raw  = vlout{ii}.j.mean;
+        
+        % not present in not feComputeEvidence yet
+        %tmp.matrix.dis_raw = vlout{ii}.dis.mean;
+        %tmp.matrix.cos_raw = vlout{ii}.cos.mean;
+        
     end
     
     % reassign virtual lesions to paired connection array
