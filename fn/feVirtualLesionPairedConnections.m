@@ -1,4 +1,4 @@
-function [ netw ] = feVirtualLesionPairedConnections(netw, M, weights, dsig, nTheta, S0, clobber)
+function [ netw ] = feVirtualLesionPairedConnections(netw, M, weights, dsig, nTheta, S0, nbin, clobber)
 %feVirtualLesionPairedConnections runs virtual lesion on all edges store in pconn.
 %
 % INPUTS:
@@ -23,7 +23,7 @@ function [ netw ] = feVirtualLesionPairedConnections(netw, M, weights, dsig, nTh
 %     vlout - debugging output; the cell array that is added internally to pconn
 %
 % TODO:
-% - add std for SOE to empty conditions
+% - add std/pval for SOE to empty conditions
 %
 % EXAMPLE:
 %
@@ -52,34 +52,32 @@ function [ netw ] = feVirtualLesionPairedConnections(netw, M, weights, dsig, nTh
 % Brent McPherson & Franco Pestilli (c), 2017 - Indiana University
 %
 
-% parse optional arguments to determine if regular or normed vl is run
-if(~exist('S0', 'var') || isempty(S0))
-    S0 = [];
-    norm = 0;
-    disp('Computing virtual lesions on raw diffusion signal.');
-else
-    norm = 1;
-    disp('Computing virtual lesions on demeaned diffusion signal.');
-end
-
 if(~exist('clobber', 'var') || isempty(clobber))
     clobber = 0;
 end
 
-% check if vl_* already exists based on what's going to run
-if(norm)
-    if(isfield(netw.pconn{1}, 'vl_nrm') && clobber == 0)
-        error('Virtual lesions on the normalized signal already exist. Please set clobber to 1 to explicitly overwrite existing values.');
-    end
+% check if vl already exists, requires clobber to be set to true to rerun
+if(isfield(netw.parc, 'vl') && clobber == 0)
+    error('Virtual lesions already exist. Please set clobber to 1 to explicitly overwrite existing values.');
+end
+
+% parse optional arguments to determine if regular or normed vl is run
+if(~exist('S0', 'var') || isempty(S0))
+    S0 = [];
+    norm = 0;
+    netw.parc.vl = 'raw';
+    disp('Computing virtual lesions on raw diffusion signal.');
 else
-    % check if vl_raw already exists
-    if(isfield(netw.pconn{1}, 'vl_raw') && clobber == 0)
-        error('Virtual lesions on the raw signal already exist. Please set clobber to 1 to explicitly overwrite existing values.');
-    end
+    norm = 1;
+    netw.parc.vl = 'normalized';
+    disp('Computing virtual lesions on demeaned diffusion signal.');
+end
+
+if(~exist('nbin', 'var') || isempty(nbin))
+    nbin = 128;
 end
 
 % preallocate virtual lesion output
-%vlout = cell(length(pconn), 1);
 vlcnt = 0;
 vltry = 0;
 
@@ -89,7 +87,7 @@ pconn = netw.pconn;
 disp(['Computing virtual lesion on a possible ' num2str(size(pconn, 1)) ' edges...']);
 
 tic;
-parfor ii = 1:size(pconn, 1)
+for ii = 1:size(pconn, 1)
     
     % pull the edge and weights
     edge = pconn{ii};
@@ -98,22 +96,13 @@ parfor ii = 1:size(pconn, 1)
     % if the weights field is mepty
     if sum(wght) == 0
         
-        if(norm)
-            % set to zero and continue
-            edge.vl_nrm.s.mean  = 0;
-            edge.vl_nrm.s.std   = 0;
-            edge.vl_nrm.em.mean = 0;
-            edge.vl_nrm.j.mean  = 0;
-            edge.vl_nrm.kl.mean = 0;
-        else
-            % set to zero and continue
-            edge.vl_raw.s.mean  = 0;
-            edge.vl_raw.s.std   = 0;
-            edge.vl_raw.em.mean = 0;
-            edge.vl_raw.j.mean  = 0;
-            edge.vl_raw.kl.mean = 0;
-        end
-                
+        % set to zero and continue
+        edge.vl.s.mean  = 0;
+        edge.vl.s.std   = 0;
+        edge.vl.em.mean = 0;
+        edge.vl.j.mean  = 0;
+        edge.vl.kl.mean = 0;
+        
     else
         
         % only keep weighted indices
@@ -125,15 +114,15 @@ parfor ii = 1:size(pconn, 1)
             try
                 % compute a normalized virtual lesion
                 [ ewVL, ewoVL ] = feComputeVirtualLesionM_norm(M, weights, dsig, nTheta, indx, S0);
-                edge.vl_nrm     = feComputeEvidence(ewoVL, ewVL); 
+                edge.vl = feComputeEvidence(ewoVL, ewVL, nbin); 
                 vlcnt = vlcnt + 1;
             catch
                 vltry = vltry + 1;
-                edge.vl_nrm.s.mean  = 0;
-                edge.vl_nrm.s.std   = 0;
-                edge.vl_nrm.em.mean = 0;
-                edge.vl_nrm.j.mean  = 0;
-                edge.vl_nrm.kl.mean = 0;
+                edge.vl.s.mean  = 0;
+                edge.vl.s.std   = 0;
+                edge.vl.em.mean = 0;
+                edge.vl.j.mean  = 0;
+                edge.vl.kl.mean = 0;
             end
             
         else
@@ -141,15 +130,15 @@ parfor ii = 1:size(pconn, 1)
             try
                 % compute a raw virtual lesion
                 [ ewVL, ewoVL ] = feComputeVirtualLesionM(M, weights, dsig, nTheta, indx);
-                edge.vl_raw     = feComputeEvidence(ewoVL, ewVL);
+                edge.vl = feComputeEvidence(ewoVL, ewVL, nbin);
                 vlcnt = vlcnt + 1;
             catch
                 vltry = vltry + 1;
-                edge.vl_raw.s.mean  = 0;
-                edge.vl_raw.s.std   = 0;
-                edge.vl_raw.em.mean = 0;
-                edge.vl_raw.j.mean  = 0;
-                edge.vl_raw.kl.mean = 0;
+                edge.vl.s.mean  = 0;
+                edge.vl.s.std   = 0;
+                edge.vl.em.mean = 0;
+                edge.vl.j.mean  = 0;
+                edge.vl.kl.mean = 0;
             end
             
         end
@@ -233,7 +222,7 @@ ind2      = intersect(ind_nnz,val);
 nFib_tract = length(ind_tract);
 nFib_PN    = length(ind2);
 
-%% Compute rmse restricted to Path neighborhood voxels without Virtual Lesion
+% Compute rmse restricted to Path neighborhood voxels without Virtual Lesion
 measured_dsig = measured_dsig(:,voxel_ind);
 
 % Restrict tensor model to the PN voxels
@@ -299,7 +288,7 @@ S0 = S0(voxel_ind);
 nFib_tract = length(ind_tract);
 nFib_PN    = length(ind2);
 
-%% Compute rmse restricted to Path neighborhood voxels without Virtual Lesion
+% Compute rmse restricted to Path neighborhood voxels without Virtual Lesion
 measured_dsig = measured_dsig(:,voxel_ind);
 
 % Restrict tensor model to the PN voxels

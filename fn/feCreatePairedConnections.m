@@ -81,11 +81,11 @@ ep2 = zeros(length(fibers), 3);
 
 % for every fiber, pull the end points
 if size(fibers{1}, 1) ~= 3
-    error('Expected fibers with size(3, N)'); 
+    error('Expecting fibers with size(3, N)'); 
 end
 
 % extract every streamline end point
-parfor ii = 1:length(fibers)
+for ii = 1:length(fibers)
     ep1(ii,:) = fibers{ii}(:,1)';
     ep2(ii,:) = fibers{ii}(:,end)';
 end
@@ -113,28 +113,29 @@ disp(['Matching streamlines to ' num2str(length(labels)) ' nodes...']);
 
 % preallocate outputs
 rois = cell(length(labels), 1);
+indx = cell(length(labels), 1);
 tfib = zeros(length(labels), 1);
 dfib = zeros(length(labels), 1);
-dcnt = [];
+dcnt = zeros(length(labels), 1);
 
 % grab size and data of labels
 %parcsz = size(parc.data);
 parc_data = parc.data;
+gmvol = sum(parc.data(:) > 0) * prod(dvoxmm);
 
-% store in 1 output
-netw.parc.names = names;
-netw.parc.label = labels;
+% store in the network object for reference
 netw.parc.xform.acpc2img = parc_acpc2img;
 netw.parc.xform.img2acpc = parc_img2acpc;
 netw.parc.dsize = size(parc.data);
 netw.parc.voxmm = dvoxmm;
+netw.volume.gmvol = gmvol;
 
 % for every label, assign endpoints
-parfor ii = 1:length(labels)
+for ii = 1:length(labels)
     
     % catch label info
-    %rois{ii}.name = names(ii);
-    %rois{ii}.label = labels(ii);
+    rois{ii}.name = names(ii);
+    rois{ii}.label = labels(ii);
     
     % pull indices for a label in image space
     [ x, y, z ] = ind2sub(netw.parc.dsize, find(parc_data == labels(ii)));
@@ -143,6 +144,7 @@ parfor ii = 1:length(labels)
     % catch size of ROI
     rois{ii}.size = size(unique(imgCoords, 'rows'), 1);
     rois{ii}.volume = rois{ii}.size * prod(dvoxmm);
+    rois{ii}.prop = rois{ii}.volume / gmvol;
     
     % find streamline endpoints in image coordinates for label
     roi_ep1 = ismember(ep1, imgCoords, 'rows');
@@ -156,7 +158,7 @@ parfor ii = 1:length(labels)
     fibers = unique([ roi_iep1; roi_iep2 ]);
         
     % for fibers that end in rois, catch indices / lengths / weights
-    rois{ii}.indices = fibers;
+    indx{ii}.indices = fibers; % don't store all ROI endoints in ROI
     %rois{ii}.end.length = fibLength(rois{ii}.end.fibers);
     %rois{ii}.end.weight = weights(rois{ii}.end.fibers);
     
@@ -169,30 +171,30 @@ parfor ii = 1:length(labels)
     
     % keep track of labels with both end points of streamlines 
     if ~isempty(bep)
-        dcnt = [ dcnt; labels(ii) ];
+        dcnt(ii) = labels(ii);
     end
     
     % create endpoint ROI in vistasoft format
     % create a nifti heatmap instead? vistasoft roi is a bit dumb...
     % just list of eps?
-    rois{ii}.roi = dtiNewRoi(num2str(labels(ii)), 'red', [ ep1(roi_ep1, :); ep2(roi_ep2, :) ]);
+    %rois{ii}.roi = dtiNewRoi(num2str(labels(ii)), 'red', [ ep1(roi_ep1, :); ep2(roi_ep2, :) ]);
     
     % create ROI centroid
     rois{ii}.centroid.img = round(mean(imgCoords, 1) + 1);
     rois{ii}.centroid.acpc = mrAnatXformCoords(parc_img2acpc, rois{ii}.centroid.img);
     
     % throw a warning if no terminations are in a label
-    if isempty(rois{ii}.indices)
+    if isempty(indx{ii}.indices)
         warning(['ROI label ' num2str(labels(ii)) ' has no streamline terminations.']);
     end
     
     % total fibers assigned to an endpoint
-    tfib(ii) = length(rois{ii}.indices);
+    tfib(ii) = length(indx{ii}.indices);
     
 end
 
 disp([ 'Successfully assigned ' num2str(sum(tfib)) ' of ' num2str(2*nfib) ' terminations.' ]);
-disp([ num2str(size(dcnt, 1)) ' ROIs had both terminations of ' num2str(sum(dfib)) ' streamlines.']);
+disp([ num2str(length(dcnt)) ' ROIs had both terminations of ' num2str(sum(dfib)) ' total streamlines.']);
 
 clear ii x y z imgCoords roi_ep1 roi_ep2 fibers time
 
@@ -210,15 +212,17 @@ ncon = zeros(length(pairs), 1);
 
 disp('Building paired connections...');
 
-% keep preallocated indices (?)
+% keep preallocated indices
 netw.parc.pairs = pairs;
 
 % for every pair of nodes, estimate the connection
-parfor ii = 1:length(pairs)
+for ii = 1:length(pairs)
     
     % create shortcut names
-    roi1 = rois{pairs(ii, 1)};
-    roi2 = rois{pairs(ii, 2)};
+    %roi1 = rois{pairs(ii, 1)};
+    %roi2 = rois{pairs(ii, 2)};
+    roi1 = indx{pairs(ii, 1)}.indices;
+    roi2 = indx{pairs(ii, 2)}.indices;
     
     % catch shortcut names
     %pconn{ii}.name = strcat(netw.parc.names{pairs(ii, 1)}, '_to_', netw.parc.names{pairs(ii, 2)});
@@ -234,7 +238,7 @@ parfor ii = 1:length(pairs)
     %pconn{ii}.roi2ct = roi2.centroid.acpc;
         
     % assign intersections of terminating streamlines
-    pconn{ii}.fibers.indices = intersect(roi1.indices, roi2.indices);
+    pconn{ii}.fibers.indices = intersect(roi1, roi2);
     pconn{ii}.fibers.lengths = fibLength(pconn{ii}.fibers.indices);
     
     % for every variable input, assign it to the connection
@@ -322,16 +326,16 @@ disp(['Built paired connections object with ' num2str(sum(tcon)) ' streamlines.'
 %% simple summary of counts
 
 % streamline summaries
-out.strm.count = nfib;
-out.strm.paired = sum(tcon);
+out.streamlines.edges = sum(tcon);
+out.streamlines.total = nfib;
 
 % end point summaries
-out.ep.assign = sum(tfib);
-out.ep.proportion = out.ep.assign / (nfib * 2);
+out.ep.total = sum(tfib);
+out.ep.possible = out.ep.total / (nfib * 2);
 
 % connection summaries
-out.conn.possible = size(pconn, 1);
 out.conn.total = sum(ncon);
+out.conn.possible = size(pconn, 1);
 
 % within node connection summary
 out.dupf.count = sum(dfib);

@@ -92,7 +92,7 @@ tctry = 0;
 disp(['Computing tract curves on ' num2str(size(pconn, 1)) ' connections...']);
 
 tic;    
-parfor ii = 1:size(pconn, 1)
+for ii = 1:size(pconn, 1)
     
     % pull edge requested
     edge = pconn{ii};

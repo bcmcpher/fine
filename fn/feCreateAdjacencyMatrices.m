@@ -107,6 +107,7 @@ omat(isinf(omat)) = 0;
 
 % sort the cortical nodes given a vector
 if ~isempty(srt)
+    disp('Output array is sorted.');
     omat = omat(srt, srt, :);
 end
 
