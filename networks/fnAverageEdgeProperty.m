@@ -1,4 +1,8 @@
-function [ pconn ] = fnAverageEdgeProperty(pconn, label, roi, vol, dtype, meas, clobber)
+function [ netw ] = fnAverageEdgeProperty(netw, roi, vol, dtype, meas, clobber)
+%%
+% REPLACED WITH fnAverageEdgePropertyS() TO NOT REQUIRE ENCODE STRUCTURE
+% AND FOLLOW UP WITH fnFindPathVoxels()
+%%
 %fnAverageEdgeProperty finds the central tendency of a tract from an 
 % appropriately aligned volume or dt6 structure.
 %
@@ -125,29 +129,30 @@ end
 data = vol.data;
     
 % output field name
-field = [ meas '_' dtype ];
+%field = [ meas '_' dtype ];
 
-% error without clobber set if measure is computed
-if (isfield(pconn{1}.(label).volume, dtype) && clobber == 0)
-    if (isfield(pconn{1}.(label).volume.(dtype), meas) && clobber == 0)
-        error('''%s'' of ''%s'' for this label is already computed. Set clobber = 1 to recompute.', meas, dtype);
-    end
-end
+% NEED TO FIX OR REMOVE
+% % error without clobber set if measure is computed
+% if (isfield(netw.pconn{1}.volume, dtype) && clobber == 0)
+%     if (isfield(netw.pconn{1}.volume.(dtype), meas) && clobber == 0)
+%         error('''%s'' of ''%s'' is already computed. Set clobber = 1 to recompute.', meas, dtype);
+%     end
+% end
 
 fprintf('Finding ''%s'' of ''%s'' for all edges...\n', meas, name);
 
 tic;
-parfor ii = 1:length(pconn)
+for ii = 1:length(netw.pconn)
     
     % pull the connection
-    conn = pconn{ii}.(label).volume;
+    conn = netw.pconn{ii};
     
     % if the connection is empty, fill in zero
     if isempty(conn.pvoxels)
         
         % fill in empty voxel coords
-        conn.(dtype).raw = [];
-        conn.(dtype).(meas) = 0;
+        conn.volume.(dtype).raw = [];
+        conn.volume.(dtype).(meas) = 0;
         
     else
         
@@ -155,7 +160,7 @@ parfor ii = 1:length(pconn)
         if (isfield(conn, [ 'raw_' dtype ]) && clobber == 0)
             
             %vals = conn.([ 'raw_' dtype ]);
-            vals = conn.(dtype).raw;
+            vals = conn.volume.(dtype).raw;
             
         else
             
@@ -169,21 +174,29 @@ parfor ii = 1:length(pconn)
                 vals(jj) = data(coords(jj, 1), coords(jj, 2), coords(jj, 3));
             end
             
+            % debugging - write out the volume that is averaged
+            tvol = vol;
+            tvol.data = zeros(size(vol.data));   
+            for coord = 1:size(coords,1)
+                tvol.data(coords(coord, 1), coords(coord, 2), coords(coord, 3)) = vals(coord);
+            end
+            niftiWrite(tvol, [ '/geode2/home/u010/bcmcpher/Carbonate/fine-data/edges/tedge_' sprintf('%02d',ii) '.nii.gz' ]);
+            
             % add the raw values
-            conn.(dtype).raw = vals;
+            conn.volume.(dtype).raw = vals;
             
         end
         
         % compute the central tendency
         switch meas
             case {'mean', 'average'}
-                conn.(dtype).(meas) = mean(vals, 'omitnan');
+                conn.volume.(dtype).(meas) = mean(vals, 'omitnan');
             case {'median'}
-                conn.(dtype).(meas) = median(vals, 'omitnan');
+                conn.volume.(dtype).(meas) = median(vals, 'omitnan');
             case {'std', 'sd'}
-                conn.(dtype).(meas) = std(vals, 'omitnan');
+                conn.volume.(dtype).(meas) = std(vals, 'omitnan');
             case {'var', 'variance'}
-                conn.(dtype).(meas) = var(vals, 'omitnan');
+                conn.volume.(dtype).(meas) = var(vals, 'omitnan');
             otherwise
                 error('''%s'' central tendency is not currently defined for this context.', meas);
         end
@@ -191,8 +204,8 @@ parfor ii = 1:length(pconn)
     end
     
     % re-assign connection and matrix value
-    pconn{ii}.(label).volume = conn;
-    pconn{ii}.(label).matrix.(field) = conn.(dtype).(meas);
+    netw.pconn{ii} = conn;
+    %pconn{ii}.matrix.(field) = conn.(dtype).(meas);
     
 end
 time = toc;
