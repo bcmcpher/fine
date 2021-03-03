@@ -206,6 +206,7 @@ mFiber = ceil(nfiber/nBatch); % number of fibers per batch
 % preallocate array for streamline to voxel batches
 stvxbat = cell(nBatch,1);
 
+% should this be a modified fg where each streamline point is the voxels instead?
 fprintf('Converting streamines to voxels in batches...\n');
 for batch = 1:nBatch
     fprintf('Encoding batch %02.f\n',batch)

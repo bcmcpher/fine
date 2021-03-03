@@ -81,17 +81,19 @@ netw.clean.numNodes = numNodes;
 netw.clean.maxIter = maxIter;
 netw.clean.minNum = minNum;
 
-disp(['Started cleaning ' num2str(size(netw.pconn, 1)) ' connections...']);
+% pull a logical from each edge if any streamlines exist
+pc = sum(cellfun(@(x) size(x.fibers.indices, 1) > 0, netw.pconn));
+disp(['Started cleaning ' num2str(pc) ' present connections...']);
 
 % initialize a count of before / after cleaning edges
 bfcln = zeros(size(netw.pconn, 1), 1);
 afcln = zeros(size(netw.pconn, 1), 1);
 
-% extract pconn for parallel run
+% pull connections from network
 pconn = netw.pconn;
 
 tic;
-parfor ii = 1:size(pconn, 1)
+for ii = 1:size(pconn, 1)
     
     % get the requested edge
     edge = pconn{ii};
@@ -135,17 +137,19 @@ parfor ii = 1:size(pconn, 1)
         end
         
         % keep count of cleaned connections
+        % (before cleaning) - (total > minLength and after cleaning fxn)
         afcln(ii) = bfcln(ii) - sum(cln);
         
     else 
         
         % fill in empty cells and skip to next connection
         edge.fibers = structfun(@(x) [], edge.fibers, 'UniformOutput', false);
+        pconn{ii} = edge;
         continue
         
     end
     
-    % reassign the cleaned edge to the list
+    % just in case it's missed, just fill it back in
     pconn{ii} = edge;
     
 end
@@ -164,7 +168,7 @@ disp(['Removed ' num2str(sum(afcln)) ', keeping ' num2str(sum(diffs)) ' streamli
 
 % track total streamlines dropped
 netw.clean.drop = sum(afcln);
-netw.clean.diffs = diffs;
+netw.clean.diffs = afcln;
 
 % will need to rerun fnComputeMatrixField() 
 % or plan to run it at the very end after cleaning.
