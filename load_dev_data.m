@@ -24,6 +24,7 @@ anat = niftiRead('/geode2/home/u010/bcmcpher/Carbonate/fine-data/t1.nii.gz');
 [ names, parc ] = fsMergeDK('/geode2/home/u010/bcmcpher/Carbonate/fine-data/parc.nii.gz', '/geode2/home/u010/bcmcpher/Carbonate/fine-data/lobes.nii.gz');
 %parc = niftiRead('/geode2/home/u010/bcmcpher/Carbonate/fine-data/lobes.nii.gz');
 
+fa = niftiRead('/geode2/home/u010/bcmcpher/Carbonate/fine-data/dt6_fa.nii.gz');
 dt6 = dtiLoadDt6('/geode2/home/u010/bcmcpher/Carbonate/fine-data/dti/dt6.mat');
 
 % names = {'ctx-lh-bankssts', 'ctx-lh-caudalanteriorcingulate', 'ctx-lh-caudalmiddlefrontal', ...
