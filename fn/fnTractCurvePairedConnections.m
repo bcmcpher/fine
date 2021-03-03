@@ -89,7 +89,9 @@ end
 tccnt = 0;
 tctry = 0;
 
-disp(['Computing tract curves on ' num2str(size(pconn, 1)) ' connections...']);
+% pull a quick count of edges w/ streamlines greater than the minimum
+pc = sum(cellfun(@(x) size(x.fibers.indices, 1) > minNum, netw.pconn));
+disp(['Computing tract curves on ' num2str(pc) ' connections...']);
 
 tic;    
 for ii = 1:size(pconn, 1)
@@ -98,35 +100,41 @@ for ii = 1:size(pconn, 1)
     edge = pconn{ii};
     r1_idx = netw.parc.pairs(ii, 1);
     r2_idx = netw.parc.pairs(ii, 2);
-    sf_name = [ 'sf_' netw.parc.names(r1_idx) '_to_' netw.parc.names(r2_idx) ];
+    sf_name = strcat(netw.rois{r1_idx}.name, '-', netw.rois{r2_idx}.name);
     
     % as long as enough streamlines are in the edge
     if size(edge.fibers.indices, 1) > minNum
                 
         % create edge fg
         tfg = fgCreate('fibers', fibers(edge.fibers.indices));
-        tfg = dtiReorientFibers(tfg, nnodes); % in theory don't have to resample
+        [ tfg, epi ] = dtiReorientFibers(tfg, nnodes); % in theory don't have to resample
         
         % grab all endpoints of endpoint i
-        iep = cellfun(@(x) x(:,1), tfg.fibers, 'UniformOutput', false);
-        iep = cat(2, iep{:})'; 
+        %iep = cellfun(@(x) x(:,1), tfg.fibers, 'UniformOutput', false);
+        %iep = cat(2, iep{:})'; 
         
         % pull roi centers in acpc space
-        roi1 = netw.rois{r1_idx}.centroid.acpc;
-        roi2 = netw.rois{r2_idx}.centroid.acpc;
+        roi1 = netw.rois{r1_idx}.centroid.acpc';
+        roi2 = netw.rois{r2_idx}.centroid.acpc';
         
         % find the distance from ROIs to the profile i end points
-        roi1_tpi = mean(pdist2(roi1, iep), 'omitnan');
-        roi2_tpi = mean(pdist2(roi2, iep), 'omitnan');
+        %roi1_tpi = mean(pdist2(roi1, iep), 'omitnan');
+        %roi2_tpi = mean(pdist2(roi2, iep), 'omitnan');
         
-        % if roi2 (j) is closer to tract profile than roi1 (i), flip the edge
-        if (roi2_tpi < roi1_tpi)
+        % find the distance between the start of the profile and each roi center
+        epi_roi1 = norm(epi - roi1);
+        epi_roi2 = norm(epi - roi2);
+        
+        % if roi2 is closer to the start of the tract profile than roi1, lrflip the fibers
+        if (epi_roi2 < epi_roi1)
             tfg.fibers = cellfun(@(x) fliplr(x), tfg.fibers, 'UniformOutput', false);
         end
         
         % create superfiber representation
-        edge.superfib = dtiComputeSuperFiberRepresentation(tfg, [], nnodes);
-        edge.superfib.name = sf_name;
+        if ~isfield(edge, 'superfiber')
+            edge.superfiber = dtiComputeSuperFiberRepresentation(tfg, [], nnodes);
+            edge.superfiber.name = sf_name;
+        end
         
         % if the variance of the streamlines distance is far, too many
         % streamlines are dropped to reliably compute curves
@@ -136,7 +144,7 @@ for ii = 1:size(pconn, 1)
             % preallocate outputs
             numfibers = size(tfg.fibers, 1);
             tan  = zeros(nnodes, 3, numfibers);
-            norm = zeros(nnodes, 3, numfibers);
+            nrml = zeros(nnodes, 3, numfibers);
             bnrm = zeros(nnodes, 3, numfibers);
             curv = zeros(nnodes, numfibers);
             tors = zeros(nnodes, numfibers);
@@ -145,7 +153,7 @@ for ii = 1:size(pconn, 1)
             % calculate curvature and torsion for each node on each fiber
             % frenet2 embedded at the bottom
             for jj = 1:numfibers
-                [ tan(:, :, jj), norm(:,:,jj), bnrm(:,:,jj), ...
+                [ tan(:, :, jj), nrml(:,:,jj), bnrm(:,:,jj), ...
                   curv(:, jj),tors(:, jj) ] = ...
                 frenet2(tfg.fibers{jj}(1,:)',tfg.fibers{jj}(2,:)',tfg.fibers{jj}(3,:)');
             end
@@ -166,12 +174,12 @@ for ii = 1:size(pconn, 1)
                 X = fc((1:nnodes:numfibers*nnodes)+(node-1), :);
                 
                 % get the covariance structure from the super fiber group
-                fcov = edge.superfib.fibervarcovs{1};
+                fcov = edge.superfiber.fibervarcovs{1};
                 sigma = [fcov(1:3, node)'; ...
                          0 fcov(4:5, node)';...
                          0 0 fcov(6, node)'];
                 sigma = sigma + sigma' - diag(diag(sigma));
-                mu    = edge.superfib.fibers{1}(:, node)';
+                mu    = edge.superfiber.fibers{1}(:, node)';
                 
                 % weights for the given node.
                 weights(node, :) = mvnpdf(X, mu, sigma')';
@@ -188,13 +196,13 @@ for ii = 1:size(pconn, 1)
             % apply weights to curve vectors
             for vec = 1:3 % for x / y / z vector component                
                 tan(:,vec,:)  = squeeze(tan(:,vec,:)) .* weightsNormalized;
-                norm(:,vec,:) = squeeze(norm(:,vec,:)) .* weightsNormalized;
+                nrml(:,vec,:) = squeeze(nrml(:,vec,:)) .* weightsNormalized;
                 bnrm(:,vec,:) = squeeze(bnrm(:,vec,:)) .* weightsNormalized;
             end
             
             % compute the weighted average vector curves
             edge.curve.tan  = mean(tan, 3);
-            edge.curve.norm = mean(norm, 3);
+            edge.curve.norm = mean(nrml, 3);
             edge.curve.bnrm = mean(bnrm, 3);
             
             % track how many connections are profiled
@@ -215,13 +223,19 @@ for ii = 1:size(pconn, 1)
         
     else
         
+        % too few streamlines exist to compute a profile / it's empty
+        if size(edge.fibers.indices, 1) > 0
+            warning([ 'This connections is not empty: ' num2str(size(edge.fibers.indices, 1)) ' streamline(s) present; less than ' num2str(minNum) ]);
+        end
+        
         % skip empty connection, fill in empty values
-        edge.superfib = struct('name', sf_name, 'n', 0, 'fibers', nan(3, nnodes), 'fibervarcovs', nan(6, nnodes));
-        edge.profile.curv = nan(nnodes, 1);
-        edge.profile.tors = nan(nnodes, 1);
-        edge.curve.tan = nan(nnodes, 3);
-        edge.curve.norm = nan(nnodes, 3);
-        edge.curve.bnrm = nan(nnodes, 3);
+        %edge.superfiber = struct('name', sf_name, 'n', 0, 'fibers', nan(3, nnodes), 'fibervarcovs', nan(6, nnodes));
+        edge.superfiber = [];
+        edge.profile.curv = []; %nan(nnodes, 1);
+        edge.profile.tors = []; %nan(nnodes, 1);
+        edge.curve.tan = []; %nan(nnodes, 3);
+        edge.curve.norm = []; %nan(nnodes, 3);
+        edge.curve.bnrm = []; %nan(nnodes, 3);
                 
     end
     

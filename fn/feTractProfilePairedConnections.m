@@ -92,14 +92,16 @@ end
 tpcnt = 0;
 tptry = 0;
 
-disp(['Computing tract profiles on ' num2str(size(netw.pconn, 1)) ' connections...']);
+% pull a quick count of edges w/ streamlines greater than the minimum
+pc = sum(cellfun(@(x) size(x.fibers.indices, 1) > minNum, netw.pconn));
+disp(['Computing tract profiles on ' num2str(pc) ' present connections...']);
 
 % pull lists for improved overhead in parallel loop
 fibers = fg.fibers;
 pconn = netw.pconn;
 
 tic;    
-parfor ii = 1:size(pconn, 1)
+for ii = 1:size(pconn, 1)
 
     % pull next edge and roi indices
     edge = pconn{ii};
@@ -112,23 +114,33 @@ parfor ii = 1:size(pconn, 1)
         % create tract-wise fg and reorient / resample
         tract = fgCreate('fibers', fibers(edge.fibers.indices));
         tfg = dtiReorientFibers(tract, nnodes);
+        [ tfg, epi ] = dtiReorientFibers(tfg, nnodes); % in theory don't have to resample
         
         % grab all endpoints of endpoint i
-        iep = cellfun(@(x) x(:,1), tfg.fibers, 'UniformOutput', false);
-        iep = cat(2, iep{:})'; 
+        %iep = cellfun(@(x) x(:,1), tfg.fibers, 'UniformOutput', false);
+        %iep = cat(2, iep{:})'; 
         
         % pull roi centers in acpc space
-        roi1 = netw.rois{r1_idx}.centroid.acpc;
-        roi2 = netw.rois{r2_idx}.centroid.acpc;
+        roi1 = netw.rois{r1_idx}.centroid.acpc';
+        roi2 = netw.rois{r2_idx}.centroid.acpc';
         
         % find the distance from ROIs to the profile i end points
-        roi1_tpi = mean(pdist2(roi1, iep), 'omitnan');
-        roi2_tpi = mean(pdist2(roi2, iep), 'omitnan');
+        %roi1_tpi = mean(pdist2(roi1, iep), 'omitnan');
+        %roi2_tpi = mean(pdist2(roi2, iep), 'omitnan');
         
-        % if roi2 (j) is closer to the beginning of the 
-        % tract profile than roi1 (i), flip the fibers
-        if (roi2_tpi < roi1_tpi)
+        % find the distance between the start of the profile and each roi center
+        epi_roi1 = norm(epi - roi1);
+        epi_roi2 = norm(epi - roi2);
+        
+        % if roi2 is closer to the start of the tract profile than roi1, lrflip the fibers
+        if (epi_roi2 < epi_roi1)
             tfg.fibers = cellfun(@(x) fliplr(x), tfg.fibers, 'UniformOutput', false);
+        end
+        
+        % create superfiber representation
+        if ~isfield(edge, 'superfiber')
+            edge.superfiber = dtiComputeSuperFiberRepresentation(tfg, [], nnodes);
+            edge.superfiber.name = sf_name;
         end
         
         % if the variance of the streamlines distance is far, too many
@@ -217,31 +229,31 @@ parfor ii = 1:size(pconn, 1)
                 edge.profile.dt6_cp = nan(nnodes, 1);
                 edge.profile.dt6_cs = nan(nnodes, 1);
             else
-                
-                edge.profile.(mslab) = nan(nnodes, 1);
-                
+                edge.profile.(mslab) = nan(nnodes, 1);                
             end
         end
         
     else
         
         % too few streamlines exist to compute a profile / it's empty
+        if size(edge.fibers.indices, 1) > 0
+            warning([ 'This connections is not empty: ' num2str(size(edge.fibers.indices, 1)) ' streamline; less than ' num2str(minNum) ]);
+            % zero this connection if it's this small?
+            %edge.fibers = structfun(@(x) [], edge.fibers, 'UniformOutput', false);
+        end
         
         % fill in empty dt6 fields
         if(isdt6)
-            edge.profile.dt6_fa = nan(nnodes, 1);
-            edge.profile.dt6_md = nan(nnodes, 1);
-            edge.profile.dt6_rd = nan(nnodes, 1);
-            edge.profile.dt6_ad = nan(nnodes, 1);
-            edge.profile.dt6_cl = nan(nnodes, 1);
-            edge.profile.dt6_cp = nan(nnodes, 1);
-            edge.profile.dt6_cs = nan(nnodes, 1);
-            
+            edge.profile.dt6_fa = [];
+            edge.profile.dt6_md = [];
+            edge.profile.dt6_rd = [];
+            edge.profile.dt6_ad = [];
+            edge.profile.dt6_cl = [];
+            edge.profile.dt6_cp = [];
+            edge.profile.dt6_cs = [];            
         else
-            
             % fill in empty single node profile
-            edge.profile.(mslab) = nan(nnodes, 1);
-            
+            edge.profile.(mslab) = [];
         end
         
     end

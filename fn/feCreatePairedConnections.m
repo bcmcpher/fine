@@ -28,11 +28,6 @@ function [ netw, out ] = feCreatePairedConnections(parc, fg, names, varargin)
 % Brent McPherson (c), 2017 - Indiana University
 %
 
-% merge pconn / rois
-% change endpoint roi to a heatmap in parc space - do at the end to only be eps in network?
-% determine the best rounding of endpoints
-% make ROI labels more robust / clean
-
 %% parse arguments
 
 % grab name / value pairs
@@ -92,10 +87,9 @@ end
 
 clear ii fibers
 
-% round converted end points to match image indices
-% produces highest assignment compared to floor / ceil / round() + 1
-ep1 = round(ep1);
-ep2 = round(ep2);
+% round converted end points to match image indices like LiFE
+ep1 = round(ep1) + 1;
+ep2 = round(ep2) + 1;
 
 %% assign fiber endpoints to labels
 
@@ -164,9 +158,11 @@ for ii = 1:length(labels)
     
     % do both endpoints share the same ROI? count the instances, track indices
     bep = intersect(roi_iep1, roi_iep2);
-    rois{ii}.botheps = bep;
-    %rois{ii}.dup.length = fibLength(bep);
-    %rois{ii}.dup.weight = weights(bep);
+    rois{ii}.botheps.indices = bep;
+    rois{ii}.botheps.length = fibLength(bep);
+    for jj = 1:size(nam, 2) % catch all values for streamlines with both eps
+        rois{ii}.botheps.(nam{jj}) = val{jj}(bep);
+    end
     dfib(ii) = size(bep, 1);
     
     % keep track of labels with both end points of streamlines 
