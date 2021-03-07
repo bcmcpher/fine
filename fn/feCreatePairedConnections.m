@@ -65,10 +65,10 @@ parc_img2acpc = niftiGet(parc, 'qto_xyz');
 dvoxmm = abs(parc_img2acpc([1, 6, 11]));
 
 % convert acpc fibers to parcellation space
-fg = dtiXformFiberCoords(fg, parc_acpc2img, 'img');
+ifg = dtiXformFiberCoords(fg, parc_acpc2img, 'img');
 
 % re-extract label space fiber coordinates
-fibers = fg.fibers;
+fibers = ifg.fibers;
 
 % initialize endpoint outputs
 ep1 = zeros(length(fibers), 3);

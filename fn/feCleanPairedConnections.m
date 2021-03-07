@@ -99,7 +99,7 @@ for ii = 1:size(pconn, 1)
     edge = pconn{ii};
     
     % grab the before count
-    bfcln(ii) = size(pconn{ii}.fibers.indices, 1);    
+    bfcln(ii) = size(edge.fibers.indices, 1);    
     
     % if the connection isn't empty
     if ~isempty(edge.fibers.indices)
