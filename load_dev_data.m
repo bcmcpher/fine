@@ -2,8 +2,6 @@
 %
 
 load('/geode2/home/u010/bcmcpher/Carbonate/fine-data/output_fe.mat');
-fe.life.shells_index = ones(96,1);
-fe.life.shells_n = 1;
 
 fg = feGet(fe, 'fibersacpc');
 wght = feGet(fe, 'fiberweights');
