@@ -1,5 +1,5 @@
-function [ netw ] = fnAverageEdgePropertyS(netw, fg, vol, dtype, clobv, clobd)
-%fnAverageEdgePropertyS finds the central tendency of a tract from an 
+function [ netw ] = fnAverageEdgeProperty(netw, fg, vol, dtype, clobv, clobd)
+%fnAverageEdgeProperty finds the central tendency of a tract from an 
 % appropriately aligned volume or dt6 structure. Does not require ENCODE
 %
 % INPUTS:
@@ -194,7 +194,7 @@ fprintf('Estimating white matter volume...\n');
 vfg = dtiXformFiberCoords(fg, micro_acpc2img, 'img');
 
 % pull the total number of nodes
-MAXMEM = 8000000; % max of 8gb?
+MAXMEM = 4000000; % max of 4gb?
 mnodes = round(MAXMEM*15000000/32000000);
 tnodes = size(horzcat(vfg.fibers{:}), 2);
 nfiber = size(vfg.fibers, 1);
