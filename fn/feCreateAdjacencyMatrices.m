@@ -1,4 +1,4 @@
-function [ omat, olab ] = feCreateAdjacencyMatrices(pconn, label, srt)
+function [ omat, olab ] = feCreateAdjacencyMatrices(netw, srt)
 %feCreateAdjacencyMatrices() creates adjacency matrices from a pconn array and
 % returns the labels for each matrix along the third dimension. The number
 % of matrices returned depends on the number of fields computed for pconn.
@@ -47,51 +47,49 @@ end
 
 % build matrices from pconn
 
-display('Building Adjacency Matrices...');
+disp('Building Adjacency Matrices...');
 
 % pull .matrix component from cell to determine how many matrices to make
 % this assumes all the fields are the same - reasonably true
-tmp = pconn{1}.(label);
-tmp = tmp.matrix;
+tmp = netw.pconn{1}.matrix;
 
 % find the and label fields
-connLabels = fieldnames(tmp);
-olab = cell(length(connLabels), 1);
-for ii = 1:length(connLabels)
-    olab{ii} = [ label '_' connLabels{ii} ];
-end
+olab = fieldnames(tmp);
+% olab = cell(length(connLabels), 1);
+% for ii = 1:length(connLabels)
+%     olab{ii} = [ label '_' connLabels{ii} ];
+% end
 
 % find output size
-nmat = size(connLabels, 1);
+nmat = size(olab, 1);
 
-% find the number of unique labels
-uniquelabels = zeros(size(pconn, 1), 1);
-for ii = 1:size(pconn, 1)
-    uniquelabels(ii, 1) = pconn{ii}.roi1;
-end
-nlabs = size(unique(uniquelabels), 1) + 1;
+% % find the number of unique labels
+% uniquelabels = zeros(size(netw.pconn, 1), 1);
+% for ii = 1:size(netw.pconn, 1)
+%     uniquelabels(ii, 1) = netw.pconn{ii}.roi1;
+% end
+% nlabs = size(unique(uniquelabels), 1) + 1;
+nlabs = size(netw.rois, 1);
 
 % initialize output
 omat = zeros(nlabs, nlabs, nmat);
 
 % re-create pairs based on number of nodes
-pairs = nchoosek(1:nlabs, 2);
+pairs = netw.parc.pairs;
 
 clear tmp
 
-% dummy check until I can think better
-if size(pairs, 1) ~= size(pconn, 1)
-    error('The paired connections do not match the expected number of ROI pairings.');
-end
+% % dummy check until I can think better
+% if size(pairs, 1) ~= size(pconn, 1)
+%     error('The paired connections do not match the expected number of ROI pairings.');
+% end
 
 % for every paired connection
-for ii = 1:length(pconn)
+for ii = 1:length(netw.pconn)
     for jj = 1:nmat
         
         % catch the specific matrix value
-        val = pconn{ii}.(label);
-        val = val.matrix;
-        val = val.(connLabels{jj});
+        val = netw.pconn{ii}.matrix.(olab{jj});
         
         % assign labels to output matrix
         omat(pairs(ii, 1), pairs(ii, 2), jj) = val;
@@ -100,14 +98,14 @@ for ii = 1:length(pconn)
     end
 end
 
-% fix impossible values
+% fix impossible values - kick a warning?
 omat(isnan(omat)) = 0;
 omat(isinf(omat)) = 0;
 %omat(omat < 0) = 0;
 
 % sort the cortical nodes given a vector
 if ~isempty(srt)
-    disp('Output array is sorted.');
+    disp('The output matrices are sorted by the user provided node order.');
     omat = omat(srt, srt, :);
 end
 
