@@ -1,4 +1,4 @@
-function [ netw, out ] = feCreatePairedConnections(parc, fg, names, varargin)
+function [ netw, out ] = feCreatePairedConnections(parc, fg, names, minNum, varargin)
 %feCreatePairedConnections creates pconn object of every possible unique pair of 
 % of labels in a parcellation w/ streamlines from fibers object.
 %
@@ -48,6 +48,11 @@ end
 nfib = size(fg.fibers, 1);
 if ~all(cellfun(@(x) size(x, 1) == nfib, val))
     error('Optional data arrays must all have x dimension %d.', nfib);
+end
+
+% by default don't enforce a minimum number of streamlines for an edge to get stored
+if(~exist('minNum', 'var') || isempty(minNum))
+    minNum = 0;
 end
 
 %% extract fibers to acpc space and identify endpoint coordinates
@@ -240,6 +245,11 @@ for ii = 1:length(pairs)
     % for every variable input, assign it to the connection
     for jj = 1:size(nam, 2)
         pconn{ii}.fibers.(nam{jj}) = val{jj}(pconn{ii}.fibers.indices);
+    end
+    
+    % enforce a minimum number of streamlines in an edge from assignment
+    if size(pconn{ii}.fibers.indices, 1) < minNum
+        pconn{ii}.fibers = structfun(@(x) [], pconn{ii}.fibers, 'UniformOutput', false);
     end
     
     % should I build nzw / zrw by passing pruned fg?        

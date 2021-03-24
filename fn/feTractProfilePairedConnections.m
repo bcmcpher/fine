@@ -139,6 +139,7 @@ for ii = 1:size(pconn, 1)
         
         % create superfiber representation
         if ~isfield(edge, 'superfiber')
+            sf_name = strcat(netw.rois{r1_idx}.name, '-', netw.rois{r2_idx}.name);
             edge.superfiber = dtiComputeSuperFiberRepresentation(tfg, [], nnodes);
             edge.superfiber.name = sf_name;
         end

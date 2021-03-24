@@ -4,29 +4,23 @@
 
 %% TODO:
 %
-% feCreatePairedConnections 
-% - simplify how fibers / weights are stored? too big a change? used later?
+% export to json graph
+%
+% 
 %
 % create classified fiber structure Dan wants
 %
-% parallel pool fxn
-% - see if this is actually necessary - maybe a local problem?
-% - parallel pool optional? check if open and run different fxn?
-%
 % change all display to sprintf
-%
-% scripts and workflows are essentially the same - merge somehow
-% - drop project specific fxns, but don't loose them...
 %
 % check all the plot / volume fxn once the majority of above are done
 % - they have mostly minor changes / tweaks
 % - comments / documentation / examples
 %
-% fix ALL function names
-%
-% fix ALL documentation
-%
 % make sure volume fxns can take a loaded .nii or a string
+%
+% fix ALL function names - for consistency / clarity
+%
+% fix ALL documentation - for consistency / clarity
 %
 % link network functions
 % - add other metrics?

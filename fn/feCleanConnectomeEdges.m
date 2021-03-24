@@ -2,8 +2,14 @@ function [ pfg ] = feCleanConnectomeEdges(parc, fg, minLength, maxDist, maxLengt
 %
 % STILL IN DEVELOPMENT - THE COUNT IT PRINTS DOES NOT MATCH WHAT IT DOES
 %
-%feCleanPairedConnections cleans the outlier fibers from connections inside 
-% a paired connection (pconn) cell array. 
+% This function is meant to:
+%     1) take in a parcellation / fg
+%     2) build the edges
+%     3) run the cleaning on each edge
+%     4) return an fg with only the kept streamlines for future use
+%     
+%     5) need to determine how to deal with unassigned streamlines
+%        these are often brainstem / cst / cerebellum, which are important
 %
 % INPUTS:
 %    fg        - fiber group in acpc space
