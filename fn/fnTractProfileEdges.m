@@ -113,8 +113,7 @@ for ii = 1:size(pconn, 1)
         
         % create tract-wise fg and reorient / resample
         tract = fgCreate('fibers', fibers(edge.fibers.indices));
-        tfg = dtiReorientFibers(tract, nnodes);
-        [ tfg, epi ] = dtiReorientFibers(tfg, nnodes); % in theory don't have to resample
+        [ tfg, epi ] = dtiReorientFibers(tract, nnodes); % in theory don't have to resample
         
         % pull roi centers in acpc space
         roi1 = netw.nodes{r1_idx}.centroid.acpc';

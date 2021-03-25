@@ -1,4 +1,4 @@
-function [ omat, olab ] = feCreateAdjacencyMatrices(netw, srt)
+function [ omat, olab ] = fnCreateAdjacencyMatrices(netw, srt)
 %feCreateAdjacencyMatrices() creates adjacency matrices from a pconn array and
 % returns the labels for each matrix along the third dimension. The number
 % of matrices returned depends on the number of fields computed for pconn.
@@ -51,25 +51,16 @@ disp('Building Adjacency Matrices...');
 
 % pull .matrix component from cell to determine how many matrices to make
 % this assumes all the fields are the same - reasonably true
-tmp = netw.pconn{1}.matrix;
+tmp = netw.edges{1}.matrix;
 
 % find the and label fields
 olab = fieldnames(tmp);
-% olab = cell(length(connLabels), 1);
-% for ii = 1:length(connLabels)
-%     olab{ii} = [ label '_' connLabels{ii} ];
-% end
 
 % find output size
 nmat = size(olab, 1);
 
-% % find the number of unique labels
-% uniquelabels = zeros(size(netw.pconn, 1), 1);
-% for ii = 1:size(netw.pconn, 1)
-%     uniquelabels(ii, 1) = netw.pconn{ii}.roi1;
-% end
-% nlabs = size(unique(uniquelabels), 1) + 1;
-nlabs = size(netw.rois, 1);
+% pull the number of labels
+nlabs = size(netw.nodes, 1);
 
 % initialize output
 omat = zeros(nlabs, nlabs, nmat);
@@ -79,17 +70,12 @@ pairs = netw.parc.pairs;
 
 clear tmp
 
-% % dummy check until I can think better
-% if size(pairs, 1) ~= size(pconn, 1)
-%     error('The paired connections do not match the expected number of ROI pairings.');
-% end
-
 % for every paired connection
-for ii = 1:length(netw.pconn)
+for ii = 1:length(netw.edges)
     for jj = 1:nmat
         
         % catch the specific matrix value
-        val = netw.pconn{ii}.matrix.(olab{jj});
+        val = netw.edges{ii}.matrix.(olab{jj});
         
         % assign labels to output matrix
         omat(pairs(ii, 1), pairs(ii, 2), jj) = val;

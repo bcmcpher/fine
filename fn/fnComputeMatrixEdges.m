@@ -1,10 +1,7 @@
-function [ netw ] = fnComputeMatrixField(netw, den, life, clobber)
+function [ netw ] = fnComputeMatrixEdges(netw, den, life, clobber)
 %fnComputeMatrixField creates the values that are assigned to adjacency
 % matrices for the pconn list object. New measures should be added here.
 %
-% If pvoxels exists, I can compute volume, ADF, any micro-structure average
-% How should this fxn do that? 
-% 
 
 %% parse arguments
 
@@ -32,15 +29,15 @@ end
 
 % grab the sorted indice pairs
 pairs = netw.parc.pairs;
-nconn = size(netw.pconn, 1);
+nconn = size(netw.edges, 1);
 
 % for every connection
 for conn = 1:nconn
     
     % pull the rois for the pair and the edge information
-    roi1 = netw.rois{pairs(conn, 1)};
-    roi2 = netw.rois{pairs(conn, 2)};
-    edge = netw.pconn{conn};
+    roi1 = netw.nodes{pairs(conn, 1)};
+    roi2 = netw.nodes{pairs(conn, 2)};
+    edge = netw.edges{conn};
     
     % calculate combined size of ROI (voxel count / volume in mm^2)
     psz = roi1.size + roi2.size;
@@ -187,7 +184,7 @@ for conn = 1:nconn
     edge.matrix = matrix;
     
     % reassign edge
-    netw.pconn{conn} = edge;
+    netw.edges{conn} = edge;
     
 end
 

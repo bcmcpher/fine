@@ -20,10 +20,10 @@ netw = fnTractCurveEdges(netw, fg);
 netw = fnVirtualLesionEdges(netw, M, wght, dsig, nTheta, S0);
 
 % create matrix field for export of all computed edge weights
-netw = fnComputeMatrixField(netw);
+netw = fnComputeMatrixEdges(netw);
 
 % create connectivity matrices
-[ omat, olab ] = feCreateAdjacencyMatrices(netw);
+[ omat, olab ] = fnCreateAdjacencyMatrices(netw);
 
 % check the count matrix
 figure; imagesc(omat(:,:,1)); title(olab{1}); colorbar;
