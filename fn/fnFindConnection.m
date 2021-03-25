@@ -34,6 +34,12 @@ for conn = 1:size(pconn, 1)
 
 end
 
+% create endpoint ROI in vistasoft format for each ep
+% create a nifti heatmap instead? vistasoft roi is a bit dumb...
+% just list of eps?
+%rois{ii}.roi = dtiNewRoi(num2str(labels(ii)), 'red', [ ep1(roi_ep1, :); ep2(roi_ep2, :) ]);
+
+
 % print some information
 display(['Connection between ROI''s numbered ' num2str(roi1) ' and ' num2str(roi2) ' found at index: ' num2str(conn) ]);
 display(['The fascicle has ' num2str(size(ind, 1)) ' fasciles and an average length of ' num2str(length) ' mm.']);

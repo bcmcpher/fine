@@ -1,4 +1,4 @@
-function [ netw ] = feCleanPairedConnections(netw, fg, minLength, maxDist, maxLengthStd, numNodes, maxIter, minNum)
+function [ netw ] = fnCleanEdges(netw, fg, minLength, maxDist, maxLengthStd, numNodes, maxIter, minNum)
 %feCleanPairedConnections cleans the outlier fibers from connections inside 
 % a paired connection (pconn) cell array. 
 %
@@ -26,8 +26,6 @@ function [ netw ] = feCleanPairedConnections(netw, fg, minLength, maxDist, maxLe
 % OUTPUTS:
 %     pconn - is the paired connections object with the cleaned streamline
 %             indices added in a new label appended with '_clean'.
-%
-%     cln   - debugging output; the cell array that is added internally to pconn
 %
 % EXAMPLE:
 %
@@ -82,21 +80,21 @@ netw.clean.maxIter = maxIter;
 netw.clean.minNum = minNum;
 
 % pull a logical from each edge if any streamlines exist
-pc = sum(cellfun(@(x) size(x.fibers.indices, 1) > 0, netw.pconn));
+pc = sum(cellfun(@(x) size(x.fibers.indices, 1) > 0, netw.edges));
 disp(['Started cleaning ' num2str(pc) ' present connections...']);
 
 % initialize a count of before / after cleaning edges
-bfcln = zeros(size(netw.pconn, 1), 1);
-afcln = zeros(size(netw.pconn, 1), 1);
+bfcln = zeros(size(netw.edges, 1), 1);
+afcln = zeros(size(netw.edges, 1), 1);
 
 % pull connections from network
-pconn = netw.pconn;
+edges = netw.edges;
 
 tic;
-for ii = 1:size(pconn, 1)
+for ii = 1:size(edges, 1)
     
     % get the requested edge
-    edge = pconn{ii};
+    edge = edges{ii};
     
     % grab the before count
     bfcln(ii) = size(edge.fibers.indices, 1);    
@@ -110,7 +108,7 @@ for ii = 1:size(pconn, 1)
         % if there are too few streamlines, fill in empty and move on
         if(sum(keep_idx) < minNum)
             edge.fibers = structfun(@(x) [], edge.fibers, 'UniformOutput', false);
-            pconn{ii} = edge;
+            edges{ii} = edge;
             continue
         else
            % filter other values before fg cleaning
@@ -132,7 +130,7 @@ for ii = 1:size(pconn, 1)
         catch
             warning('Cleaning of edge index %d failed. Assigning empty values in network structure.', ii);
             edge.fibers = structfun(@(x) [], edge.fibers, 'UniformOutput', false);
-            pconn{ii} = edge;
+            edges{ii} = edge;
             continue
         end
         
@@ -144,13 +142,13 @@ for ii = 1:size(pconn, 1)
         
         % fill in empty cells and skip to next connection
         edge.fibers = structfun(@(x) [], edge.fibers, 'UniformOutput', false);
-        pconn{ii} = edge;
+        edges{ii} = edge;
         continue
         
     end
     
     % just in case it's missed, just fill it back in
-    pconn{ii} = edge;
+    edges{ii} = edge;
     
 end
 time = toc;
@@ -158,7 +156,7 @@ time = toc;
 clear ii edge keep_idx tfg cln
 
 % reassign paired connection
-netw.pconn = pconn;
+netw.edges = edges;
 
 % compute how many are kept vs. dropped
 diffs = bfcln - afcln;
@@ -169,38 +167,5 @@ disp(['Removed ' num2str(sum(afcln)) ', keeping ' num2str(sum(diffs)) ' streamli
 % track total streamlines dropped
 netw.clean.drop = sum(afcln);
 netw.clean.diffs = afcln;
-
-% will need to rerun fnComputeMatrixField() 
-% or plan to run it at the very end after cleaning.
-
-% % create new output in pconn
-% newout = strcat(label, '_clean');
-% 
-% % add cleaned streamlines to pconn
-% for ii = 1:length(pconn)
-% 
-%     % values used to calculate newly cleaned connections
-%     psz = pconn{ii}.roi1sz + pconn{ii}.roi2sz;
-%     cnt = size(cln{ii}.out.indices, 1);
-%     len = mean(cln{ii}.out.lengths);
-%     if isempty(cln{ii}.out.lengths) % if there are no nz lengths
-%         dln = 0;
-%     else
-%         dln = sum(1 / cln{ii}.out.lengths);
-%     end
-%     
-%     % create structure with all the cleaned field data
-%     tmp = struct('indices', cln{ii}.out.indices, ...
-%                  'lengths', cln{ii}.out.lengths, ...
-%                  'weights', cln{ii}.out.weights);
-%              
-%     % assign cleaned count matrix
-%     pconn{ii}.(newout) = tmp;
-%     pconn{ii}.(newout).matrix.count = cnt;
-%     pconn{ii}.(newout).matrix.density = (2 * cnt) / psz;
-%     pconn{ii}.(newout).matrix.length = len;
-%     pconn{ii}.(newout).matrix.denlen = (2 / psz) * dln;
-%    
-% end
     
 end
