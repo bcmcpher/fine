@@ -1,4 +1,4 @@
-function [ netw ] = feTractProfilePairedConnections(netw, fg, msobj, mslab, nnodes, minNum, clobber)
+function [ netw ] = fnTractProfileEdges(netw, fg, msobj, mslab, nnodes, minNum, clobber)
 %feTractProfilePairedConnections runs creates tract profile(s) for every existing 
 % connection given a particular input. A nifti returns a single labeled
 % profile, a dt6 structure will return 7 profiles in a new structure within
@@ -79,9 +79,9 @@ end
 
 % check if the first profile label already exists alongside clobber for a
 % faster exit from function if things shouldn't be recomputed.
-if isfield(netw.pconn{1}, 'profile')
+if isfield(netw.edges{1}, 'profile')
     disp('Some profiles have already been computed.');
-    if isfield(netw.pconn{1}.profile, mslab) && clobber == 0
+    if isfield(netw.edges{1}.profile, mslab) && clobber == 0
         error('Tract profiles with ''%s'' label already exist.\nSet clobber to 1 to explicitly overwrite the pre-existing profile(s).', mslab);
     end
 end
@@ -93,12 +93,12 @@ tpcnt = 0;
 tptry = 0;
 
 % pull a quick count of edges w/ streamlines greater than the minimum
-pc = sum(cellfun(@(x) size(x.fibers.indices, 1) > minNum, netw.pconn));
+pc = sum(cellfun(@(x) size(x.fibers.indices, 1) > minNum, netw.edges));
 disp(['Computing tract profiles on ' num2str(pc) ' present connections...']);
 
 % pull lists for improved overhead in parallel loop
 fibers = fg.fibers;
-pconn = netw.pconn;
+pconn = netw.edges;
 
 tic;    
 for ii = 1:size(pconn, 1)
@@ -116,17 +116,9 @@ for ii = 1:size(pconn, 1)
         tfg = dtiReorientFibers(tract, nnodes);
         [ tfg, epi ] = dtiReorientFibers(tfg, nnodes); % in theory don't have to resample
         
-        % grab all endpoints of endpoint i
-        %iep = cellfun(@(x) x(:,1), tfg.fibers, 'UniformOutput', false);
-        %iep = cat(2, iep{:})'; 
-        
         % pull roi centers in acpc space
-        roi1 = netw.rois{r1_idx}.centroid.acpc';
-        roi2 = netw.rois{r2_idx}.centroid.acpc';
-        
-        % find the distance from ROIs to the profile i end points
-        %roi1_tpi = mean(pdist2(roi1, iep), 'omitnan');
-        %roi2_tpi = mean(pdist2(roi2, iep), 'omitnan');
+        roi1 = netw.nodes{r1_idx}.centroid.acpc';
+        roi2 = netw.nodes{r2_idx}.centroid.acpc';
         
         % find the distance between the start of the profile and each roi center
         epi_roi1 = norm(epi - roi1);
@@ -137,9 +129,9 @@ for ii = 1:size(pconn, 1)
             tfg.fibers = cellfun(@(x) fliplr(x), tfg.fibers, 'UniformOutput', false);
         end
         
-        % create superfiber representation
+        % create superfiber representation for the edge on the flipped fibers
         if ~isfield(edge, 'superfiber')
-            sf_name = strcat(netw.rois{r1_idx}.name, '-', netw.rois{r2_idx}.name);
+            sf_name = strcat(netw.nodes{r1_idx}.name, '-', netw.nodes{r2_idx}.name);
             edge.superfiber = dtiComputeSuperFiberRepresentation(tfg, [], nnodes);
             edge.superfiber.name = sf_name;
         end
@@ -150,66 +142,18 @@ for ii = 1:size(pconn, 1)
             
             if(isdt6)
                 
-                % compute all the tract profiles
+                % compute all the tract profiles for a dt6
                 [ edge.profile.dt6_fa, edge.profile.dt6_md, edge.profile.dt6_rd, ...
                   edge.profile.dt6_ad, edge.profile.dt6_cl, ~, ~, ...
                   edge.profile.dt6_cp, edge.profile.dt6_cs ] = ...
                   dtiComputeDiffusionPropertiesAlongFG(tfg, msobj, [], [], nnodes);
-              
-%                 % grab the flipped, resampled end points
-%                 iep = nan(ntfib, 3);
-%                 for jj = 1:ntfib
-%                     iep(jj, :) = fgFlip.fibers{jj}(:, 1)';
-%                 end
-%                 
-%                 % find the distance from ROIs to the profile i end points
-%                 roi1_tpi = mean(pdist2(roi1, iep), 'omitnan');
-%                 roi2_tpi = mean(pdist2(roi2, iep), 'omitnan');
-%                 
-%                 % if roi2 (j) is closer to tract profile end point i
-%                 if (roi2_tpi < roi1_tpi)
-%                     
-%                     % flip the profiles
-%                     edge.profile.dt6_fa = flipud(edge.profile.dt6_fa);
-%                     edge.profile.dt6_md = flipud(edge.profile.dt6_md);
-%                     edge.profile.dt6_rd = flipud(edge.profile.dt6_rd);
-%                     edge.profile.dt6_ad = flipud(edge.profile.dt6_ad);
-%                     edge.profile.dt6_cl = flipud(edge.profile.dt6_cl);
-%                     edge.profile.dt6_cp = flipud(edge.profile.dt6_cp);
-%                     edge.profile.dt6_cs = flipud(edge.profile.dt6_cs);
-%                     
-%                 end
-%                 % otherwise it doesn't change
-                                
+
             else
                 
-                % compute the tract profile
+                % compute the tract profile for the passed volume
                 [ edge.profile.(mslab), ~, ~, ~, ~, ...
                   ~, ~, ~, ~ ]= dtiComputeDiffusionPropertiesAlongFG(tract, msobj, [], [], nnodes);
-                
-%                 % grab the flipped, resampled end points of the "first" ep
-%                 iep = nan(ntfib, 3);
-%                 for jj = 1:ntfib
-%                     iep(jj, :) = fgFlip.fibers{jj}(:, 1)';
-%                 end
-%                 
-%                 % grab the flipped / resampled endpoints of endpoint i
-%                 iep = cellfun(@(x) x(:,1), fgFlip.fibers, 'UniformOutput', false);
-%                 iep = cat(2, iep{:})'; 
-%                 
-%                 % find the distance from centroids to the profile end points
-%                 roi1_tpi = mean(pdist2(roi1, iep), 'omitnan');
-%                 roi2_tpi = mean(pdist2(roi2, iep), 'omitnan');
-%                 
-%                 % if roi2 (j) is closer to the first tract profile end point (i)
-%                 if (roi2_tpi < roi1_tpi)
-%                     
-%                     % flip the profile
-%                     edge.profile.(mslab) = flipud(edge.profile.(mslab));
-%                     
-%                 end
-%                 % otherwise it doesn't change
-                
+
             end
             
             % track how many connections are profiled
@@ -237,10 +181,11 @@ for ii = 1:size(pconn, 1)
     else
         
         % too few streamlines exist to compute a profile / it's empty
-        if size(edge.fibers.indices, 1) > 0
-            warning([ 'This connections is not empty: ' num2str(size(edge.fibers.indices, 1)) ' streamline; less than ' num2str(minNum) ]);
+        if ~isempty(edge.fibers.indices)
+            warning([ 'Edge ' num2str(ii) ' is not empty: ' num2str(length(edge.fibers.indices)) ' streamline; less than ' num2str(minNum) ]);
             % zero this connection if it's this small?
-            %edge.fibers = structfun(@(x) [], edge.fibers, 'UniformOutput', false);
+            % edge.fibers = structfun(@(x) [], edge.fibers, 'UniformOutput', false);
+            % there's a bunch of other potentially non-zero fields though...
         end
         
         % fill in empty dt6 fields
@@ -266,65 +211,8 @@ end
 time = toc;
 
 % reassign connections
-netw.pconn = pconn;
+netw.edges = pconn;
 
 disp(['Computed ' num2str(tpcnt)  ' of ' num2str(tptry) ' possible tract profiles in ' num2str(round(time)/60) ' minutes.']);
-
-clear ii time
-
-%
-% add tract profile to pconn object
-%
-% disp('Adding tract profiles to pconn...');
-% 
-% for ii = 1:length(pconn)
-%         
-%     % pull subset field
-%     tmp = pconn{ii}.(label);
-%     
-%     % look for an existing profile field
-%     if isfield(tmp, 'profile') % if there is one
-%         
-%         % pull the existing profiles and add the new one
-%         prof = tmp.profile;
-%         
-%         if(isdt6)
-%             prof.(mslab).fa = tprof{ii}.dt6_fa;
-%             prof.(mslab).md = tprof{ii}.dt6_md;
-%             prof.(mslab).rd = tprof{ii}.dt6_rd;
-%             prof.(mslab).ad = tprof{ii}.dt6_ad;
-%             prof.(mslab).cl = tprof{ii}.dt6_cl;
-%             prof.(mslab).cp = tprof{ii}.dt6_cp;
-%             prof.(mslab).cs = tprof{ii}.dt6_cs;
-%         else
-%             % add extra isfield check?
-%             prof.(mslab) = tprof{ii};
-%         end
-%         
-%     else
-%         
-%         if(isdt6)
-%             prof.(mslab).fa = tprof{ii}.dt6_fa;
-%             prof.(mslab).md = tprof{ii}.dt6_md;
-%             prof.(mslab).rd = tprof{ii}.dt6_rd;
-%             prof.(mslab).ad = tprof{ii}.dt6_ad;
-%             prof.(mslab).cl = tprof{ii}.dt6_cl;
-%             prof.(mslab).cp = tprof{ii}.dt6_cp;
-%             prof.(mslab).cs = tprof{ii}.dt6_cs;
-%         else
-%             
-%             % create the profile field and add the data
-%             prof = struct(mslab, tprof{ii});
-%         end
-%         
-%     end
-%         
-%     % add tract profile(s) to tmp
-%     tmp.profile = prof;
-%        
-%     % reassign tmp to a paired connection cell array
-%     pconn{ii}.(label) = tmp;
-%     
-% end
 
 end

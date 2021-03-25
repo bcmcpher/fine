@@ -1,4 +1,4 @@
-function [ netw ] = fnTractCurvePairedConnections(netw, fg, nnodes, minNum, clobber)
+function [ netw ] = fnTractCurveEdges(netw, fg, nnodes, minNum, clobber)
 %feTractShapePairedConnections creates a 
 %
 % INPUTS:
@@ -59,7 +59,7 @@ if(clobber == 1)
 end
 
 % extract connection list and fibers
-pconn = netw.pconn;
+pconn = netw.edges;
 fibers = fg.fibers;
 
 % check if the first profile label already exists alongside clobber for a
@@ -90,7 +90,7 @@ tccnt = 0;
 tctry = 0;
 
 % pull a quick count of edges w/ streamlines greater than the minimum
-pc = sum(cellfun(@(x) size(x.fibers.indices, 1) > minNum, netw.pconn));
+pc = sum(cellfun(@(x) size(x.fibers.indices, 1) > minNum, netw.edges));
 disp(['Computing tract curves on ' num2str(pc) ' connections...']);
 
 tic;    
@@ -100,7 +100,7 @@ for ii = 1:size(pconn, 1)
     edge = pconn{ii};
     r1_idx = netw.parc.pairs(ii, 1);
     r2_idx = netw.parc.pairs(ii, 2);
-    sf_name = strcat(netw.rois{r1_idx}.name, '-', netw.rois{r2_idx}.name);
+    sf_name = strcat(netw.nodes{r1_idx}.name, '-', netw.nodes{r2_idx}.name);
     
     % as long as enough streamlines are in the edge
     if size(edge.fibers.indices, 1) > minNum
@@ -108,18 +108,10 @@ for ii = 1:size(pconn, 1)
         % create edge fg
         tfg = fgCreate('fibers', fibers(edge.fibers.indices));
         [ tfg, epi ] = dtiReorientFibers(tfg, nnodes); % in theory don't have to resample
-        
-        % grab all endpoints of endpoint i
-        %iep = cellfun(@(x) x(:,1), tfg.fibers, 'UniformOutput', false);
-        %iep = cat(2, iep{:})'; 
-        
+      
         % pull roi centers in acpc space
-        roi1 = netw.rois{r1_idx}.centroid.acpc';
-        roi2 = netw.rois{r2_idx}.centroid.acpc';
-        
-        % find the distance from ROIs to the profile i end points
-        %roi1_tpi = mean(pdist2(roi1, iep), 'omitnan');
-        %roi2_tpi = mean(pdist2(roi2, iep), 'omitnan');
+        roi1 = netw.nodes{r1_idx}.centroid.acpc';
+        roi2 = netw.nodes{r2_idx}.centroid.acpc';
         
         % find the distance between the start of the profile and each roi center
         epi_roi1 = norm(epi - roi1);
@@ -224,8 +216,8 @@ for ii = 1:size(pconn, 1)
     else
         
         % too few streamlines exist to compute a profile / it's empty
-        if size(edge.fibers.indices, 1) > 0
-            warning([ 'This connections is not empty: ' num2str(size(edge.fibers.indices, 1)) ' streamline(s) present; less than ' num2str(minNum) ]);
+        if ~isempty(edge.fibers.indices)
+            warning([ 'Edge ' num2str(ii) ' is not empty: ' num2str(size(edge.fibers.indices, 1)) ' streamline(s) present; less than ' num2str(minNum) ]);
         end
         
         % skip empty connection, fill in empty values
@@ -245,75 +237,9 @@ for ii = 1:size(pconn, 1)
 end
 time = toc;
 
-netw.pconn = pconn;
+netw.edges = pconn;
 
-disp(['Computed ' num2str(tccnt)  ' of ' num2str(tctry) ' possible tract curves in ' num2str(round(time)/60) ' minutes.']);
-
-% % add tract profile to pconn object
-% 
-% display('Adding tract curves to pconn...');
-% 
-% for ii = 1:length(pconn)
-%     
-%     % pull subset field
-%     edge = pconn{ii}.(label);
-%     
-%     % look for an existing profile field
-%     if isfield(edge, 'profile') % if there is one
-%         
-%         % pull profile field so what's there isn't lost
-%         prof = pconn{ii}.(label).profile;
-%                     
-%             % clobber is already set and this fxn is the only one to make
-%             % .shape data field, so don't worry about preserving what's
-%             % here (for now)
-%             
-%             try    
-%                 
-%                 % create the shape field and add the data
-%                 crve = struct('curv', tcrve{ii}.curv, 'tors', tcrve{ii}.tors, ...
-%                     'tan', tcrve{ii}.tan, 'norm', tcrve{ii}.norm, 'bnrm', tcrve{ii}.bnrm);
-%                 
-%             catch
-%                 
-%                 % if it's empty, fill in NaNs
-%                 crve = struct('curv', nan(nnodes, 1), 'tors', nan(nnodes, 1), ...
-%                     'tan', nan(nnodes, 3), 'norm', nan(nnodes, 3), 'bnrm', nan(nnodes, 3));
-%                 
-%             end
-%             
-%         %end
-%         
-%         % add tract profile(s) to tmp
-%         edge.profile.shape = crve;
-%         
-%     % if profile field doesn't exist
-%     else 
-%         
-%         try
-%             
-%             % create the shape field and add the data
-%             crve = struct('curv', tcrve{ii}.curv, 'tors', tcrve{ii}.tors, ...
-%                 'tan', tcrve{ii}.tan, 'norm', tcrve{ii}.norm, 'bnrm', tcrve{ii}.bnrm);
-%             
-%         catch
-%             
-%             % if it's empty, fill in NaNs
-%             crve = struct('curv', nan(nnodes, 1), 'tors', nan(nnodes, 1), ...
-%                 'tan', nan(nnodes, 3), 'norm', nan(nnodes, 3), 'bnrm', nan(nnodes, 3));
-%             
-%         end
-%         
-%         % add profiles and shape with crve sored
-%         edge.profile.shape = crve;
-%         
-%     end
-%     
-%     % reassign superfiber and tmp to a paired connection cell array
-%     pconn{ii}.(label).suberfiber = pcsf{ii};
-%     pconn{ii}.(label).profile = edge.profile;
-%     
-% end
+disp(['Computed ' num2str(tccnt)  ' of ' num2str(tctry) ' possible edge curves in ' num2str(round(time)/60) ' minutes.']);
 
 end
 

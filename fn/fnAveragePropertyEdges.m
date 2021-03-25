@@ -1,4 +1,4 @@
-function [ netw ] = fnAverageEdgeProperty(netw, fg, vol, dtype, clobv, clobd)
+function [ netw ] = fnAveragePropertyEdges(netw, fg, vol, dtype, keep, clobv, clobd)
 %fnAverageEdgeProperty finds the central tendency of a tract from an 
 % appropriately aligned volume or dt6 structure. Does not require ENCODE
 %
@@ -12,6 +12,8 @@ function [ netw ] = fnAverageEdgeProperty(netw, fg, vol, dtype, clobv, clobd)
 %             for valid results.
 %
 %     dtype - a field name the central tendency can be stored with
+%
+%     keep  - whether or not to store coordinates / values for each edge
 %
 %     clobv - whether or not to overwrite volume data if the fields already exist 
 %
@@ -54,6 +56,10 @@ function [ netw ] = fnAverageEdgeProperty(netw, fg, vol, dtype, clobv, clobd)
 % Brent McPherson (c), 2017 - Indiana University
 %
 
+if(~exist('keep', 'var') || isempty(keep))
+    keep = false;
+end
+
 if(~exist('clobv', 'var') || isempty(clobv))
     clobv = 0;
 end
@@ -64,7 +70,7 @@ end
 
 if(isfield(vol, 'dt6'))
     
-    disp('Computing tract central tendency from dt6 structure...');
+    disp('Computing edge central tendency from dt6 structure...');
     
     tol = 1e-6;
     dt = vol;
@@ -111,7 +117,7 @@ if(isfield(vol, 'dt6'))
     name = [ 'dt6_' dtype ];
 
 else
-    disp('Computing tract central tendency from volume...');
+    disp('Computing edge central tendency from volume...');
     
     % create vol filename
     [ ~, nam, ext ] = fileparts(vol.fname);
@@ -176,10 +182,10 @@ if isfield(netw.volume, 'wmvol')
 end
 
 % more strictly stop dtype label redos - this doesn't change on accident
-if isfield(netw.pconn{1}, 'micros')
-    if isfield(netw.pconn{1}.micros, dtype)
+if isfield(netw.edges{1}, 'micros')
+    if isfield(netw.edges{1}.micros, dtype)
         if clobd ~= 1
-            error('Central tendencies for these edges are already computed. Set clobd = 1 to recompute.');
+            error('Central tendencies for this edge label are already computed. Set clobd = 1 to recompute.');
         else
             warning('Edge central tendency has been previously estimated. clobd set to overwrite previously estimated values.');
         end
@@ -203,77 +209,88 @@ nfiber = size(vfg.fibers, 1);
 nBatch = max([5,ceil(tnodes/mnodes)]); % number of batches
 mFiber = ceil(nfiber/nBatch); % number of fibers per batch
 
-% preallocate array for streamline to voxel batches
-stvxbat = cell(nBatch,1);
+% preallocate array for unique voxels in each streamline
+ufg = cell(nfiber, 1);
 
-% should this be a modified fg where each streamline point is the voxels instead?
+% for every batch
 fprintf('Converting streamlines to voxels in batches...\n');
 for batch = 1:nBatch
     fprintf('Encoding batch %02.f\n',batch)
+    
+    % pull the fiber range to not explode memory
     fibers_range = (batch-1)*mFiber + 1: min(batch*mFiber,nfiber);
+    
+    % cell array to convert img space streamline nodes to the unique voxel indices
     bat = cellfun(@(x) unique((round(x)+1)', 'rows'), vfg.fibers(fibers_range), 'UniformOutput', false);
-    stvxbat{batch} = unique(vertcat(bat{:}), 'rows');
+    
+    % cell array to fix converted voxel indices to be within volume indices
+    out = cellfun(@fixVoxelBounds, bat, repmat(mat2cell(volsz, 1, 3), [ size(fibers_range, 2) 1 ]), 'UniformOutput', false); 
+    % fixVoxelBounds defined below
+    
+    % catch the output for later use
+    ufg(fibers_range) = out;
 end
 
-clear batch bat
+% find all unique voxels across all streamlines
+coords = unique(vertcat(ufg{:}), 'rows');
 
-% store the batch created object in the final unique vector
-coords = unique(vertcat(stvxbat{:}), 'rows');
+% % replace 0 indices w/ 1 - sanity check
+% coords(coords <= 1) = 1;
+% 
+% % replace indices exceeding max w/ max index - sanity check
+% coords(coords(:, 1) > volsz(1), 1) = volsz(1);
+% coords(coords(:, 2) > volsz(2), 2) = volsz(2);
+% coords(coords(:, 3) > volsz(3), 3) = volsz(3);
+% % these fixes match how ENCODE checks fg
+
+clear batch bat
 
 % vectorized call through streamlines rounding nodes to voxel indices
 %stvx = cellfun(@(x) unique((round(x)+1)', 'rows'), vfg.fibers, 'UniformOutput', false);
 %coords = unique(vertcat(stvx{:}), 'rows'); 
-% THIS SHOULD BE TOO BIG FOR MEMORY - INSTEAD CHUNK LIKE LiFE CODE
+% THIS SHOULD BE TOO BIG FOR MEMORY - SO CHUNK LIKE LiFE CODE
 % this matches the LiFE voxel ROI if the volume passed is sliced like DWI
 
 % estimate white matter volume in structure volume
 wmvox = size(coords, 1);
 wmvol = wmvox * volvx;
 netw.volume.wmvol = wmvol;
-%netw.volume.coords = coords; % are these useful to store?
-clear stvxbat coords % it's big otherwise...
+if keep % optionally store full wm ROI
+    netw.volume.coords = coords;
+end
+clear coords % it's big otherwise...
 
 fprintf('Total white matter volume estimated at: %d mm^3.\n', wmvol);
-
 fprintf('Finding volume and central tendency of ''%s'' for all edges...\n', name);
 
 tic;
-for ii = 1:length(netw.pconn)
+for ii = 1:length(netw.edges)
     
     % pull the connection
-    conn = netw.pconn{ii};
+    conn = netw.edges{ii};
     
     % if the connection is empty, fill in zeros
     if isempty(conn.fibers.indices)
         
         % fill in empty voxel coords
-        conn.volume = 0;
-        conn.prpvol = 0;
-        %conn.(dtype).raw = [];
+        conn.volume.volume = 0;
+        conn.volume.prpvol = 0;
+        if keep
+            conn.micros.(dtype).raw = [];
+        end
         conn.micros.(dtype).mn = 0;
         conn.micros.(dtype).md = 0;
         conn.micros.(dtype).sd = 0;
         
     else
+        
         % otherwise pull the voxels for the tract to make a volume
+        tcoords = unique(vertcat(ufg{conn.fibers.indices}), 'rows');
         
-        % create one array of streamline nodes rounded to voxel indices
-        tstvx = horzcat(vfg.fibers{conn.fibers.indices})';
-        
-        % round + 1 to match with LiFE tensor indices
-        tcoords = unique(round(tstvx) + 1, 'rows');
-        
-        % replace 0 indices w/ 1 - sanity check
-        tcoords(tcoords <= 1) = 1;
-        % these fixes match how ENCODE checks fg
-        
-        % replace indices exceeding max w/ max index - sanity check
-        tcoords(tcoords(:, 1) > volsz(1), 1) = volsz(1);
-        tcoords(tcoords(:, 2) > volsz(2), 2) = volsz(2);
-        tcoords(tcoords(:, 3) > volsz(3), 3) = volsz(3);
-        
-        % store the voxel indices for each tract - necessary? too much?
-        %conn.coords = tcoords;
+        % optionally store the voxel indices for each tract
+        if keep
+            conn.volume.coords = tcoords;
+        end
         
         % extract the micro data for the edge
         vals = nan(size(tcoords, 1), 1);
@@ -287,20 +304,36 @@ for ii = 1:length(netw.pconn)
             conn.volume.prpvol = conn.volume.volume / wmvol;
         end
 
-        % add the raw values and central tendency measure
-        %conn.micros.(dtype).raw = vals;
+        % optionally store raw values and central tendency measures
+        if keep
+            conn.micros.(dtype).raw = vals;
+        end
         conn.micros.(dtype).mn = mean(vals, 'omitnan');
         conn.micros.(dtype).md = median(vals, 'omitnan');
         conn.micros.(dtype).sd = std(vals, 'omitnan');
-        
-        % store connection back in output
-        netw.pconn{ii} = conn;
                 
     end
     
+    % store connection back in output
+    netw.edges{ii} = conn;
+        
 end
 time = toc;
 
 disp([ 'Found the volume and central tendency of ' name ' for all edges in ' num2str(time) ' seconds.' ]);
+
+end
+
+% a function to vectorize the correction of rounded voxels to be w/in volume indices
+function [ coords ] = fixVoxelBounds(coords, volsz)
+
+% replace 0 indices w/ 1 - sanity check
+coords(coords <= 1) = 1;
+
+% replace indices exceeding max w/ max index - sanity check
+coords(coords(:, 1) > volsz(1), 1) = volsz(1);
+coords(coords(:, 2) > volsz(2), 2) = volsz(2);
+coords(coords(:, 3) > volsz(3), 3) = volsz(3);
+% these fixes match how ENCODE checks fg
 
 end

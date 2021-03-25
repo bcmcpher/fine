@@ -1,4 +1,4 @@
-function [ netw ] = feVirtualLesionPairedConnections(netw, M, weights, dsig, nTheta, S0, nbin, clobber)
+function [ netw ] = fnVirtualLesionEdges(netw, M, weights, dsig, nTheta, S0, nbin, clobber)
 %feVirtualLesionPairedConnections runs virtual lesion on all edges store in pconn.
 %
 % INPUTS:
@@ -65,24 +65,27 @@ end
 if(~exist('S0', 'var') || isempty(S0))
     S0 = [];
     norm = 0;
-    netw.parc.vl = 'raw';
+    netw.vl.sig = 'raw';
     disp('Computing virtual lesions on raw diffusion signal.');
 else
     norm = 1;
-    netw.parc.vl = 'normalized';
+    netw.vl.sig = 'normalized';
     disp('Computing virtual lesions on demeaned diffusion signal.');
 end
 
 if(~exist('nbin', 'var') || isempty(nbin))
-    nbin = 128;
+    nbin = 128;    
 end
+
+% store nbin as vl parameter
+netw.vl.nbin = nbin;
 
 % preallocate virtual lesion output
 vlcnt = 0;
 vltry = 0;
 
 % extract the edge list
-pconn = netw.pconn;
+pconn = netw.edges;
 
 disp(['Computing virtual lesion on a possible ' num2str(size(pconn, 1)) ' edges...']);
 
@@ -152,7 +155,7 @@ end
 time = toc;
 
 % reassign edges with virtual lesion added
-netw.pconn = pconn;
+netw.edges = pconn;
 
 disp(['Computed ' num2str(vlcnt) ' vitual lesions in ' num2str(round(time)/60) ' minutes.']);
 
@@ -160,39 +163,9 @@ if vltry > 0
     disp(['Attempted and failed to estimate ' num2str(vltry) ' vitual lesions.']);
 end
 
-% % add virtual lesion to pconn object
-% for ii = 1:length(pconn)
-%     
-%     % pull subset field
-%     tmp = pconn{ii}.(label);
-%     
-%     % add vl output as normed or raw
-%     if(norm)
-%         tmp.vl_nrm = vlout{ii};
-%         
-%         % assign virtual lesion matrix entries
-%         tmp.matrix.soe_nrm = vlout{ii}.s.mean;
-%         tmp.matrix.emd_nrm = vlout{ii}.em.mean;
-%         tmp.matrix.kl_nrm  = mean(vlout{ii}.kl.mean);
-%         tmp.matrix.jd_nrm  = mean(vlout{ii}.j.mean);
-%     else
-%         tmp.vl_raw = vlout{ii};
-%         
-%         % assign virtual lesion matrix entries
-%         tmp.matrix.soe_raw = vlout{ii}.s.mean;
-%         tmp.matrix.emd_raw = vlout{ii}.em.mean;
-%         tmp.matrix.kl_raw  = vlout{ii}.kl.mean;
-%         tmp.matrix.jd_raw  = vlout{ii}.j.mean;
-%     end
-%     
-%     % reassign virtual lesions to paired connection array
-%     pconn{ii}.(label) = tmp;
-%     
-% end
-
 end
 
-%% internal fxns to not overflow memory in parpool
+%% internal fxns to not overflow memory
 
 function [ rmse_wVL, rmse_woVL, nFib_tract, nFib_PN, nVoxels] = feComputeVirtualLesionM(M, weights, measured_dsig, nTheta, ind_tract)
 % This function compute the rmse in a path neighborhood voxels with and

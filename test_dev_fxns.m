@@ -8,16 +8,16 @@ load_dev_data
 %[ netw, out ] = fnCreateEdges(node, fg, nname, 0, 'weights', wght);
 
 % create central tendency measures of FA for each edge
-netw = fnAverageEdgeProperty(netw, fg, fa, 'fa');
+netw = fnAveragePropertyEdges(netw, fg, fa, 'fa');
 
 % create tract profiles of FA for each edge
-netw = feTractProfilePairedConnections(netw, fg, fa, 'fa');
+netw = fnTractProfileEdges(netw, fg, fa, 'fa');
 
 % create tract shape data for each edge
-netw = fnTractCurvePairedConnections(netw, fg);
+netw = fnTractCurveEdges(netw, fg);
 
 % run virtual lesion
-netw = feVirtualLesionPairedConnections(netw, M, wght, dsig, nTheta, S0);
+netw = fnVirtualLesionEdges(netw, M, wght, dsig, nTheta, S0);
 
 % create matrix field for export of all computed edge weights
 netw = fnComputeMatrixField(netw);
