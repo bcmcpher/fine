@@ -1,4 +1,4 @@
-function [ netw ] = fnComputeMatrixEdges(netw, den, life, clobber)
+function [ netw ] = fnComputeMatrixEdges(netw, life, den, clobber)
 %fnComputeMatrixField creates the values that are assigned to adjacency
 % matrices for the pconn list object. New measures should be added here.
 %
@@ -9,19 +9,19 @@ if(~exist('clobber', 'var') || isempty(clobber))
     clobber = 0;
 end
 
-if(~exist('den', 'var') || isempty(den))
-    den = 'vol';
-end
-
 if(~exist('life', 'var') || isempty(life))
     life = [];
 end
 
-if clobber == 0 && isfield(netw.pconn{1}, 'matrix')
+if(~exist('den', 'var') || isempty(den))
+    den = 'vol';
+end
+
+if clobber == 0 && isfield(netw.edges{1}, 'matrix')
     error('Matrix field has already been computed. Set clobber to true to recompute values.');
 end
 
-if clobber == 1 && isfield(netw.pconn{1}, 'matrix')
+if clobber == 1 && isfield(netw.edges{1}, 'matrix')
     disp('Matrix field will be overwritten for every edge...');
 end
 

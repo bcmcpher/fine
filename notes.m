@@ -6,9 +6,11 @@
 %
 % export to json graph
 %
-% 
+% better check / parse names if passed during creation
 %
 % create classified fiber structure Dan wants
+%
+% create measures on diagonal self-connections
 %
 % change all display to sprintf
 %
