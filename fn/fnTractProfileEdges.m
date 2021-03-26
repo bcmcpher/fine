@@ -73,7 +73,7 @@ if(isfield(msobj, 'dt6'))
     isdt6 = 1;
     mslab = 'dt6_fa';
 else
-    disp('Computing tract profiles from volume.');
+    disp([ 'Computing tract profiles from ''' mslab ''' volume.' ]);
     isdt6 = 0;
 end
 

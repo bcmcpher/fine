@@ -84,8 +84,6 @@ end
 % check if average length is long enough for curvature values to be reasonable?
 
 % preallocate try counts
-%tcrve = cell(size(pconn, 1), 1);
-%pcsf = cell(size(pconn, 1), 1);
 tccnt = 0;
 tctry = 0;
 
