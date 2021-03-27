@@ -27,3 +27,15 @@ netw = fnComputeMatrixEdges(netw);
 
 % check the count matrix
 figure; imagesc(omat(:,:,1)); title(olab{1}); colorbar;
+
+%% scratch
+
+% dice coefficient between orig / acpc tree assignment
+dcoeff = zeros(length(net1.edges), 1);
+for ii = 1:length(net1.edges)
+    dcoeff(ii) = 2*length(intersect(net1.edges{ii}.fibers.indices, net2.edges{ii}.fibers.indices)) / (length(net1.edges{ii}.fibers.indices) + length(net2.edges{ii}.fibers.indices));
+end
+% rather different, but probably more robust?
+
+% if anatomy looks good, keep it.
+

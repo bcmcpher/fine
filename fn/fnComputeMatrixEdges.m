@@ -144,6 +144,7 @@ for conn = 1:nconn
     if isfield(edge, 'vl')
         matrix.soe_mn = edge.vl.s.mean;
         matrix.soe_sd = edge.vl.s.std;
+        matrix.soe_th = edge.vl.s.tmean;
         matrix.emd = edge.vl.em.mean;
         matrix.kld = edge.vl.kl.mean;
         matrix.jef = edge.vl.j.mean;
