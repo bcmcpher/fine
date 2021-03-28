@@ -137,6 +137,9 @@ volvx = prod(vol.pixdim);
 % grab the volume size
 volsz = size(vol.data);
 
+% get the number of fibers passed
+nfib = size(fg.fibers, 1);
+
 %% check the size of the image passed to see if it matches parcellation
 
 % print the longer warning
@@ -163,7 +166,7 @@ end
 % use data in the same resolution as the diffusion data for parcellations
 % and edge property estimates.
 if be_careful
-    warning('The volume that will be sampled is not sliced the same as the rest of the data. If this assumption is violated, the edge volumes may not map exactly to all stored dtypes.');
+    warning('The volume that will be sampled is not sliced the same as the rest of the data. If this assumption is violated, edge volumes may not map exactly to all stored dtypes.');
 end
 
 %% safety checks - exit before loop if an overwrite is expected
@@ -199,66 +202,57 @@ fprintf('Estimating white matter volume...\n');
 % transform whole brain fg into voxel space
 vfg = dtiXformFiberCoords(fg, micro_acpc2img, 'img');
 
-% pull the total number of nodes
-MAXMEM = 4000000; % max of 4gb?
-mnodes = round(MAXMEM*15000000/32000000);
-tnodes = size(horzcat(vfg.fibers{:}), 2);
-nfiber = size(vfg.fibers, 1);
-
-% split into batches like LiFE encoding
-nBatch = max([5,ceil(tnodes/mnodes)]); % number of batches
-mFiber = ceil(nfiber/nBatch); % number of fibers per batch
-
-% preallocate array for unique voxels in each streamline
-ufg = cell(nfiber, 1);
-
-% for every batch
-fprintf('Converting streamlines to voxels in batches...\n');
-for batch = 1:nBatch
-    fprintf('Encoding batch %02.f\n',batch)
-    
-    % pull the fiber range to not explode memory
-    fibers_range = (batch-1)*mFiber + 1: min(batch*mFiber,nfiber);
-    
-    % cell array to convert img space streamline nodes to the unique voxel indices
-    bat = cellfun(@(x) unique((round(x)+1)', 'rows'), vfg.fibers(fibers_range), 'UniformOutput', false);
-    
-    % cell array to fix converted voxel indices to be within volume indices
-    out = cellfun(@fixVoxelBounds, bat, repmat(mat2cell(volsz, 1, 3), [ size(fibers_range, 2) 1 ]), 'UniformOutput', false); 
-    % fixVoxelBounds defined below
-    
-    % catch the output for later use
-    ufg(fibers_range) = out;
-end
-
-% find all unique voxels across all streamlines
-coords = unique(vertcat(ufg{:}), 'rows');
-
-% % replace 0 indices w/ 1 - sanity check
-% coords(coords <= 1) = 1;
-% 
-% % replace indices exceeding max w/ max index - sanity check
-% coords(coords(:, 1) > volsz(1), 1) = volsz(1);
-% coords(coords(:, 2) > volsz(2), 2) = volsz(2);
-% coords(coords(:, 3) > volsz(3), 3) = volsz(3);
-% % these fixes match how ENCODE checks fg
-
-clear batch bat
-
 % vectorized call through streamlines rounding nodes to voxel indices
-%stvx = cellfun(@(x) unique((round(x)+1)', 'rows'), vfg.fibers, 'UniformOutput', false);
-%coords = unique(vertcat(stvx{:}), 'rows'); 
-% THIS SHOULD BE TOO BIG FOR MEMORY - SO CHUNK LIKE LiFE CODE
-% this matches the LiFE voxel ROI if the volume passed is sliced like DWI
+ufg = cellfun(@fixVoxelBounds, vfg.fibers, repmat(mat2cell(volsz, 1, 3), [ nfib 1 ]), 'UniformOutput', false);
+coords = unique(vertcat(ufg{:}), 'rows'); 
+% THIS SHOULD BE TOO BIG FOR MEMORY - SO CHUNK LIKE LiFE CODE BELOW
+% coords exactly matches the LiFE voxel ROI if the volume passed is sliced like DWI
+
+% % pull the total number of nodes
+% MAXMEM = 4000000; % max of 4gb?
+% mnodes = round(MAXMEM*15000000/32000000);
+% tnodes = size(horzcat(vfg.fibers{:}), 2);
+% nfiber = size(vfg.fibers, 1);
+% 
+% % split into batches like LiFE encoding
+% nBatch = max([5,ceil(tnodes/mnodes)]); % number of batches
+% mFiber = ceil(nfiber/nBatch); % number of fibers per batch
+% 
+% % preallocate array for unique voxels in each streamline
+% ufg = cell(nfiber, 1);
+% 
+% % for every batch
+% fprintf('Converting streamlines to voxels in batches...\n');
+% for batch = 1:nBatch
+%     fprintf('Encoding batch %02.f\n',batch)
+%     
+%     % pull the fiber range to not explode memory
+%     fibers_range = (batch-1)*mFiber + 1: min(batch*mFiber,nfiber);
+%     
+%     % cell array to fix converted voxel indices to be within volume indices
+%     out = cellfun(@fixVoxelBounds, vfg.fibers(fibers_range), repmat(mat2cell(volsz, 1, 3), [ size(fibers_range, 2) 1 ]), 'UniformOutput', false); 
+%     % fixVoxelBounds defined below
+%     
+%     % catch the output for later use
+%     ufg(fibers_range) = out;
+%     
+% end
+% 
+% % find all unique voxels across all streamlines
+% coords = unique(vertcat(ufg{:}), 'rows');
+% 
+% clear batch bat
 
 % estimate white matter volume in structure volume
 wmvox = size(coords, 1);
 wmvol = wmvox * volvx;
 netw.volume.wmvol = wmvol;
-if keep % optionally store full wm ROI
+
+% optionally store full wm ROI
+if keep 
     netw.volume.coords = coords;
 end
-clear coords % it's big otherwise...
+clear coords % it's too big otherwise...
 
 fprintf('Total white matter volume estimated at: %d mm^3.\n', wmvol);
 fprintf('Finding volume and central tendency of ''%s'' for all edges...\n', name);
@@ -324,8 +318,13 @@ disp([ 'Found the volume and central tendency of ' name ' for all edges in ' num
 
 end
 
+%% function to facilitate vectorized call across streamlines
+
 % a function to vectorize the correction of rounded voxels to be w/in volume indices
 function [ coords ] = fixVoxelBounds(coords, volsz)
+
+% convert streamline coords in img space to voxel indices like LiFE does
+coords = unique((round(coords)+1)', 'rows');
 
 % replace 0 indices w/ 1 - sanity check
 coords(coords <= 1) = 1;

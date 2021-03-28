@@ -4,8 +4,8 @@
 load_dev_data
 
 % create an initial network output
-[ netw, out ] = fnCreateEdges(lobe, fg, lname, 0, 'weights', wght);
-%[ netw, out ] = fnCreateEdges(node, fg, nname, 0, 'weights', wght);
+[ netw, out ] = fnCreateEdges(lobe, fg, lname, 2, 0, 'weights', wght);
+%[ netw, out ] = fnCreateEdges(node, fg, nname, 2, 0, 'weights', wght);
 
 % create central tendency measures of FA for each edge
 netw = fnAveragePropertyEdges(netw, fg, fa, 'fa');
