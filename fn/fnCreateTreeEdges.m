@@ -1,4 +1,4 @@
-function [ netw, out ] = fnCreateTreeEdges(parc, fg, maxd, names, minNum, varargin)
+function [ netw, out ] = fnCreateTreeEdges(parc, fg, names, maxdist, minNum, varargin)
 %feCreatePairedConnections creates pconn object of every possible unique pair of 
 % of labels in a parcellation w/ streamlines from fibers object.
 %
@@ -56,8 +56,8 @@ if size(fg.fibers{1}, 1) ~= 3
 end
 
 % set a default maximum distance in mm an endpoint can be from a node.
-if(~exist('maxd', 'var') || isempty(maxd))
-    maxd = 4; % mrtrix3 uses 4
+if(~exist('maxdist', 'var') || isempty(maxdist))
+    maxdist = 4; % mrtrix3 uses 4
 end
 
 % by default don't enforce a minimum number of streamlines for an edge to get stored
@@ -67,7 +67,7 @@ end
 
 %% extract fiber endpoints and parcellation points in acpc space
 
-disp('Converting parcellation labels to AC-PC space...');
+disp('Extracting parcellation information...');
 
 % catch xform matrices from parcellation
 parc_acpc2img = niftiGet(parc, 'qto_ijk');
@@ -84,6 +84,8 @@ labels = unique(parc.data);
 labels = labels(labels > 0);
 nlabels = size(labels, 1);
 
+%% confirm some correspondance between labels in parc and names
+
 % check against what labels should exist in case a label is missing?
 % - that's a pain and should be caught before this point, frankly...
 
@@ -99,6 +101,8 @@ if(length(names) ~= nlabels)
     names = cell(size(labels));
 end
 
+%% extract the labels for each entry in parc
+
 % pull all the non-zero label voxels from parcellation
 pidx = parc.data(:) > 0;
 
@@ -111,34 +115,59 @@ pval = parc.data(pidx);
 % turn the indices into the cooresponding image coordinates
 [ i, j, k ] = ind2sub(dsize, find(pidx));
 
-% convert i/j/k coordiates of parcellation data to AC-PC space
-pdat = mrAnatXformCoords(parc_img2acpc, [ i j k ]);
+% create the voxel coordinate matrix of all pval labels
+pijk = [ i, j, k ];
+    
+% if no distance is allowed, map streamlines to voxels (orig functionality)
+if maxdist == 0
+    
+    disp('Assigning streamline endpoints directly to voxels...');
+    
+    % convert acpc fibers to parcellation space
+    ifg = dtiXformFiberCoords(fg, parc_acpc2img, 'img');
+    
+    % get endpoints side by side in a [ nfib x 6 ] matrix
+    ec = cell2mat(cellfun(@(x) [ x(:,1)' x(:,end)' ], ifg.fibers, 'UniformOutput', false));
+    
+    % stack the endpoints into a single vector
+    ep = round([ ec(:,1:3); ec(:,4:6) ]) + 1;
+    
+    % assign the voxel coordinates for building the kdtree
+    pdat = pijk;
+    
+% otherwise, map parcellation to acpc coords for distance alignment to ep
+else
+    
+    disp(['Assigning streamline endpoints to nearest label within ' num2str(maxdist) ' mm...']);
+    
+    % get endpoints side by side in a [ nfib x 6 ] matrix
+    ec = cell2mat(cellfun(@(x) [ x(:,1)' x(:,end)' ], fg.fibers, 'UniformOutput', false));
+    
+    % stack the endpoints into a single vector
+    ep = [ ec(:,1:3); ec(:,4:6) ];
+        
+    % convert i/j/k coordiates of parcellation data to AC-PC space
+    pdat = mrAnatXformCoords(parc_img2acpc, pijk);
+        
+end
 
-clear pidx i j k
+disp('Assigning streamlines to parcellation labels...');
 
 % create the kdtree for assignment of endpoints to labels
 ns = createns(pdat, 'nsmethod', 'kdtree');
 
-disp('Computing length of every streamline in fg...')
-fblen = cellfun(@(x) sum(sqrt(sum((x(:, 1:end-1) - x(:, 2:end)) .^ 2))), fg.fibers, 'UniformOutput', true);
-
-disp('Assigning streamlines to parcellation labels...');
-
-% pull all endpoints from fg in an elegant enough way
-ep = cell2mat(cellfun(@(x) [ x(:,1)' x(:,end)' ], fg.fibers, 'UniformOutput', false));
-ep = [ ep(:,1:3); ep(:,4:6) ];
-
 % get a cellarray of sorted label indices w/in mdist of endpoints
-idx = rangesearch(ns, ep, maxd, 'SortIndices', true);
+idx = rangesearch(ns, ep, maxdist, 'SortIndices', true);
 
 % fill empty indices with a single 0 - makes it easier to iterate over
 idx(cellfun(@isempty, idx)) = {0};
 
-% pull the endpoint values and increment by 1 
+% pull the endpoint values and increment by 1
 epi = cellfun(@(x) x(1), idx) + 1; % zero (empty indices) become 1
 
-% add zero value for unassigned endpoints (index 1 becomes an empty code)
-epvl = [ 0; pval ]; 
+% add zero as first index of values for unassigned endpoints 
+% index 1 becomes an empty code (0)
+epvl = [ 0; pval ];
 
 % grab all endpoint labels, 0 is empty
 epv = epvl(epi);
@@ -147,8 +176,8 @@ epv = epvl(epi);
 epv1 = epv(1:nfib);
 epv2 = epv(nfib+1:end);
 
-clear fib idx ep ep1 ep2 epi epvl epv
-% ep/epv useful for inspecting the assignment plot
+clear pidx i j k fib idx ec ep1 ep2 epi epvl
+clear ep epv % ep/epv useful for inspecting the assignment plot below
 
 % % display assigned / unassigned streamlines next to parc in ac-pc space
 % epa = epv ~= 0; epm = epv == 0;
@@ -158,6 +187,9 @@ clear fib idx ep ep1 ep2 epi epvl epv
 % plot3(ep(epm,1), ep(epm,2), ep(epm,3), '+', 'Color', [ 0.75 0 0 ], 'MarkerSize', 2);
 % axis image; set(gca, 'Zlim', [ 10 15 ]);
 
+disp('Computing the length of every streamline in fg...')
+fblen = cellfun(@(x) sum(sqrt(sum((x(:, 1:end-1) - x(:, 2:end)) .^ 2))), fg.fibers, 'UniformOutput', true);
+
 %% store in the network object for reference
 
 netw.parc.xform.acpc2img = parc_acpc2img;
@@ -165,6 +197,7 @@ netw.parc.xform.img2acpc = parc_img2acpc;
 netw.parc.dsize = dsize;
 netw.parc.voxmm = dvoxmm;
 netw.parc.labels = labels;
+netw.parc.maxdist = maxdist;
 netw.volume.parc = gmvol;
 
 %% catch data about nodes
@@ -176,54 +209,54 @@ dfib = zeros(length(labels), 1);
 dcnt = zeros(length(labels), 1);
 
 % for every node, assign values volume and duplicate streamline info
-for lab = 1:nlabels
+for node = 1:nlabels
     
     % catch info about the labels
-    nodes{lab}.name = names(lab);
-    nodes{lab}.label = labels(lab);
-    nodes{lab}.size = sum(pval == labels(lab));
-    nodes{lab}.volume = nodes{lab}.size * prod(dvoxmm);
-    nodes{lab}.prop = nodes{lab}.volume / gmvol;
+    nodes{node}.name = names(node);
+    nodes{node}.label = labels(node);
+    nodes{node}.size = sum(pval == labels(node));
+    nodes{node}.volume = nodes{node}.size * prod(dvoxmm);
+    nodes{node}.prop = nodes{node}.volume / gmvol;
     
     % grab logical of index assignments
-    epl1 = epv1 == labels(lab);
-    epl2 = epv2 == labels(lab);
+    epl1 = epv1 == labels(node);
+    epl2 = epv2 == labels(node);
     
     % find when both endpoints of a streamline are in the node
     beps = find(epl1 & epl2);
-    nodes{lab}.botheps.indices = beps;
-    nodes{lab}.botheps.length = fblen(beps);
+    nodes{node}.botheps.indices = beps;
+    nodes{node}.botheps.length = fblen(beps);
     
     % catch all values for streamlines with both eps
     for jj = 1:size(nam, 2) 
-        nodes{lab}.botheps.(nam{jj}) = val{jj}(beps);
+        nodes{node}.botheps.(nam{jj}) = val{jj}(beps);
     end
-    dfib(lab) = size(beps, 1);
+    dfib(node) = size(beps, 1);
     
     % keep track of labels with both end points of streamlines 
     if ~isempty(beps)
-        dcnt(lab) = labels(lab);
+        dcnt(node) = labels(node);
     end
         
     % create ROI center in image and acpc space
-    center = mean(pdat(pval == labels(lab),:));
-    nodes{lab}.center.img = round(mrAnatXformCoords(parc_acpc2img, center)) + 1;
-    nodes{lab}.center.acpc = center;
+    center = mean(pijk(pval == labels(node),:));
+    nodes{node}.center.img = round(center);
+    nodes{node}.center.acpc = mrAnatXformCoords(parc_img2acpc, center);
     
     % if there are not any endpoints in this label, throw a warning
     if ~any(epl1 | epl2)
-        warning(['ROI label ' num2str(labels(lab)) ' has no streamline terminations.']);
+        warning(['ROI label ' num2str(labels(node)) ' has no streamline terminations.']);
     end
     
     % total fibers assigned to an endpoint
-    tfib(lab) = sum(epl1) + sum(epl2) - dfib(lab);
+    tfib(node) = sum(epl1) + sum(epl2) - dfib(node);
     
 end
 
 disp([ 'Successfully assigned ' num2str(sum(tfib)) ' of ' num2str(2*nfib) ' terminations.' ]);
 disp([ num2str(length(dcnt)) ' ROIs had both terminations of ' num2str(sum(dfib)) ' total streamlines.']);
 
-clear ii jj epl1 epl2 beps center
+clear node jj epl1 epl2 beps center
 
 % assign nodes array to output
 netw.nodes = nodes;
@@ -236,9 +269,9 @@ netw.parc.pairs = pairs;
 nedges = size(pairs, 1);
 
 % preallocate paired connection object
-edges = cell(length(pairs), 1);
-tcon = zeros(length(pairs), 1);
-ncon = zeros(length(pairs), 1);
+edges = cell(nedges, 1);
+tcon = zeros(nedges, 1);
+ncon = zeros(nedges, 1);
 
 disp('Building network edges...');
 
@@ -277,7 +310,7 @@ for edge = 1:nedges
     
 end
 
-clear ii jj roi1 roi2 epe1 epe2
+clear edge jj roi1 roi2 epe1 epe2
 
 % store edges in network
 netw.edges = edges;
@@ -292,11 +325,11 @@ out.streamlines.total = nfib;
 
 % end point summaries
 out.ep.total = sum(tfib);
-out.ep.possible = out.ep.total / (nfib * 2);
+out.ep.possible = nfib * 2;
 
 % connection summaries
 out.conn.total = sum(ncon);
-out.conn.possible = size(edges, 1);
+out.conn.possible = nedges;
 
 % within node connection summary
 out.dupf.count = sum(dfib);
