@@ -39,4 +39,9 @@ end
 % rather different, but probably more robust?
 
 % if anatomy looks good, keep it.
-
+tfg = fg.fibers(tnet.edges{2}.fibers.indices);
+figure; hold on
+for ii = 1:size(tfg, 1)
+    plot3(tfg{ii}(1,:), tfg{ii}(2,:), tfg{ii}(3,:), 'red');
+end
+clear tfg ii
