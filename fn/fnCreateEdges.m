@@ -1,4 +1,4 @@
-function [ netw, out ] = fnCreateTreeEdges(parc, fg, names, maxdist, minNum, varargin)
+function [ netw, out ] = fnCreateEdges(parc, fg, names, maxdist, minNum, varargin)
 %feCreatePairedConnections creates pconn object of every possible unique pair of 
 % of labels in a parcellation w/ streamlines from fibers object.
 %
@@ -245,7 +245,7 @@ for node = 1:nlabels
     
     % if there are not any endpoints in this label, throw a warning
     if ~any(epl1 | epl2)
-        warning(['ROI label ' num2str(labels(node)) ' has no streamline terminations.']);
+        warning(['Node label ' num2str(labels(node)) ' has no streamline terminations.']);
     end
     
     % total fibers assigned to an endpoint
@@ -254,7 +254,7 @@ for node = 1:nlabels
 end
 
 disp([ 'Successfully assigned ' num2str(sum(tfib)) ' of ' num2str(2*nfib) ' terminations.' ]);
-disp([ num2str(length(dcnt)) ' ROIs had both terminations of ' num2str(sum(dfib)) ' total streamlines.']);
+disp([ num2str(length(dcnt)) ' nodes had both terminations of ' num2str(sum(dfib)) ' total streamlines.']);
 
 clear node jj epl1 epl2 beps center
 
