@@ -60,7 +60,7 @@ if(~exist('minNum', 'var') || isempty(minNum))
 end
 
 if(~exist('clobber', 'var') || isempty(clobber))
-    clobber = 0;
+    clobber = false;
 end
 
 if(clobber == 1)
@@ -81,7 +81,7 @@ end
 % faster exit from function if things shouldn't be recomputed.
 if isfield(netw.edges{1}, 'profile')
     disp('Some profiles have already been computed.');
-    if isfield(netw.edges{1}.profile, mslab) && clobber == 0
+    if isfield(netw.edges{1}.profile, mslab) && ~clobber
         error('Tract profiles with ''%s'' label already exist.\nSet clobber to 1 to explicitly overwrite the pre-existing profile(s).', mslab);
     end
 end
@@ -135,12 +135,16 @@ for ii = 1:size(pconn, 1)
             edge.superfiber.name = sf_name;
         end
         
+        % create the center of the average profile
+        cfib = cat(3, tfg.fibers{:});
+        edge.profile.center = mean(cfib, 3);
+        
         % if the variance of the streamlines distance is far, too many
         % streamlines are dropped to reliably compute profile, so try / catch
         try
-            
+                        
             if(isdt6)
-                
+                                
                 % compute all the tract profiles for a dt6
                 [ edge.profile.dt6_fa, edge.profile.dt6_md, edge.profile.dt6_rd, ...
                   edge.profile.dt6_ad, edge.profile.dt6_cl, ~, ~, ...
@@ -186,6 +190,9 @@ for ii = 1:size(pconn, 1)
             % edge.fibers = structfun(@(x) [], edge.fibers, 'UniformOutput', false);
             % there's a bunch of other potentially non-zero fields though...
         end
+        
+        % fill in an empty average profile, even if it's not truly empty
+        edge.profile.center = [];
         
         % fill in empty dt6 fields
         if(isdt6)
