@@ -1,4 +1,4 @@
-function [ netw ] = fnVirtualLesionEdges(netw, M, weights, dsig, nTheta, S0, nbin, clobber)
+function [ netw ] = fnVirtualLesionEdges(netw, M, weights, dsig, nTheta, S0, nbins, nmc, nboots, thr, clobber)
 %feVirtualLesionPairedConnections runs virtual lesion on all edges store in pconn.
 %
 % INPUTS:
@@ -53,11 +53,11 @@ function [ netw ] = fnVirtualLesionEdges(netw, M, weights, dsig, nTheta, S0, nbi
 %
 
 if(~exist('clobber', 'var') || isempty(clobber))
-    clobber = 0;
+    clobber = false;
 end
 
 % check if vl already exists, requires clobber to be set to true to rerun
-if(isfield(netw.parc, 'vl') && clobber == 0)
+if(isfield(netw.parc, 'vl') && ~clobber)
     error('Virtual lesions already exist. Please set clobber to 1 to explicitly overwrite existing values.');
 end
 
@@ -73,12 +73,27 @@ else
     disp('Computing virtual lesions on demeaned diffusion signal.');
 end
 
-if(~exist('nbin', 'var') || isempty(nbin))
-    nbin = 128;    
+if(~exist('nbin', 'var') || isempty(nbins))
+    nbins = 128;    
 end
 
-% store nbin as vl parameter
-netw.vl.nbin = nbin;
+if(~exist('nmc', 'var') || isempty(nmc))
+    nmc = 5;
+end
+
+if(~exist('nboots', 'var') || isempty(nboots))
+    nboots = 250; 
+end
+
+if(~exist('thr', 'var') || isempty(thr))
+    thr = 0.05; 
+end
+
+% store vl parameters in network object
+netw.vl.nbin = nbins;
+netw.vl.nmc = nmc;
+netw.vl.nboots = nboots;
+netw.vl.thr = thr;
 
 % preallocate virtual lesion output
 vlcnt = 0;
@@ -87,21 +102,29 @@ vltry = 0;
 % extract the edge list
 pconn = netw.edges;
 
-disp(['Computing virtual lesion on a possible ' num2str(size(pconn, 1)) ' edges...']);
+% I need a better estimate of time - use this for now
+if isfield(pconn{1}.fibers, 'weights')
+    wconn = cellfun(@(x) any(x.fibers.weights > 0), pconn);
+    disp(['Computing ' num2str(sum(wconn)) ' virtual lesions of a possible ' num2str(size(pconn, 1)) ' edges...']);
+else
+    disp(['Computing virtual lesions on a possible ' num2str(size(pconn, 1)) ' edges...']);
+end
 
 tic;
 for ii = 1:size(pconn, 1)
     
-    % pull the edge and weights
+    % pull the edge and weights from passed vector
+    % - could rely on stored weights, but likely to cause confusion
     edge = pconn{ii};
     wght = weights(edge.fibers.indices);
     
-    % if the weights field is mepty
-    if sum(wght) == 0
+    % if there is not any weight greater than 0
+    if ~any(wght > 0)
         
         % set to zero and continue
         edge.vl.s.mean  = 0;
         edge.vl.s.std   = 0;
+        edge.vl.s.tmean = 0;
         edge.vl.em.mean = 0;
         edge.vl.j.mean  = 0;
         edge.vl.kl.mean = 0;
@@ -112,42 +135,35 @@ for ii = 1:size(pconn, 1)
         keep = wght > 0;
         indx = edge.fibers.indices(keep);
         
-        if(norm)
-            
-            try
+        % safely run b/c this is touchy at times
+        try
+            if(norm)                
                 % compute a normalized virtual lesion
                 [ ewVL, ewoVL ] = feComputeVirtualLesionM_norm(M, weights, dsig, nTheta, indx, S0);
-                edge.vl = feComputeEvidence(ewoVL, ewVL, nbin); 
-                vlcnt = vlcnt + 1;
-            catch
-                vltry = vltry + 1;
-                edge.vl.s.mean  = 0;
-                edge.vl.s.std   = 0;
-                edge.vl.em.mean = 0;
-                edge.vl.j.mean  = 0;
-                edge.vl.kl.mean = 0;
-            end
-            
-        else
-            
-            try
-                % compute a raw virtual lesion
+            else
+                % compute the raw virtual lesion
                 [ ewVL, ewoVL ] = feComputeVirtualLesionM(M, weights, dsig, nTheta, indx);
-                edge.vl = feComputeEvidence(ewoVL, ewVL, nbin);
-                vlcnt = vlcnt + 1;
-            catch
-                vltry = vltry + 1;
-                edge.vl.s.mean  = 0;
-                edge.vl.s.std   = 0;
-                edge.vl.em.mean = 0;
-                edge.vl.j.mean  = 0;
-                edge.vl.kl.mean = 0;
             end
+            
+            % compute evidence based on virtual lesion
+            edge.vl = feComputeEvidence_new(ewoVL, ewVL, nbins, nmc, nboots, thr);
+            vlcnt = vlcnt + 1;
+            
+        catch
+            
+            % add to try count and fill in nan not 0
+            vltry = vltry + 1;
+            edge.vl.s.mean  = nan;
+            edge.vl.s.std   = nan;
+            edge.vl.s.tmean = nan;
+            edge.vl.em.mean = nan;
+            edge.vl.j.mean  = nan;
+            edge.vl.kl.mean = nan;
             
         end
         
     end
-    
+        
     % reassign edge w/ computed virtual lesion
     pconn{ii} = edge;
     
