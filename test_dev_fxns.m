@@ -8,10 +8,11 @@ load_dev_data
 %[ netw, out ] = fnCreateEdges(node, fg, nname, 2, 0, 'weights', wght);
 
 % create central tendency measures of FA for each edge
-netw = fnAveragePropertyEdges(netw, fg, fa, 'fa');
+netw = fnAveragePropertyEdges(netw, fg, fa, 'fa', true);
 
 % create tract profiles of FA for each edge
 netw = fnTractProfileEdges(netw, fg, fa, 'fa');
+netw = fnTractProfileEdges(netw, fg, dt6, 'dt6');
 
 % create tract shape data for each edge
 netw = fnTractCurveEdges(netw, fg);

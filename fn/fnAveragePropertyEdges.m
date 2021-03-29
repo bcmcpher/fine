@@ -61,11 +61,11 @@ if(~exist('keep', 'var') || isempty(keep))
 end
 
 if(~exist('clobv', 'var') || isempty(clobv))
-    clobv = 0;
+    clobv = false;
 end
 
 if(~exist('clobd', 'var') || isempty(clobd))
-    clobd = 0;
+    clobd = false;
 end
 
 if(isfield(vol, 'dt6'))
@@ -176,7 +176,7 @@ write_vol = true;
 
 % logic to stop volume rewrite
 if isfield(netw.volume, 'wmvol')
-    if (isfield(netw.volume, 'wmvol') && clobv ~= 1)
+    if (isfield(netw.volume, 'wmvol') && ~clobv)
         warning('Volumes for these edges are already computed. Set clobv = 1 to recompute.');
         write_vol = false;
     else      
@@ -187,7 +187,7 @@ end
 % more strictly stop dtype label redos - this doesn't change on accident
 if isfield(netw.edges{1}, 'micros')
     if isfield(netw.edges{1}.micros, dtype)
-        if clobd ~= 1
+        if ~clobd
             error('Central tendencies for this edge label are already computed. Set clobd = 1 to recompute.');
         else
             warning('Edge central tendency has been previously estimated. clobd set to overwrite previously estimated values.');

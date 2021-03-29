@@ -108,8 +108,8 @@ for ii = 1:size(pconn, 1)
         [ tfg, epi ] = dtiReorientFibers(tfg, nnodes); % in theory don't have to resample
       
         % pull roi centers in acpc space
-        roi1 = netw.nodes{r1_idx}.centroid.acpc';
-        roi2 = netw.nodes{r2_idx}.centroid.acpc';
+        roi1 = netw.nodes{r1_idx}.center.acpc';
+        roi2 = netw.nodes{r2_idx}.center.acpc';
         
         % find the distance between the start of the profile and each roi center
         epi_roi1 = norm(epi - roi1);
