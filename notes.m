@@ -14,6 +14,8 @@
 % - basic crossection info on what edges make a fascicle
 % - plot of network with edges contributing to fascicles highlighted over
 %
+% a fxn to prune netw to only LiFE weighted streamlines
+%
 % create measures on diagonal self-connections
 %
 % change all display to sprintf

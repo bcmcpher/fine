@@ -1,4 +1,4 @@
-function [ fh ] = fnPlotBrainNetwork(centers, cl, sz, mat, eprp, label, scale)
+function [ fh ] = fnRenderBrainNetwork(centers, cl, sz, mat, eprp, label, scale)
 %fh = fnPlotBrainNetwork(centers, cl, sz, mat, eprp, label, scale); 
 %takes output from the FiNE tools and creates a ball and stick brain-shaped
 %network summary of the data.
