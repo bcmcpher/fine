@@ -18,7 +18,7 @@ end
 nnodes = size(tptens, 3);
 
 % find maximum number of modules
-nmod = size(unique(srt), 2);
+nmod = length(unique(srt));
 
 % create empty output matrix
 mnten = nan(nmod, nmod, nnodes);
@@ -53,18 +53,10 @@ for ii = 1:size(pairs, 1)
     
     % subset the input matrix by modules
     Mij = tptens(iind, jind, :);
-    
-    % find upper diagonal (between modules)
-    Mud = nchoosek(1:size(Mij, 1), 2);
-    
-    % find diagonal (within modules)
-    Mdg = [ 1:size(Mij, 1); 1:size(Mij, 1) ]';
-    
-    % combine the module indices to compare
-    tpPairs = [ Mdg; Mud ];
-    
-    % sort into upper diagonal indices
-    tpPairs = sortrows(tpPairs, [ 1 2 ]);
+
+    % pull the indices of the matrix (not necessarily symmetric)
+    [ x1, y1 ] = ind2sub(size(Mij, [ 1 2 ]), 1:prod(size(Mij,[ 1 2 ])));
+    tpPairs = [ x1', y1' ];
     
     % reshape into profile in module x 100 matrix
     Mpf = nan(size(tpPairs, 1), nnodes);

@@ -4,7 +4,7 @@ function [ Mden, Mden_in, Mden_bw, Mden_in_lo, Mden_bw_hi ] = fnModuleDensity(M,
 %
 % INPUTS:
 %     M      - input matrix to compute modules for
-%     ci     - vector assigning nodes of M to modules
+%     ci     - vector of module membership for nodes in M
 %     method - how edges are summarized within modules. 
 %              Either:
 %                  'mean' - the average of the edge weights in the modules
@@ -22,7 +22,6 @@ function [ Mden, Mden_in, Mden_bw, Mden_in_lo, Mden_bw_hi ] = fnModuleDensity(M,
 %   
 % TODO:
 % - other 'method' options?
-% - default arguments
 %
 % EXAMPLE:
 %
@@ -46,12 +45,20 @@ function [ Mden, Mden_in, Mden_bw, Mden_in_lo, Mden_bw_hi ] = fnModuleDensity(M,
 % Olaf Sporns and Brent McPherson (c), 2017 - Indiana University
 %
 
+if(~exist('ci', 'var') || isempty(ci))
+    error('Module values cannot be estimated without an assignment vector.');
+end
+
+if(~exist('method', 'var') || isempty(method))
+    method = 'mean';
+end
+
 if(~exist('flag', 'var') || isempty(flag))
-    flag = 1;
+    flag = true;
 end
 
 % determine the number of modules
-mnum = max(ci);
+mnum = size(unique(ci), 1);
 
 % create empty output matrix
 Mden = zeros(mnum);
@@ -72,7 +79,7 @@ for i = 1:mnum
         Mij = M(iind, jind);
         
         % if its the same module and main diagonal is not discounted
-        if ((i == j) && (flag == 0))
+        if ((i == j) && ~flag)
             
             % it's just the subset 
             Mij = M(iind, jind);
@@ -80,7 +87,7 @@ for i = 1:mnum
         end
         
         % if it's the same module and the main diagonal is discounted
-        if ((i == j) && (flag == 1))
+        if ((i == j) && flag)
             
             % subset input matrix by modules
             Mij = M(iind, jind);

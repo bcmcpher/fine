@@ -1,4 +1,4 @@
-function [ vmat, olab, indx, pcmodl ] = fnModuleVirtualLesion(fe, pconn, label, srt, norm)
+function [ vmat, olab, indx, pcmodl ] = fnModuleVirtualLesion(netw, srt, labs, M, weights, dsig, nTheta, S0, nbins, nmc, nboots, thr)
 %fnModuleVirtualLesion() perfurms virtual lesion on all connections within
 % or between a network module(s).
 %   
@@ -25,30 +25,58 @@ function [ vmat, olab, indx, pcmodl ] = fnModuleVirtualLesion(fe, pconn, label, 
 %
 % Brent McPherson, (c) 2017, Indiana University
 %
+% TODO
+% - can the logic be cleaned up to be more clear
+% - more useful printing updates out
+%
 
-% parse optional vl normalization arguments
-if(~exist('norm', 'var') || isempty(norm))
+% are these interesting / necessary?
+if(~exist('labs', 'var') || isempty(labs))
+    labs = cell(size(netw.node));    
+end
+
+% parse optional arguments to determine if regular or normed vl is run
+if(~exist('S0', 'var') || isempty(S0))
+    S0 = [];
     norm = 0;
-    disp('Computing raw virtual lesion.');
+    disp('Computing virtual lesions on raw diffusion signal.');
 else
     norm = 1;
-    disp('Computing normalized virtual lesion.');
+    disp('Computing virtual lesions on demeaned diffusion signal.');
 end
+
+if(~exist('nbin', 'var') || isempty(nbins))
+    nbins = 128;    
+end
+
+if(~exist('nmc', 'var') || isempty(nmc))
+    nmc = 5;
+end
+
+if(~exist('nboots', 'var') || isempty(nboots))
+    nboots = 250; 
+end
+
+if(~exist('thr', 'var') || isempty(thr))
+    thr = 0.05; 
+end
+
+%% begin pulling data
 
 % compute the size of node assignments and the number of connections
-szsrt = size(srt, 1);
-szpcn = size(pconn, 1);
-
-% recreate pconn indices to grab labels correctly
-pcindx = nchoosek(1:szsrt, 2);
-
-% size of reconstructed pconn indices
-szpci = size(pcindx, 1);
+szsrt = length(srt);
+nnodes = size(netw.nodes, 1);
 
 % error if the wrong number of labels is passed
-if szpci ~= szpcn
+if szsrt ~= nnodes
     error('The number of nodes assigned to modules does not match the number of nodes in the network.');
 end
+
+% pull the edge pairs object
+pcindx = netw.parc.pairs;
+
+% size of pairs object
+szpci = size(pcindx, 1);
 
 % find maximum number of modules
 nmod = size(unique(srt), 1);
@@ -62,6 +90,8 @@ diag = [ 1:nmod; 1:nmod ]';
 % combine the module indices to compare
 pairs = [ diag; uprd ];
 
+clear diag uprd
+
 % size of unique module combinations
 szprs = size(pairs, 1);
 
@@ -71,7 +101,7 @@ disp(['Assigning all connections to one of ' num2str(szprs) ' unique modules...'
 pcmodl = nan(szpci, 1);
 
 % catch labels corresponding to module index
-indx = repmat({struct('mod1', [], 'mod2', [], 'indices', [], 'lengths', [], 'weights', [])}, [szprs, 1]);
+indx = repmat({struct('mod1', [], 'mod2', [], 'indices', [])}, [szprs, 1]);
 
 % grab module assignment of every connection
 for conn = 1:szpci
@@ -97,9 +127,7 @@ for conn = 1:szpci
     indx{mod}.mod2 = pairs(mod, 2);
     
     % grab the indices / lengths / weights for every streamline in each connection
-    indx{mod}.indices = [ indx{mod}.indices; pconn{conn}.(label).indices ];
-    indx{mod}.lengths = [ indx{mod}.lengths; pconn{conn}.(label).lengths ];
-    indx{mod}.weights = [ indx{mod}.weights; pconn{conn}.(label).weights ];
+    indx{mod}.indices = [ indx{mod}.indices; netw.edges{conn}.fibers.indices ];
     
 end
 
@@ -132,9 +160,9 @@ clear tcon tfib mod nconn nfib
 
 disp(['Computing virtual lesion for every one of ' num2str(size(indx, 1)) ' network modules...']);
 
-parfor vl = 1:szprs
+for vl = 1:szprs
     
-    if all(indx{vl}.weights == 0)
+    if all(weights(indx{vl}.indices) == 0)
         
         warning('Connection %d has no positive weighted streamlines. VL not computed.', vl)
         indx{vl}.vl.em.mean = 0;
@@ -149,11 +177,11 @@ parfor vl = 1:szprs
     % compute virtual lesion as either raw or normalized
     switch norm
         case 0
-            [ wVL, woVL ] = feComputeVirtualLesion(fe, indx{vl}.indices);
-            indx{vl}.vl = feComputeEvidence(woVL, wVL);
+            [ wVL, woVL ] = feComputeVirtualLesionM(M, weights, dsig, nTheta, indx{vl}.indices);
+            indx{vl}.vl = feComputeEvidence_new(woVL, wVL, nbins, nmc, nboots, thr);
         case 1
-            [ wVL, woVL ] = feComputeVirtualLesion_norm(fe, indx{vl}.indices);
-            indx{vl}.vl = feComputeEvidence_norm(woVL, wVL);
+            [ wVL, woVL ] = feComputeVirtualLesionM_norm(M, weights, dsig, nTheta, indx{vl}.indices, S0);
+            indx{vl}.vl = feComputeEvidence_new(woVL, wVL, nbins, nmc, nboots, thr);
         otherwise
             error('Bad VL normalization call that can''t happen?');
     end
@@ -185,3 +213,136 @@ olab = {'EMD', 'SOE', 'KLD', 'JfD'};
 
 end
 
+%% internal fxns to not overflow memory
+
+function [ rmse_wVL, rmse_woVL, nFib_tract, nFib_PN, nVoxels] = feComputeVirtualLesionM(M, weights, measured_dsig, nTheta, ind_tract)
+% This function compute the rmse in a path neighborhood voxels with and
+% without Virtual Lesion
+%
+% This function with name ending in M attempts to use only the sparse tensor as input not the full FE strcuture. 
+%
+% INPUTS:
+% fe: fe structure
+% ind1: indices to fibers in the tract to be virtually lesioned
+%
+%  Copyright (2016), Franco Pestilli (Indiana University) - Cesar F. Caiafa (CONICET)
+%  email: frakkopesto@gmail.com and ccaiafa@gmail.com
+
+% ind_nnz = find(fe.life.fit.weights);
+% ind_tract = ind_nnz(ind1);
+
+% We want to find which voxels that a group of fibers crosses.
+[inds, ~] = find(M.Phi(:,:,ind_tract)); % find nnz entries of subtensor
+voxel_ind = unique(inds(:,2)); clear inds
+[inds, ~] = find(M.Phi(:,voxel_ind,:));
+val       = unique(inds(:,3));
+val       = setdiff(val,ind_tract);
+ind_nnz   = find(weights);
+ind2      = intersect(ind_nnz,val);
+
+nFib_tract = length(ind_tract);
+nFib_PN    = length(ind2);
+
+% Compute rmse restricted to Path neighborhood voxels without Virtual Lesion
+measured_dsig = measured_dsig(:,voxel_ind);
+
+% Restrict tensor model to the PN voxels
+M.Phi   = M.Phi(:,voxel_ind,:);
+nVoxels = size(M.Phi,2);
+
+% Generate predicted signal and model error with the full-unleasioned model
+w_woVL         = weights;
+Mw             =  M_times_w(M.Phi.subs(:,1), ...
+                            M.Phi.subs(:,2), ...
+                            M.Phi.subs(:,3), ...
+                            M.Phi.vals, ...
+                            M.DictSig, ...
+                            w_woVL, ...
+                            nTheta, ...
+                            nVoxels);
+predicted_woVL = reshape(Mw, size(measured_dsig));
+rmse_woVL      = sqrt(mean(( measured_dsig - predicted_woVL ).^2 ,1));
+
+% Generate predicted signal and model error with the leasioned model
+w_VL            = weights;
+w_VL(ind_tract) = 0;
+Mw = M_times_w(M.Phi.subs(:,1), ...
+               M.Phi.subs(:,2), ...
+               M.Phi.subs(:,3), ...
+               M.Phi.vals, ...
+               M.DictSig, ...
+               w_VL, ...
+               nTheta, ...
+               nVoxels);
+predicted_VL = reshape(Mw,size(measured_dsig));
+rmse_wVL     = sqrt(mean(( measured_dsig - predicted_VL ).^2 ,1));
+
+end
+
+function [ rmse_wVL, rmse_woVL, nFib_tract, nFib_PN, nVoxels] = feComputeVirtualLesionM_norm(M, weights, measured_dsig, nTheta, ind_tract, S0)
+% This function compute the rmse in a path neighborhood voxels with and
+% without Virtual Lesion while correcting for the mean diffusion signal
+%
+% This function with name ending in M attempts to use only the sparse tensor as input not the full FE strcuture. 
+%
+% INPUTS:
+% fe: fe structure
+% ind1: indices to fibers in the tract to be virtually lesioned
+%
+%  Copyright (2016), Franco Pestilli (Indiana University) - Cesar F. Caiafa (CONICET)
+%  email: frakkopesto@gmail.com and ccaiafa@gmail.com
+
+% ind_nnz = find(fe.life.fit.weights);
+% ind_tract = ind_nnz(ind1);
+
+% We want to find which voxels that a group of fibers crosses.
+[inds, ~]  = find(M.Phi(:,:,ind_tract)); % find nnz entries of subtensor
+voxel_ind  = unique(inds(:,2)); clear inds
+[inds, ~]  = find(M.Phi(:,voxel_ind,:));
+val        = unique(inds(:,3));
+val        = setdiff(val,ind_tract);
+ind_nnz    = find(weights);
+ind2       = intersect(ind_nnz,val);
+
+S0 = S0(voxel_ind);
+
+nFib_tract = length(ind_tract);
+nFib_PN    = length(ind2);
+
+% Compute rmse restricted to Path neighborhood voxels without Virtual Lesion
+measured_dsig = measured_dsig(:,voxel_ind);
+
+% Restrict tensor model to the PN voxels
+M.Phi   = M.Phi(:,voxel_ind,:);
+nVoxels = size(M.Phi,2);
+
+% Generate predicted signal and model error with the full-unleasioned model
+w_woVL         = weights;
+Mw             =  M_times_w(M.Phi.subs(:,1), ...
+                            M.Phi.subs(:,2), ...
+                            M.Phi.subs(:,3), ...
+                            M.Phi.vals, ...
+                            M.DictSig, ...
+                            w_woVL, ...
+                            nTheta, ...
+                            nVoxels);
+predicted_woVL = reshape(Mw, size(measured_dsig));
+rmse_woVL      = sqrt(mean(( measured_dsig - predicted_woVL ).^2 ,1));
+rmse_woVL      = rmse_woVL ./ S0';
+
+% Generate predicted signal and model error with the leasioned model
+w_VL            = weights;
+w_VL(ind_tract) = 0;
+Mw = M_times_w(M.Phi.subs(:,1), ...
+               M.Phi.subs(:,2), ...
+               M.Phi.subs(:,3), ...
+               M.Phi.vals, ...
+               M.DictSig, ...
+               w_VL, ...
+               nTheta, ...
+               nVoxels);
+predicted_VL = reshape(Mw,size(measured_dsig));
+rmse_wVL     = sqrt(mean(( measured_dsig - predicted_VL ).^2 ,1));
+rmse_wVL     = rmse_wVL ./ S0';
+
+end

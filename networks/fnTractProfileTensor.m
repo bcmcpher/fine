@@ -61,8 +61,8 @@ end
 
 %% extrac the data from the network object
 
-% look at first entry for the number of nodes
-nnodes = size(netw.edges{1}.profile.(prof), 1);
+% look across all entries for the non-zero axis
+nnodes = max(cellfun(@(x) length(x.profile.(prof)), netw.edges));
 
 % pull the number of nodes and pairs to index through
 nlabs = size(netw.nodes, 1);

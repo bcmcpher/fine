@@ -1,14 +1,12 @@
-function [ jout, ofib ] = fnEdgesToJson(pconn, fg, outdir)
-%[ jout, ofib ] = fnEdgesToJson(pconn, fg, outdir) creates a json file to render the created network.
-%
-%   This function creates the output folder of .json files needed for the
+function [ jout, ofib ] = fnEdgesToJson(netw, fg, outdir)
+%[ jout, ofib ] = fnEdgesToJson(netw, fg, outdir);
+%   This function creates in output a folder of .json files needed for the
 %   visualization brainlife.io to render the network edge weights alongside
 %   the anatomy.
 %
 % INPUTS:
-%     pconn  - paired connection object that stores network edge weights
-%              and streamline indices
-%     fg     - fiber group that corresponds to streamline indices in pconn
+%     netw   - the network object with matrix fields estimated
+%     fg     - fiber group that corresponds to streamline indices in netw
 %     outdir - the output directory where the .json files will be written
 %
 % OUTPUTS:
@@ -28,8 +26,11 @@ ofib = {};
 
 disp('Indexing network data and streamlines...');
 
+% pull network values
+nedges = size(netw.edges, 1);
+
 % for every edge
-for ii = 1:size(pconn, 1)
+for ii = 1:nedges
     
     % once 50 have been stored
     if jj > 50
@@ -39,18 +40,22 @@ for ii = 1:size(pconn, 1)
         clear coords
     end
     
+    % pull the ROI indices
+    ridx1 = netw.parc.pairs(ii, 1);
+    ridx2 = netw.parc.pairs(ii, 2);
+    
     % store the nodes indices
-    jout(ii).roi1 = pconn{ii}.roi1;
-    jout(ii).roi2 = pconn{ii}.roi2;
+    jout(ii).roi1 = netw.nodes{ridx1}.name;
+    jout(ii).roi2 = netw.nodes{ridx2}.name;
     
     % grab every edge weight that is found (need to loop / generalize)
-    jout(ii).weights.count = pconn{ii}.all.matrix.count;
-    jout(ii).weights.density = round(pconn{ii}.all.matrix.density, 5);
-    jout(ii).weights.length = round(pconn{ii}.all.matrix.length, 5);
-    jout(ii).weights.denlen = round(pconn{ii}.all.matrix.denlen, 5);
+    jout(ii).weights.count = netw.edges{ii}.matrix.count;
+    jout(ii).weights.density = round(netw.edges{ii}.matrix.density, 3);
+    jout(ii).weights.length = round(netw.edges{ii}.matrix.length, 3);
+    jout(ii).weights.denlen = round(netw.edges{ii}.matrix.denlen, 3);
     
     % grab the streamlines from fg
-    tcoord = fg.fibers(pconn{ii}.all.indices);
+    tcoord = fg.fibers(netw.edges{ii}.fibers.indices);
     
     % if the connection exists
     if size(tcoord, 1) > 0

@@ -1,11 +1,10 @@
-function [ p, se, fh ] = fnRentianScaling(mat, rois, reps)
+function [ p, se, fh ] = fnRentianScaling(netw, reps)
 %fnRentianScaling computes and returns a network measure that controls for
 % the physical space of the network in partitioning nodes.
 %
 % INPUTS:
-%     mat  - the input adjacency matrix; can be weighted or unweighted
-%     rois - ROI structure containing coordinate centers of nodes for scaling
-%     reps - The number of repetitions used in the estimate
+%     netw - the input network object with values estimated
+%     reps - The number of repetitions used in the estimate (default = 5000)
 %
 % OUTPUTS:
 %     p  - Rent's exponent
@@ -14,6 +13,8 @@ function [ p, se, fh ] = fnRentianScaling(mat, rois, reps)
 %
 % TODO:
 % - figure out the best default range for the plot
+% - determine the theoretical minimum given an input?
+% - plot the trend line
 %
 % EXAMPLE:
 %
@@ -37,20 +38,30 @@ function [ p, se, fh ] = fnRentianScaling(mat, rois, reps)
 %
 
 if(~exist('reps', 'var') || isempty(reps))
-    reps = 100;
+    reps = 5000;
 end
 
-% binarize input
+disp('Extracting Network...');
+
+% pull edge weight to be binarized
+% this ~should~ always be the same, regardless of edge weight selected
+val = cellfun(@(x) length(x.fibers.indices), netw.edges);
+mat = squareform(val);
+
+% binarize data matrix
 dat = weight_conversion(mat, 'binarize');
 
-% grab node coords from rois object 
-coords = zeros(length(rois), 3);
-for ii = 1:length(rois)
-    coords(ii, :) = rois{ii}.centroid.acpc;
-end
+disp('Extracting coordinates...');
+
+% grab the roi coordinates
+coords = cell2mat(cellfun(@(x) x.center.acpc, netw.nodes, 'UniformOutput', false));
+
+disp('Estimating the Rentian Scaling...');
 
 % rentian scaling - separate fxn
-[ N, E ] = rentian_scaling_3d(dat, coords, reps, 0.000001); % n is number of partitions
+[ N, E ] = rentian_scaling_3d(dat, coords, reps, 0.000001); 
+% N is number of nodes in each partition
+% E is the number of boundaries crossing each partition
 
 % estimate Rent's exponent
 [ b, stats ] = robustfit(log10(N), log10(E));
@@ -62,6 +73,7 @@ se = stats.se(2);
 % plot from description
 fh = figure; 
 loglog(E, N, '*');
+title([ 'Rent''s Exponent = ' num2str(p) ' +/- ' num2str(se) ' s.e.' ]);
 
 end
 
