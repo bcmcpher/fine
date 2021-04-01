@@ -8,15 +8,28 @@
 %
 % better check / parse names if passed during creation
 %
-% create classified fiber structure Dan wants
+% store network stats in object
+% - just the binary stats?
+% - community too?
+%
+% add profile tube to render function
+%
+% a fxn to prune netw to only LiFE weighted streamlines
+%
+% built in matlab hierarchical clustering algorithms / plots
+% linkage / cluster / dendrogram / clusterdata / cophenet / inconsistent
 %
 % import / store classification.mat
 % - basic crossection info on what edges make a fascicle
 % - plot of network with edges contributing to fascicles highlighted over
 %
-% a fxn to prune netw to only LiFE weighted streamlines
-%
 % create measures on diagonal self-connections
+%
+% merge fnPlotModulePoints and fnPlotModuleGroups - they're nearly the same
+%
+% create classified fiber structure Dan wants
+%
+% change node/edge cell arrays to struct arrays? faster/smaller?
 %
 % change all display to sprintf
 %
@@ -30,36 +43,18 @@
 %
 % fix ALL documentation - for consistency / clarity
 %
-% link network functions
-% - add other metrics?
-% - create separate fxn for computing individual edge similarities?
-%
-% built in matlab hierarchical clustering algorithms / plots
-% linkage / cluster / dendrogram / clusterdata / cophenet / inconsistent
-%
 % fxn estimating neural conduction speed / bitrate for all edges
 %
 % summary fxn(s?) of Bassett's network tools
 %
 % dual color diagonal adjacency plot - mean / sd in different colors
 %
-% merge fnPlotModulePoints and fnPlotModuleGroups - they're nearly the same
-%
-% simple shape analysis of cortical node centers; geometric morphometric analysis
-% - procrustes alignment
-%
-% fxn to virtual lesion streamlines w/ both terminations in 1 ROI
-%
 % better default axes in virtual lesion measures plot 
 %
-% finish feCreatePairedConnectionsFromSurface
-%
-% add profile tube to render function
+% create a way to use surfaces as parc - new assignment works well for it
 %
 % feTractProfilePairedConnections
 % - check if the connections are too short for a reasonable profile (?)
-%
-% compute profile from ENCODE directly? 
 %
 
 %% figure out network shape stats for edges

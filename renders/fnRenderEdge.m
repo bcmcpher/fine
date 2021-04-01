@@ -194,8 +194,7 @@ switch conn
         
         for tct = 1:length(tract)
             [fh, light_h] = mbaDisplayConnectome(fgOut{tct}.fibers, fh, color{tct}, 'single');
-            delete(light_h);
-        
+            delete(light_h);        
         end
         
         % if cropping is set

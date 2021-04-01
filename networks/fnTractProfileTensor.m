@@ -1,21 +1,16 @@
-function [ pmat, tpmat ] = fnTractProfileTensor(pconn, label, prof, srt)
+function [ pmat, tpmat ] = fnTractProfileTensor(netw, prof, srt)
 %fnCreateTractProfileTensor() creates an NxNxNodes tensor of all
 % precomputed tract profiles. Empty profiles are composed of NaNs. 
 %   
 % INPUTS:
-%     pconn - is the paired connections object to create adjacency matrices from.
-%
-%     label - string indicating the fiber groups for which to create virtual lesions
-%             either:
-%                     'all' for all assigned streamlines or
-%                     'nzw' for non-zero weighted fibers returned by LiFE
-%             Additionally, this can be run after cleaning, resulting in
-%             valid calls of 'all_clean' and 'nzw_clean', respectively.
+%     netw  - is the paired connections object to create adjacency matrices from.
 %
 %     prof  - a string indicating the profile to extract and combine into
 %             the tensor. This is either the 'mslab' argument passed to
 %             feTracProfilePairedConnections() or if a dt6 was used,
 %             'dt6.<value>' where value is any of the following: fa, md, rd, ad, cl, cp, cs
+%     
+%     srt   - sort the indices 
 %
 % OUTPUTS:
 %     pmat  - 3d array containing (nodes x nodes x profile) of tract profiles
@@ -50,30 +45,36 @@ function [ pmat, tpmat ] = fnTractProfileTensor(pconn, label, prof, srt)
 % Brent McPherson (c), 2017 - Indiana University
 %
 
+%% parse arguments
+
+if(~exist('prof', 'var') || isempty(prof))
+    error('You have to request a kind of profile.');
+end
+
+if ~isfield(netw.edges{1}.profile, prof)
+    error('The requested profile does not exist.');
+end
+
 if(~exist('srt', 'var') || isempty(srt))
     srt = [];
 end
 
+%% extrac the data from the network object
+
 % look at first entry for the number of nodes
-nnodes = size(eval([ 'pconn{1}.(label).profile.' prof ]), 1);
+nnodes = size(netw.edges{1}.profile.(prof), 1);
 
-% find the number of unique labels
-uniquelabels = zeros(size(pconn, 1), 1);
-for ii = 1:size(pconn, 1)
-    uniquelabels(ii, 1) = pconn{ii}.roi1;
-end
-nlabs = size(unique(uniquelabels), 1) + 1;
-
-clear uniquelabels ii 
-
-% re-create pairs based on number of nodes
-pairs = nchoosek(1:nlabs, 2);
+% pull the number of nodes and pairs to index through
+nlabs = size(netw.nodes, 1);
+pairs = netw.parc.pairs;
 
 % pre-allocate output to fill in profiles
 pmat = zeros(nlabs, nlabs, nnodes);
 tpmat = nan(size(pairs, 1), nnodes);
 
-display(['Extracting tract profiles from ''' label '''...']);
+%% pull every profile
+
+disp(['Extracting tract profiles from ''' prof '''...']);
 
 % for every possible connection
 for ii = 1:size(pairs, 1)
@@ -83,7 +84,7 @@ for ii = 1:size(pairs, 1)
     grp2 = pairs(ii, 2);
    
     % pull each profile
-    tmp = eval([ 'pconn{ii}.(label).profile.' prof ]);
+    tmp = netw.edges{ii}.profile.(prof);
     
     % if there is no tract fill, in profile as missings
     if isempty(tmp)
@@ -103,4 +104,3 @@ if ~isempty(srt)
 end
 
 end
-

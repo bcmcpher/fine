@@ -33,7 +33,7 @@ else % otherwise look through labels
     [ ~, x ] = intersect(alabs, idx1);
 end
 if isempty(x) % if it's not found, error
-    error('The input ''%s'' is not found in netw.nodes{}', idx1);
+    error('The input ''%d'' is not found in netw.nodes{}', idx1);
 end
     
 % parse the second input
@@ -44,7 +44,7 @@ else % otherwise look though labels
 
 end
 if isempty(y) % if it's not found, error
-    error('The input ''%s'' is not found in netw.nodes{}', idx3);
+    error('The input ''%d'' is not found in netw.nodes{}', idx2);
 end
 
 %% recover the index into netw.parc.pairs
@@ -75,8 +75,8 @@ else
     nfib = size(conn.fibers.indices, 1);
     
     % pull roi centers in acpc space
-    roi1 = netw.nodes{rois(1)}.centroid.acpc';
-    roi2 = netw.nodes{rois(2)}.centroid.acpc';
+    roi1 = netw.nodes{rois(1)}.center.acpc';
+    roi2 = netw.nodes{rois(2)}.center.acpc';
     
     % create the output connection and length
     ofg = fgCreate('name', [ 'fg_' num2str(rois(1)) '_' num2str(rois(2)) ], ...
@@ -129,8 +129,8 @@ else
         fname1 = [ 'ep1_' num2str(netw.nodes{rois(1)}.label) ];
         fname2 = [ 'ep2_' num2str(netw.nodes{rois(2)}.label) ];
     else
-        fname1 = [ 'ep1_' num2str(netw.nodes{rois(1)}.label) '_' strrep(netw.nodes{rois(1)}.name{1}, ' ', '') ];
-        fname2 = [ 'ep2_' num2str(netw.nodes{rois(2)}.label) '_' strrep(netw.nodes{rois(2)}.name{1}, ' ', '') ];
+        fname1 = [ 'ep1_' num2str(netw.nodes{rois(1)}.label) '-' strrep(netw.nodes{rois(1)}.name, ' ', '') ];
+        fname2 = [ 'ep2_' num2str(netw.nodes{rois(2)}.label) '-' strrep(netw.nodes{rois(2)}.name, ' ', '') ];
     end
     
     % create output niftis in fe space

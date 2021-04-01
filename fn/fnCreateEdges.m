@@ -129,7 +129,7 @@ if maxdist == 0
     % get endpoints side by side in a [ nfib x 6 ] matrix
     ec = cell2mat(cellfun(@(x) [ x(:,1)' x(:,end)' ], ifg.fibers, 'UniformOutput', false));
     
-    % stack the endpoints into a single vector
+    % stack and round the transformed endpoints into a single vector
     ep = round([ ec(:,1:3); ec(:,4:6) ]) + 1;
     
     % assign the voxel coordinates for building the kdtree
@@ -138,7 +138,7 @@ if maxdist == 0
 % otherwise, map parcellation to acpc coords for distance alignment to ep
 else
     
-    disp(['Assigning streamline endpoints to nearest label within ' num2str(maxdist) ' mm...']);
+    disp(['Assigning streamline endpoints to nearest label within ' num2str(maxdist) 'mm...']);
     
     % get endpoints side by side in a [ nfib x 6 ] matrix
     ec = cell2mat(cellfun(@(x) [ x(:,1)' x(:,end)' ], fg.fibers, 'UniformOutput', false));
@@ -187,6 +187,33 @@ clear ep epv % ep/epv useful for inspecting the assignment plot below
 % plot3(ep(epm,1), ep(epm,2), ep(epm,3), '+', 'Color', [ 0.75 0 0 ], 'MarkerSize', 2);
 % axis image; set(gca, 'Zlim', [ 10 15 ]);
 
+% endpoints when neither label is 0
+epu = ~or(epv1 == 0, epv2 == 0);
+
+% endpoints with matching labels
+epd = epv1 == epv2; 
+
+% both endoints are assigned to different non-0 labels
+ept = epu & ~epd; 
+
+% create sorted ascending order of streamline ep values (upper diagonal)
+eps = sort([ epv1, epv2 ], 2);
+% the endpoints of only the successfully assigned streamlines
+
+% pull the unique rows of all streamlines that exist
+uedges = unique(eps(ept, :), 'rows');
+
+%[ uedge, ~, ic ] = unique(eps(ept, :), 'rows');
+%h = accumarray(ic, 1); % get the cummulative count
+%h(h < minNum) = 0; % zero connections below minimum count
+%assign = [ uedge, h ]; % matches current approach, the uniquely found edges + count
+% if you don't want the indices stored, this is what you need for count
+
+% the operation to find duplicate streamlines in each node
+%didx = find(epd & epv1 == 1001);
+% the operation to find indices for each nonzero edge
+%eidx = find(ismember(eps, uedges(1,:), 'rows')); % uselessly slow in large arrays
+
 disp('Computing the length of every streamline in fg...')
 fblen = cellfun(@(x) sum(sqrt(sum((x(:, 1:end-1) - x(:, 2:end)) .^ 2))), fg.fibers, 'UniformOutput', true);
 
@@ -202,7 +229,7 @@ netw.volume.parc = gmvol;
 
 %% catch data about nodes
 
-% preallocate outputs
+% preallocate node output and summary counts
 nodes = cell(length(labels), 1);
 tfib = zeros(length(labels), 1);
 dfib = zeros(length(labels), 1);
@@ -218,12 +245,8 @@ for node = 1:nlabels
     nodes{node}.volume = nodes{node}.size * prod(dvoxmm);
     nodes{node}.prop = nodes{node}.volume / gmvol;
     
-    % grab logical of index assignments
-    epl1 = epv1 == labels(node);
-    epl2 = epv2 == labels(node);
-    
     % find when both endpoints of a streamline are in the node
-    beps = find(epl1 & epl2);
+    beps = find(epd & epv1 == labels(node));
     nodes{node}.botheps.indices = beps;
     nodes{node}.botheps.length = fblen(beps);
     
@@ -244,19 +267,20 @@ for node = 1:nlabels
     nodes{node}.center.acpc = mrAnatXformCoords(parc_img2acpc, center);
     
     % if there are not any endpoints in this label, throw a warning
-    if ~any(epl1 | epl2)
+    if ~any(uedges(:) == labels(node))
         warning(['Node label ' num2str(labels(node)) ' has no streamline terminations.']);
     end
     
     % total fibers assigned to an endpoint
-    tfib(node) = sum(epl1) + sum(epl2) - dfib(node);
+    tfib(node) = sum(eps(:) == labels(node)) - dfib(node);
     
 end
 
 disp([ 'Successfully assigned ' num2str(sum(tfib)) ' of ' num2str(2*nfib) ' terminations.' ]);
 disp([ num2str(length(dcnt)) ' nodes had both terminations of ' num2str(sum(dfib)) ' total streamlines.']);
 
-clear node jj epl1 epl2 beps center
+clear node jj beps center
+clear epl1 epl2 
 
 % assign nodes array to output
 netw.nodes = nodes;
@@ -266,51 +290,74 @@ netw.nodes = nodes;
 % build every unique combination of labels - store preallocated indices of upper diagonal
 pairs = nchoosek(1:length(labels), 2);
 netw.parc.pairs = pairs;
-nedges = size(pairs, 1);
+nedges = size(pairs, 1); % the total number of possible edges
+redges = size(uedges, 1); % the total number of edges to run
 
 % preallocate paired connection object
-edges = cell(nedges, 1);
-tcon = zeros(nedges, 1);
-ncon = zeros(nedges, 1);
+edget = struct('fibers', struct('indices', [], 'lengths', []));
+
+% loop over repeatable input(s) of streamline values
+for jj = 1:size(nam, 2)
+    edget.fibers.(nam{jj}) = [];
+end
+
+% create empty, preallocated cell array of edges
+edges = repmat({edget}, nedges, 1);
+
+% create zero arrays of counts for output / debugging
+tcon = zeros(redges, 1);
+ncon = zeros(redges, 1);
 
 disp('Building network edges...');
 
+% build label pairs to facilitate indexing through 
+labpr = [ labels(pairs(:,1)) labels(pairs(:,2)) ];
+
 % for every pair of nodes, estimate the connection
-for edge = 1:nedges
+for edge = 1:redges
     
     % create shortcut names
-    roi1 = labels(pairs(edge, 1));
-    roi2 = labels(pairs(edge, 2));
+    %roi1 = labels(pairs(edge, 1));
+    %roi2 = labels(pairs(edge, 2));
+    roi1 = uedges(edge, 1);
+    roi2 = uedges(edge, 2);
         
     % create logical indices for endpoints
     epe1 = epv1 == roi1 & epv2 == roi2;
     epe2 = epv1 == roi2 & epv2 == roi1;
     
-    % assign intersections of terminating streamlines
-    edges{edge}.fibers.indices = find(epe1 | epe2);
-    edges{edge}.fibers.lengths = fblen(edges{edge}.fibers.indices);
+    % grab the index to store non-zero value in
+    [ ~, idx ] = intersect(labpr, uedges(edge,:), 'rows');
     
-    % for every variable input, assign it to the connection
+    % the operation to find indices for each nonzero edge
+    eidx = find(ept & (epe1 | epe2));
+
+    % assign intersections of terminating streamlines
+    edges{idx}.fibers.indices = eidx; %find(epe1 | epe2)
+    edges{idx}.fibers.lengths = fblen(eidx);
+    
+    % for every variable optional input, assign it to the connection
     for jj = 1:size(nam, 2)
-        edges{edge}.fibers.(nam{jj}) = val{jj}(edges{edge}.fibers.indices);
+        edges{idx}.fibers.(nam{jj}) = val{jj}(eidx);
     end
     
     % enforce a minimum number of streamlines in an edge from assignment
-    if size(edges{edge}.fibers.indices, 1) <= minNum
-        edges{edge}.fibers = structfun(@(x) [], edges{edge}.fibers, 'UniformOutput', false);
+    if size(edges{idx}.fibers.indices, 1) <= minNum
+        edges{idx}.fibers = structfun(@(x) [], edges{idx}.fibers, 'UniformOutput', false);
+        continue
     end
-        
+    
     % keep running total of streamlines assigned to a connection
-    tcon(edge) = size(edges{edge}.fibers.indices, 1);
+    tcon(edge) = size(eidx, 1);
     
     % if the connection is empty or not
-    if size(edges{edge}.fibers.indices, 1) > 0
+    if tcon(edge) > 0
         ncon(edge) = 1;
     end
     
 end
 
-clear edge jj roi1 roi2 epe1 epe2
+clear edge jj roi1 roi2 epe1 epe2 labpr idx eidx
 
 % store edges in network
 netw.edges = edges;
