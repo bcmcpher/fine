@@ -6,16 +6,25 @@
 %
 % export to json graph
 %
+% only store non-empty edges - zero empty edges during creation
+% - does this break anything?
+%
+% change node/edge cell arrays to struct arrays? faster/smaller?
+%
 % better check / parse names if passed during creation
 %
 % store network stats in object
 % - just the binary stats?
-% - community too?
+% 
+% figure out how to store community assignments
+% - array of node length with optional labels?
+% - optionally check for stored assignments when building modules
 %
 % add profile tube to render function
 %
 % a fxn to prune netw to only LiFE weighted streamlines
 % - just do to fg before creation?
+% - building separate from the beginning is easier for matching edges
 %
 % built in matlab hierarchical clustering algorithms / plots
 % linkage / cluster / dendrogram / clusterdata / cophenet / inconsistent
@@ -29,8 +38,6 @@
 % merge fnPlotModulePoints and fnPlotModuleGroups - they're nearly the same
 %
 % create classified fiber structure Dan wants
-%
-% change node/edge cell arrays to struct arrays? faster/smaller?
 %
 % change all display to sprintf
 %
