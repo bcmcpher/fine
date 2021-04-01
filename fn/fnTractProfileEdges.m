@@ -5,12 +5,8 @@ function [ netw ] = fnTractProfileEdges(netw, fg, msobj, mslab, nnodes, minNum, 
 % the profile field.
 %
 % INPUTS:
-%     fg      - fiber group in acpc space
-%     pconn   - paired connection object created with fg
-%     label   - string indicating the fiber groups for which to create tract profiles
-%               either:
-%                      'all' for all assigned streamlines or
-%                      'nzw' for non-zero weighted fibers returned by LiFE
+%     netw    - fiber group in acpc space
+%     fg      - paired connection object created with fg
 %     msobj   - a loaded dt6 or microstructural nifti image to compute profiles
 %     mslab   - the label the new tract profile will be stored under
 %               If a dt6 is passed, mslab is reset to 'dt6'
@@ -69,7 +65,7 @@ end
 
 if(isfield(msobj, 'dt6'))
     disp('Computing all possible tract profiles from dt6.');
-    disp('Provided ''mslab'' will be ignored. dt6_* will prepend all new labels.');
+    disp('dt6_* will prepend all new labels.');
     isdt6 = 1;
     mslab = 'dt6_fa';
 else

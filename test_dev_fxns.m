@@ -4,8 +4,8 @@
 load_dev_data
 
 % create an initial network output
-[ netw, out ] = fnCreateEdges(lobe, fg, lname, 2, 0, 'weights', wght);
-%[ netw, out ] = fnCreateEdges(node, fg, nname, 2, 0, 'weights', wght);
+%[ netw, out ] = fnCreateEdges(lobe, fg, lname, 2, 0, 'weights', wght);
+[ netw, out ] = fnCreateEdges(node, fg, nname, 4, 5, 'weights', wght);
 
 % create central tendency measures of FA for each edge
 netw = fnAveragePropertyEdges(netw, fg, fa, 'fa', true);
@@ -14,17 +14,27 @@ netw = fnAveragePropertyEdges(netw, fg, fa, 'fa', true);
 netw = fnTractProfileEdges(netw, fg, fa, 'fa');
 netw = fnTractProfileEdges(netw, fg, dt6, 'dt6');
 
+% store the tract profile tensor and average it into modules
+tpmat = fnTractProfileTensor(netw, 'fa'); 
+[ mnten, seten ] = fnTractProfileModules(tpmat, modules);
+
 % create tract shape data for each edge
 netw = fnTractCurveEdges(netw, fg);
 
 % run virtual lesion
 netw = fnVirtualLesionEdges(netw, M, wght, dsig, nTheta, S0);
 
+% virtual lesion network modules
+[ vmat, ~, indx, pcmodl ] = fnModuleVirtualLesion(netw, modules, modName, M, wght, dsig, nTheta, S0);
+
 % create matrix field for export of all computed edge weights
-netw = fnComputeMatrixEdges(netw);
+netw = fnComputeMatrixEdges(netw, 'weights', [], true);
 
 % create connectivity matrices
 [ omat, olab ] = fnCreateAdjacencyMatrices(netw);
+
+% estimate modules of the network
+[ Mden, Mden_in, Mden_bw, Mden_in_lo, Mden_bw_hi ] = fnModuleDensity(squeeze(omat(:,:,1)), modules, 'mean', flag);
 
 % check the count matrix
 figure; imagesc(omat(:,:,1)); title(olab{1}); colorbar;

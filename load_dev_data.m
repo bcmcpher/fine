@@ -49,6 +49,12 @@ nname = {'ctx-lh-bankssts', 'ctx-lh-caudalanteriorcingulate', 'ctx-lh-caudalmidd
          'ctx-rh-superiortemporal', 'ctx-rh-supramarginal', 'ctx-rh-frontalpole', ...
          'ctx-rh-temporalpole', 'ctx-rh-transversetemporal', 'ctx-rh-insula'}';
 
+% module assignment of nodes to the lobes
+modules = [ 3 5 1 4 3 3 2 3 5 4 1 4 1 3 3 1 1 1 1 4 2 5 1 2 5 1 1 2 3 2 1 3 3 3 ];
+modules = [ modules modules+5 ]';
+modName = {'lh.Frontal', 'lh.Parietal', 'lh.Temporal', 'lh.Occipital', 'lh.Cingulate', ...
+           'rh.Frontal', 'rh.Parietal', 'rh.Temporal', 'rh.Occipital', 'rh.Cingulate'};
+     
 %length = cellfun(@(x) sum(sqrt(sum((x(:, 1:end-1) - x(:, 2:end)) .^ 2))), fg.fibers, 'UniformOutput', true);
 
 clc

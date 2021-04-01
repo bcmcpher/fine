@@ -291,12 +291,12 @@ netw.nodes = nodes;
 pairs = nchoosek(1:length(labels), 2);
 netw.parc.pairs = pairs;
 nedges = size(pairs, 1); % the total number of possible edges
-redges = size(uedges, 1); % the total number of edges to run
+redges = size(uedges, 1); % the total number of non-zero edges to store
 
 % preallocate paired connection object
 edget = struct('fibers', struct('indices', [], 'lengths', []));
 
-% loop over repeatable input(s) of streamline values
+% loop over repeatable input(s) of additional streamline values
 for jj = 1:size(nam, 2)
     edget.fibers.(nam{jj}) = [];
 end
@@ -305,20 +305,18 @@ end
 edges = repmat({edget}, nedges, 1);
 
 % create zero arrays of counts for output / debugging
-tcon = zeros(redges, 1);
-ncon = zeros(redges, 1);
+tcon = zeros(nedges, 1);
+ncon = zeros(nedges, 1);
 
 disp('Building network edges...');
 
-% build label pairs to facilitate indexing through 
+% build label pairs to facilitate skipping empty edges during assignment 
 labpr = [ labels(pairs(:,1)) labels(pairs(:,2)) ];
 
 % for every pair of nodes, estimate the connection
 for edge = 1:redges
     
     % create shortcut names
-    %roi1 = labels(pairs(edge, 1));
-    %roi2 = labels(pairs(edge, 2));
     roi1 = uedges(edge, 1);
     roi2 = uedges(edge, 2);
         
@@ -348,11 +346,11 @@ for edge = 1:redges
     end
     
     % keep running total of streamlines assigned to a connection
-    tcon(edge) = size(eidx, 1);
+    tcon(idx) = size(eidx, 1);
     
     % if the connection is empty or not
-    if tcon(edge) > 0
-        ncon(edge) = 1;
+    if tcon(idx) > 0
+        ncon(idx) = 1;
     end
     
 end

@@ -15,6 +15,7 @@
 % add profile tube to render function
 %
 % a fxn to prune netw to only LiFE weighted streamlines
+% - just do to fg before creation?
 %
 % built in matlab hierarchical clustering algorithms / plots
 % linkage / cluster / dendrogram / clusterdata / cophenet / inconsistent
