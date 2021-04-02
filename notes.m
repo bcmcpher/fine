@@ -6,11 +6,6 @@
 %
 % export to json graph
 %
-% only store non-empty edges - zero empty edges during creation
-% - does this break anything?
-%
-% change node/edge cell arrays to struct arrays? faster/smaller?
-%
 % better check / parse names if passed during creation
 %
 % store network stats in object

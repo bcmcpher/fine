@@ -197,7 +197,7 @@ end
 
 %% create whole brain summary
 
-fprintf('Estimating white matter volume...\n');
+fprintf('Estimating white matter volume from fg...\n');
 
 % transform whole brain fg into voxel space
 vfg = dtiXformFiberCoords(fg, micro_acpc2img, 'img');
@@ -265,6 +265,8 @@ for ii = 1:length(netw.edges)
     
     % if the connection is empty, fill in zeros
     if isempty(conn.fibers.indices)
+        
+        warning('Edge index %d is empty. This should be impossible.', ii);
         
         % fill in empty voxel coords
         conn.volume.volume = 0;
