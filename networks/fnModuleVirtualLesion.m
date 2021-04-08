@@ -145,7 +145,7 @@ for mod = 1:szprs
     nfib = size(indx{mod}.indices, 1);
     
     % print out each module
-    disp([ 'Module ' num2str(mod) ' has ' num2str(nconn) ' connections and ' num2str(nfib) ' streamlines.' ]);
+    %disp([ 'Module ' num2str(mod) ' has ' num2str(nconn) ' connections and ' num2str(nfib) ' streamlines.' ]);
     
     % iterate total counts
     tcon = tcon + nconn;
@@ -207,6 +207,8 @@ for vl = 1:szprs
     vmat(pairs(vl, 2), pairs(vl, 1), 4) = indx{vl}.vl.j.mean;
 
 end
+
+disp(['Computed virtual lesions for every one of ' num2str(size(indx, 1)) ' network modules.']);
 
 % output labels that do not change
 olab = {'EMD', 'SOE', 'KLD', 'JfD'};

@@ -123,7 +123,7 @@ clear tmp_emp
 mhist1 = nan(nbins, nmc);
 mhist2 = nan(nbins, nmc);
 
-% preallocate test vectors for every measure (SE)
+% preallocate test vectors for every resampled measure (mn/se)
 %tcor = nan(nboots, nmc);
 %tcos = nan(nboots, nmc);
 %tkld = nan(nboots, nmc);
@@ -132,7 +132,7 @@ mhist2 = nan(nbins, nmc);
 tdp1 = nan(nboots, nmc);
 tdp2 = nan(nboots, nmc);
 
-% preallocate null vectors for every measure (pval)
+% preallocate null vectors for every measure from combined distributions (pval)
 %ncor = nan(nboots, nmc);
 %ncos = nan(nboots, nmc);
 %nkld = nan(nboots, nmc);
@@ -144,7 +144,7 @@ for mc = 1:nmc
     fprintf('.')
     for boot = 1:nboots
         
-        % pull random samples from each distribution for SE estimates
+        % pull random samples from each distribution for resampled mean / se
         trmse1 = randsample(rmse1, nobs1, true); % nolesion
         trmse2 = randsample(rmse2, nobs2, true); % lesion
         
@@ -152,9 +152,8 @@ for mc = 1:nmc
         nrmse1 = randsample(nrmse, nobs1, true); % nolesion
         nrmse2 = randsample(nrmse, nobs2, true); % lesion
         
-        % build the boostrapped histograms for test and null
-
-        % compute the test histograms w/ the estimated bins
+        % build the resampled / boostrapped histograms for test and null
+        % compute the resampled histograms w/ the estimated bins
         [ t1hist, t1xhist ] = histcounts(trmse1, [ se.bins inf ], 'Normalization', 'probability');
         [ t2hist, t2xhist ] = histcounts(trmse2, [ se.bins inf ], 'Normalization', 'probability');
         
@@ -174,24 +173,24 @@ for mc = 1:nmc
 
         % estimate each SE / null throw on raw RMSE values
 
-        % SOE / d-prime test averages
+        % SOE / d-prime resampled averages
         tdp1(boot, mc) = mean(trmse1);
         tdp2(boot, mc) = mean(trmse2);
         
-        % SOE / d-prime null difference
+        % SOE / d-prime null averages and difference
         ndp1 = mean(nrmse1);
         ndp2 = mean(nrmse2);
         ndpd(boot, mc) = ndp2 - ndp1; % lesion - nolesion
         
-%         % estimate the test / null dissimilarity between rmse       
-%         tcor(boot, mc) = pdist2(trmse1, trmse2, 'correlation');
-%         ncor(boot, mc) = pdist2(nrmse1, nrmse2, 'correlation');
+        % estimate the test / null dissimilarity between rmse       
+        %tcor(boot, mc) = pdist2(trmse1, trmse2, 'correlation');
+        %ncor(boot, mc) = pdist2(nrmse1, nrmse2, 'correlation');
         
-%         % estimate the test / null cosine distance between rmse
-%         tcos(boot, mc) = pdist2(trmse1, trmse2, 'cosine');
-%         ncos(boot, mc) = pdist2(nrmse1, nrmse2, 'cosine');
+        % estimate the test / null cosine distance between rmse
+        %tcos(boot, mc) = pdist2(trmse1, trmse2, 'cosine');
+        %ncos(boot, mc) = pdist2(nrmse1, nrmse2, 'cosine');
         
-        % build the SE / null estimates on the resampled / null histograms
+        % build the resampled / null estimates on the histograms
         
         % kl divergence
         %tkld(boot, mc) = nansum(t1hist .* log2( (t1hist) ./ (t2hist + eps) ));
@@ -258,8 +257,15 @@ disp(' done.')
 %se.em.pval = min(sum(nemd > se.em.mean) / nboots);
 
 % pull the tested SOE mean / std across MCs
+% lines 92-94 in the original fxn - split into separate variables here
 smn = diff([ mean(tdp1, 1); mean(tdp2, 1) ]);
 sse = sqrt(sum([ std(tdp1, [], 1); std(tdp2, [], 1) ].^2, 1));
+
+% original header info
+se.s.name = sprintf('strength of evidence, d-prime: http://en.wikipedia.org/wiki/Effect_size');
+se.s.nboots = nboots; 
+se.s.nmontecarlo = nmc;
+se.s.nbins = nbins;
 
 % collapse SOE across MC runs
 se.s.mean = mean(smn./sqrt(sse).^2);

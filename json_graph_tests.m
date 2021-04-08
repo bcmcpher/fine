@@ -2,6 +2,15 @@
 
 % load an example structure
 njg = loadjson('/geode2/home/u010/bcmcpher/Carbonate/fine-data/json-graph/network.json');
+njn = loadjson('/geode2/home/u010/bcmcpher/Carbonate/fine-data/json-graph/null_network.json');
+njs = loadjson('/geode2/home/u010/bcmcpher/Carbonate/fine-data/json-graph/stats_network.json');
+
+% export netw to json
+mjg = fnCreateJSONGraph(netw, 'density');
+
+% save and reload my object
+savejson('', mjg, '/geode2/home/u010/bcmcpher/Carbonate/fine-data/json-graph/my_network.json');
+ljg = loadjson('/geode2/home/u010/bcmcpher/Carbonate/fine-data/json-graph/my_network.json', 'FastArrayParser', 1);
 
 % the basic structure to build
 out.graph.label = 'probably the type of edge weight out';
