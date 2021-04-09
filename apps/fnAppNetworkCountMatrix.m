@@ -13,7 +13,7 @@ function [ out ] = fnAppNetworkCountMatrix(config)
 config = loadjson(config);
 
 % load .tck streamlines without downsampling
-fg = dtiImportFibersMrtrix(config.tracks, 0.5);
+fg = dtiImportFibersMrtrix(config.track, 0.5);
 
 % load parcellation data
 parc = niftiRead(config.parc);
