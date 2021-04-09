@@ -1,4 +1,4 @@
-function [ fh, lh, fgOut, pnOut, xyz ] = render_connection(fe, pconn, label, tract, anat, color, persp, slice, conn, crop)
+function [ fh, lh, fgOut, xyz ] = fnRenderEdge(netw, fg, tract, conn, color, persp, anat, slice, crop)
 %[ fh, lh, fgOut, pnOut, xyz ] = render_connection() renders any number of  
 % specified connections w/ or w/o brain slices for anatomical
 % visualizations.
@@ -6,18 +6,13 @@ function [ fh, lh, fgOut, pnOut, xyz ] = render_connection(fe, pconn, label, tra
 % this function requires: parpool
 %
 % INPUTS:
-%     fe      - an evaluated fe structure
-%     pconn   - paired connection object storing streamline edge assignments
-%     label   - string indicating the fiber groups for which to create tract profiles
-%               either:
-%                   'all' for all assigned streamlines or
-%                   'nzw' for non-zero weighted fibers returned by LiFE
-%                   'zwr' for all zero weighted removed streamlines
+%     netw    - a network object to request connections from
+%     fg      - the fiber group used to build fg, to render streamlines
 %     tract   - the index of connections within pconn to render
 %     anat    - a loaded nifti object for displaying background brain slices
 %     color   - a cell array of length(tract) that contains RGB
-%               designations for each color. The default assigns blue to
-%               each connection.
+%               designations for each color to use for the tracts. 
+%               The default assigns blue to each connection.
 %     persp   - a cell array of the of slice orientations to display. 
 %               The final orientation is the view that is returned.
 %               options are:
@@ -66,12 +61,6 @@ function [ fh, lh, fgOut, pnOut, xyz ] = render_connection(fe, pconn, label, tra
 
 %% other arguments...?
 
-% percent of path neighborhood to display
-pnprc = 0.025;
-
-% set minimum length of 10mm
-threshold_length = 15;
-
 % generate the blue / red colors for the tracts
 colors = {[.1 .25 .65], [.75 .25 .1]};
 
@@ -80,15 +69,9 @@ colors = {[.1 .25 .65], [.75 .25 .1]};
 % assume slices are plot
 do_slice = 1;
 
-% try to load the anatomy from fe if anatomy is empty
-if(~exist('anat', 'var') || isempty(anat))
-    try
-        disp('Loaded anatomy file is not passed. Trying to load it from fe path...');
-        anat = niftiRead(fe.path.anatomy);
-    catch
-        warning('''anat'' argument is not found and cannot be loaded. No brain slices will be displayed.');
-        do_slice = 0;
-    end
+% conn defaults to tract - can also be a tract profile
+if(~exist('conn', 'var') || isempty(conn))
+    conn = 'tract';
 end
 
 % if color is empty, set all to blue
@@ -96,7 +79,13 @@ end
 if(~exist('color', 'var') || isempty(color))
     [ color{1:length(tract)} ] = deal(colors{1});
 end
-    
+
+% if anatomy isn't passed, don't bother trying to display data from it.
+if(~exist('anat', 'var') || isempty(anat))
+    warning('''anat'' argument is not found and cannot be loaded. No brain slices will be displayed.');
+    do_slice = 0;
+end
+
 % make sure slice is optional
 if(~exist('persp', 'var') || isempty(persp))
     persp = 'axial';
@@ -109,11 +98,6 @@ if(~exist('slice', 'var') || isempty(slice))
     do_slice = 0;
 end
 
-% conn defaults to tract
-if(~exist('conn', 'var') || isempty(conn))
-    conn = 'tract';
-end
-
 % crop defaults to on
 if(~exist('crop', 'var') || isempty(crop))
     crop = 1;
@@ -121,60 +105,33 @@ end
 
 %% run the analysis
 
-disp('Converting streamlines to AC-PC space...');
-fg = feGet(fe, 'fg acpc');
-
 % preallocate tracts and path neighborhoods
 fgOut = cell(length(tract), 1);
-pnOut = cell(length(tract), 1);
 
 % for every tract, compute both
 for tct = 1:length(tract)
     
     % pull name from pconn based on index
-    roi1 = pconn{tract(tct)}.roi1;
-    roi2 = pconn{tract(tct)}.roi2;
-    fgName = ['Index: ' num2str(tract(tct)) '; ' num2str(roi1) '-to-' num2str(roi2)];
+    roi1 = netw.nodes{tract(tct)}.name;
+    roi2 = netw.nodes{tract(tct)}.name;
+    fgName = [ 'Index: ' num2str(tract(tct)) '; ' roi1 '-to-' roi2 ];
     
     % create fiber group object for connection
-    ind1 = getfield(pconn{tract(tct)}, label, 'indices');
+    ind1 = netw.edges{tract(tct)}.fibers.indices;
     
     % if an emtpy fg is requested
     if isempty(ind1)
         warning(['Requested connection ' num2str(tract(tct)) ' contains no streamlines.' ]);
+        continue
     end
     
     disp([ 'Extracting path ' num2str(tct) '...' ]);
     
     % create path fiber group
     fgOut{tct} = fgCreate('name', fgName, 'colorRgb', color{tct}, 'fibers', fg.fibers(ind1));
-    
-    disp([ 'Extracting path neighborhood ' num2str(tct) '...' ]);
-    
-    % pull path neighborhood indices
-    ind2 = feGet(fe, 'Path Neighborhood', ind1);
-    
-    % subset path neighborhood from whole brain fg
-    pnOut{tct} = fgExtract(fg, ind2, 'keep');
-    
-    % filter out short path neighborhood streamlines
-    c = 1;
-    fibers = cell(1, length(pnOut{tct}.fibers));
-    for ii = 1:length(pnOut{tct}.fibers)
-        if length(pnOut{tct}.fibers{ii}) > threshold_length
-            fibers{c} = pnOut{tct}.fibers{ii};
-            c = c + 1;
-        end
-    end
-    
-    % add the the output fg array
-    pnOut{tct}.fibers = fibers;
-    clear fibers
-    
-    % pull a random subset of the path neigborhood to minimize the rendering
-    fibs_indx = randsample(1:length(pnOut{tct}.fibers), round(length(pnOut{tct}.fibers) * pnprc));
-    pnOut{tct}.fibers = pnOut{tct}.fibers(fibs_indx);
-    
+
+    % optionally pull profile?
+
 end
 
 clear fg
@@ -183,11 +140,13 @@ clear fg
 
 fh = figure;
 
-xbnd = [];
-
+% if enough data is passed to add slices from anat
 if do_slice
 
     disp(['Displaying ' num2str(length(tract)) ' brain slices...']);
+    
+    % preallocate xbnd
+    xbnd = zeros(length(persp), 3);
     
     for ii = 1:length(persp)
         
@@ -198,19 +157,19 @@ if do_slice
             case{'lh-sag'}
                 viewCoords = [-90, 0];
                 indx = [slice(ii) 0 0];
-                xbnd = [ xbnd; indx ];
+                xbnd(ii,:) = indx ;
             case{'rh-sag'}
                 viewCoords = [90, 0];
                 indx = [slice(ii) 0 0];
-                xbnd = [ xbnd; indx ];
+                xbnd(ii,:) = indx;
             case{'axial'}
                 viewCoords = [0, 90];
                 indx = [0 0 slice(ii)];
-                xbnd = [ xbnd; indx ];
+                xbnd(ii,:) = indx;
             case{'coronal'}
                 viewCoords = [180, 0];
                 indx = [0 slice(ii) 0];
-                xbnd = [ xbnd; indx ];
+                xbnd(ii,:) = indx;
             otherwise
                 error('Invalid slice view requested.');
         end
@@ -224,7 +183,6 @@ else
     
     % set the defaults w/o slices
     viewCoords = [ -37.5, 30 ];
-    indx = [];
     xbnd = [ 0 0 0 ];
     
 end
@@ -236,8 +194,7 @@ switch conn
         
         for tct = 1:length(tract)
             [fh, light_h] = mbaDisplayConnectome(fgOut{tct}.fibers, fh, color{tct}, 'single');
-            delete(light_h);
-        
+            delete(light_h);        
         end
         
         % if cropping is set
@@ -247,38 +204,12 @@ switch conn
             xyz = nan(1, 6);
         end
         
-    case{'neighborhood'}
+    % if the profile tube should be rendered    
+    case 'profile'
         
-        for tct = 1:length(tract)
-            
-            [fh, light_h] = mbaDisplayConnectome(pnOut{tct}.fibers, fh, colors{2}, 'single');
-            delete(light_h);
+    % if both streamlines and tubes are requested
+    case 'both'
         
-        end
-        
-        if crop
-            xyz = initView(pnOut, xbnd);
-        else
-            xyz = nan(1, 6);
-        end
-        
-    case{'both'}
-        
-        for tct = 1:length(tract)
-            
-            [fh, light_h1] = mbaDisplayConnectome(fgOut{tct}.fibers, fh, color{tct}, 'single');
-            delete(light_h1);
-            
-            [fh, light_h2] = mbaDisplayConnectome(pnOut{tct}.fibers, fh, colors{2}, 'single');
-            delete(light_h2);
-            
-        end
-        
-        if crop
-            xyz = initView(pnOut, xbnd);
-        else
-            xyz = nan(1, 6);
-        end
     
 end
 
@@ -300,16 +231,13 @@ function [ out ] = initView(fibers, xbnd)
 sbnd = minmax(xbnd');
 
 % combine all the nodes of all the streamlines
-fibs = [];
+fibs = cell(length(fibers), 1);
 for ii = 1:length(fibers)
-    ftct = fibers{ii}.fibers;
-    for jj = 1:length(ftct)
-        fibs = [ fibs ftct{jj} ];
-    end
+    fibs{ii} = minmax(cat(2, fibers{ii}.fibers{:}));
 end
 
 %  find min / max [x,y,z]
-axCoords = minmax(fibs);
+axCoords = minmax(cat(2, fibs{:}));
 
 %  compute 10% padding of [x,y,z]
 axPadding = abs(axCoords(:,1) - axCoords(:,2)) * 0.10;
@@ -355,6 +283,3 @@ end
 out = reshape(axOut', 1, 6);
 
 end
-
-
-

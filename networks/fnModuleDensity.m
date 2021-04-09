@@ -4,7 +4,7 @@ function [ Mden, Mden_in, Mden_bw, Mden_in_lo, Mden_bw_hi ] = fnModuleDensity(M,
 %
 % INPUTS:
 %     M      - input matrix to compute modules for
-%     ci     - vector assigning nodes of M to modules
+%     ci     - vector of module membership for nodes in M
 %     method - how edges are summarized within modules. 
 %              Either:
 %                  'mean' - the average of the edge weights in the modules
@@ -22,7 +22,6 @@ function [ Mden, Mden_in, Mden_bw, Mden_in_lo, Mden_bw_hi ] = fnModuleDensity(M,
 %   
 % TODO:
 % - other 'method' options?
-% - default arguments
 %
 % EXAMPLE:
 %
@@ -46,8 +45,16 @@ function [ Mden, Mden_in, Mden_bw, Mden_in_lo, Mden_bw_hi ] = fnModuleDensity(M,
 % Olaf Sporns and Brent McPherson (c), 2017 - Indiana University
 %
 
+if(~exist('ci', 'var') || isempty(ci))
+    error('Module values cannot be estimated without an assignment vector.');
+end
+
+if(~exist('method', 'var') || isempty(method))
+    method = 'mean';
+end
+
 if(~exist('flag', 'var') || isempty(flag))
-    flag = 1;
+    flag = true;
 end
 
 % determine the number of modules
@@ -98,9 +105,8 @@ for ii = 1:size(pairs, 1)
     % define the type of edge summary to compute
     switch method
         
-        case 'mean'
-            Mden(m1, m2) = nanmean(data(:));
-            Mden(m2, m1) = nanmean(data(:));
+        % if its the same module and main diagonal is not discounted
+        if ((i == j) && ~flag)
             
         case 'median'
             Mden(m1, m2) = median(data(:), 'omitnan');
@@ -109,6 +115,10 @@ for ii = 1:size(pairs, 1)
         case 'std'
             Mden(m1, m2) = std(data(:), [], 'omitnan');
             Mden(m2, m1) = std(data(:), [], 'omitnan');
+        end
+        
+        % if it's the same module and the main diagonal is discounted
+        if ((i == j) && flag)
             
         case 'var'
             Mden(m1, m2) = var(data(:), [], 'omitnan');

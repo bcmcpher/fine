@@ -78,6 +78,7 @@ end
 % - sort by neighborhoods
 
 % pull the max q-stat and it's indices in the iterations
+% THIS SHOULDN'T BE THE MAX, IT SHOULD BE THE CENTER OF THE MOST FLAT SPOT
 [ qmax, vmax ] = max(q(:));
 [ g_max, i_max ] = ind2sub(size(q), vmax);
 

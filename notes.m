@@ -4,33 +4,50 @@
 
 %% TODO:
 %
+% export to json graph
+% - done?
+%
+% sparse edge storage breaks deReus link network
+%
+% better check / parse names if passed during creation
+%
+% store network stats in object
+% - just the binary stats?
+% 
+% figure out how to store community assignments
+% - array of node length with optional labels?
+% - optionally check for stored assignments when building modules
+%
+% add profile tube to render function
+%
+% a fxn to prune netw to only LiFE weighted streamlines
+% - just do to fg before creation?
+% - building separate from the beginning is easier for matching edges
+%
+% built in matlab hierarchical clustering algorithms / plots
+% linkage / cluster / dendrogram / clusterdata / cophenet / inconsistent
+%
+% import / store classification.mat
+% - basic crossection info on what edges make a fascicle
+% - plot of network with edges contributing to fascicles highlighted over
+%
+% create measures on diagonal self-connections
+%
+% merge fnPlotModulePoints and fnPlotModuleGroups - they're nearly the same
+%
 % create classified fiber structure Dan wants
 %
-% parallel pool fxn
-% - see if this is actually necessary - maybe a local problem?
-% - parallel pool optional? check if open and run different fxn?
-%
 % change all display to sprintf
-%
-% scripts and workflows are essentially the same - merge somehow
-% - drop project specific fxns, but don't loose them...
 %
 % check all the plot / volume fxn once the majority of above are done
 % - they have mostly minor changes / tweaks
 % - comments / documentation / examples
 %
-% fix ALL function names
-%
-% fix ALL documentation
-%
 % make sure volume fxns can take a loaded .nii or a string
 %
-% link network functions
-% - add other metrics?
-% - create separate fxn for computing individual edge similarities?
+% fix ALL function names - for consistency / clarity
 %
-% built in matlab hierarchical clustering algorithms / plots
-% linkage / cluster / dendrogram / clusterdata / cophenet / inconsistent
+% fix ALL documentation - for consistency / clarity
 %
 % fxn estimating neural conduction speed / bitrate for all edges
 %
@@ -38,28 +55,12 @@
 %
 % dual color diagonal adjacency plot - mean / sd in different colors
 %
-% merge fnPlotModulePoints and fnPlotModuleGroups - they're nearly the same
-%
-% simple shape analysis of cortical node centers; geometric morphometric analysis
-% - procrustes alignment
-%
-% fxn to virtual lesion streamlines w/ both terminations in 1 ROI
-%
 % better default axes in virtual lesion measures plot 
 %
-% feCreatePairedConnections 
-% - simplify how fibers / weights are stored? too big a change? used later?
-%
-% finish feCreatePairedConnectionsFromSurface
-%
-% figure out if single fxn for making matrix field is workable
-%
-% add profile tube to render function
+% create a way to use surfaces as parc - new assignment works well for it
 %
 % feTractProfilePairedConnections
 % - check if the connections are too short for a reasonable profile (?)
-%
-% compute profile from ENCODE directly? 
 %
 
 %% figure out network shape stats for edges

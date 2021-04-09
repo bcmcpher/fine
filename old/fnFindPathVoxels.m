@@ -1,4 +1,8 @@
-function [ pconn, wmvol ] = fnFindPathVoxels(pconn, label, Phi, dim, clobber)
+function [ netw, wmvol ] = fnFindPathVoxels(netw, Phi, clobber)
+%%
+% REPLACED WITH fnAverageEdgePropertyS() TO NOT REQUIRE ENCODE STRUCTURE
+% AND FOLLOW UP WITH fnAverageEdgeProperty()
+%%
 %fnFindPathVoxels finds the tensor indices of voxels for every connection 
 % to create either microstructural summaries of networks or for
 % generating link networks.
@@ -26,9 +30,6 @@ function [ pconn, wmvol ] = fnFindPathVoxels(pconn, label, Phi, dim, clobber)
 %
 %     wmvol - the total white matter volume according to the provided voxel 'dim'
 %
-% TODO:
-% - compute proportion of white matter (unique_edge / voxel dim of Phi)
-%
 % EXAMPLE:
 %
 % % load data
@@ -53,56 +54,59 @@ if(~exist('clobber', 'var') || isempty(clobber))
     clobber = 0;
 end
 
-display('Finding voxels in tracts for all edges...')
+disp('Finding voxels in tracts for all edges...')
 
 % error without clobber set if volume is computed
-if (isfield(pconn{1}.(label), 'volume') && clobber == 0)
+if (isfield(netw.pconn{1}, 'volume') && clobber == 0)
     error('Volumes for this label are already computed. Set clobber = 1 to recompute.');
 end    
 
 % catch the total number of voxels and volume units
-nvox = size(Phi, 2);
-mms3 = prod(dim);
+netw.parc.wmvox = size(Phi, 2);
+mms3 = prod(netw.parc.voxmm);
 
 % estimate total wm vol
-wmvol = nvox * mms3;
+wmvol = netw.parc.wmvox * mms3;
 
-display([ 'Total white matter volume estimated at: ' num2str(wmvol) ' mm^3.' ])
+disp([ 'Total white matter volume estimated at: ' num2str(wmvol) ' mm^3.' ])
+
+% store computed white matter volume
+netw.parc.wmvol = wmvol;
 
 tic;
-parfor ii = 1:length(pconn)
+for ii = 1:length(netw.pconn)
     
     % pull the connection
-    conn = pconn{ii}.(label);
+    conn = netw.pconn{ii};
     
     % if the connection is empty, fill in zero
-    if isempty(conn.indices)
+    if isempty(conn.fibers.indices)
         
         % fill in empty voxel coords
-        conn.volume.pvoxels = [];
+        conn.pvoxels = [];
     
     else
         
         % pull subtensor of the connection
-        subtensor = Phi(:, :, conn.indices);
+        subtensor = Phi(:, :, conn.fibers.indices);
         
         % pull the unique voxel indices of the connection
-        conn.volume.pvoxels = unique(subtensor.subs(:, 2));
+        conn.pvoxels = unique(subtensor.subs(:, 2));
     
     end
+        
+    % compute and store volume and proportional volume occupied by edge
+    vol = size(conn.pvoxels, 1) * mms3;
+    conn.volume.volume = vol;
+    conn.volume.prpvol = vol / wmvol;
     
     % re-assign connection
-    pconn{ii}.(label) = conn;
+    netw.pconn{ii} = conn;
     
-    % compute and store volume and proportional volume occupied by edge
-    vol = size(conn.volume.pvoxels, 1) * mms3;
-    pconn{ii}.(label).matrix.volume = vol;
-    pconn{ii}.(label).matrix.prpvol = vol / wmvol;
-        
 end
 time = toc;
 
-display([ 'Found the voxels for all edges in ' num2str(time/60) ' minutes.' ]);
+disp([ 'Found the voxels for all edges in ' num2str(time/60) ' minutes.' ]);
 
 end
 
