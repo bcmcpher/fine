@@ -5,6 +5,9 @@
 %% TODO:
 %
 % export to json graph
+% - done?
+%
+% sparse edge storage breaks deReus link network
 %
 % better check / parse names if passed during creation
 %
