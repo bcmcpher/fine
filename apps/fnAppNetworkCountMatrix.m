@@ -99,36 +99,37 @@ edgew = {'count', 'length', 'density', 'denlen'};
 edgei = [ 1 2 4 5 ];
 edgec = 4;
 
-% write out each network type
-mkdir conmat
-mkdir networks
-
+% write out each network
 for edge = 1:edgec
     
+    % create folder names for outputs b/c brainlife can't parse paths to outputs
+    conout = [ 'conmat-', edgew{edge} ];
+    netout = [ 'network-', edgew{edge} ];
+
     % make a folder in conmat for each modality
-    mkdir(fullfile(pwd, 'conmat', edgew{edge}));
-    mkdir(fullfile(pwd, 'conmat', edgew{edge}, 'csv'));
+    mkdir(fullfile(pwd, conout));
+    mkdir(fullfile(pwd, conout, 'csv'));
     
     % write the csv of the adjacency matrix (conmat) to disk
-    csvout = fullfile(pwd, 'conmat', edgew{edge}, 'csv', [ edgew{edge} '.csv' ]);
+    csvout = fullfile(pwd, conout, 'csv', [ edgew{edge} '.csv' ]);
     dlmwrite(csvout, omat(:,:,edgei(edge)), 'delimiter', ',');
     
     % copy label.json to each output - probably redundant
-    copyfile('label.json', fullfile(pwd, 'conmat', edgew{edge}));
+    copyfile('label.json', fullfile(pwd, [ 'conmat-', edgew{edge}) ]);
     
     % write index.json w/ basic descriptors - what is this for?
     index = struct('filename', csvout, 'unit', edgew{edge}, 'name', edgew{edge}, 'desc', [ 'FiNE - ' edgew{edge} ' weighted connectivity' ]);
-    savejson('', index, fullfile(pwd, 'conmat', edgew{edge}, 'index.json'));
+    savejson('', index, fullfile(pwd, conout, 'index.json'));
     % this is unqiqe per node modality (?) so 
     
     % make the new output directory for json graphs
-    mkdir(fullfile(pwd, 'networks'), edgew{edge});
+    mkdir(fullfile(pwd, netout);
 
     % create json graph object
     jsg = fnCreateJSONGraph(netw, edgew{edge});
 
     % write jsongraph to disk
-    jsnout = fullfile(pwd, 'networks', edgew{edge}, 'network.json');
+    jsnout = fullfile(pwd, netout, 'network.json');
     savejson('', jsg, jsnout);
     gzip(jsnout); % gzip by defualt
     delete(jsnout); % remove the unzipped file?
