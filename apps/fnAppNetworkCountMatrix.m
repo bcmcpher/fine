@@ -115,7 +115,7 @@ for edge = 1:edgec
     dlmwrite(csvout, omat(:,:,edgei(edge)), 'delimiter', ',');
     
     % copy label.json to each output - probably redundant
-    copyfile('label.json', fullfile(pwd, [ 'conmat-', edgew{edge}) ]);
+    copyfile('label.json', fullfile(pwd, conout));
     
     % write index.json w/ basic descriptors - what is this for?
     index = struct('filename', csvout, 'unit', edgew{edge}, 'name', edgew{edge}, 'desc', [ 'FiNE - ' edgew{edge} ' weighted connectivity' ]);
@@ -123,7 +123,7 @@ for edge = 1:edgec
     % this is unqiqe per node modality (?) so 
     
     % make the new output directory for json graphs
-    mkdir(fullfile(pwd, netout);
+    mkdir(fullfile(pwd, netout));
 
     % create json graph object
     jsg = fnCreateJSONGraph(netw, edgew{edge});
