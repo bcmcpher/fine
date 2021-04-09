@@ -84,7 +84,7 @@ end
 %% actually build the networks after fixing labels
 
 % create the network object
-netw = fnCreateEdges(parc, fg, names, str2double(config.maxDist), str2double(config.minStrm));
+netw = fnCreateEdges(parc, fg, names, config.maxDist, config.minStrm);
 
 % create matrix field for export of all computed edge weights
 netw = fnComputeMatrixEdges(netw);
