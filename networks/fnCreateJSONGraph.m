@@ -12,11 +12,14 @@ function [ jsg ] = fnCreateJSONGraph(netw, edgew)
 % Brent McPherson (c) 2021, Indiana University
 %
 
+%% parse the arguments, make sure the requested field exists
+
 % set a default maximum distance in mm an endpoint can be from a node.
 if(~exist('edgew', 'var') || isempty(edgew))
     edgew = 'density';
 end
 
+% if the requested field doesn't exist
 if ~isfield(netw.edges{1}, 'matrix')
     error('Matrix field must be computed with fnComputeMatrixEdges();');
 else
@@ -25,6 +28,8 @@ else
         edgew = 'density';
     end
 end
+
+%% initialize the graph structure / sizes
 
 % pull the dimensions of nodes / edges
 nnodes = length(netw.nodes);
@@ -35,12 +40,17 @@ jsg.graph.label = edgew;
 jsg.graph.directed = 0;
 
 % the network metadata field
-jsg.graph.metadata.unit = 'xyz^3';             % the space it's it?
-jsg.graph.metadata.desc = [ 'FiNE - ' edgew ]; % depending on what else i guess
+jsg.graph.metadata.unit = edgew; % the unit of values in the edges
+jsg.graph.metadata.desc = [ 'FiNE - ' edgew ' weighted connectivity' ]; 
+% any naming convention?
 
-jsg.graph.metadata.extra_name = 'self-loop';   % extra defs?
-jsg.graph.metadata.extra_desc = 'index(x,x) is the diagonal'; % what else can go here?
+%jsg.graph.metadata.extra_name = 'self-loop';   % extra defs?
+%jsg.graph.metadata.extra_desc = 'index(x,x) is the diagonal'; % what else can go here?
 % anything else I can add?
+
+% how would stats be added?
+
+%% initialize and store the node data
 
 % preallocate struct array of nodes w/ names?
 nmetad = struct('name', [], 'voxel_value', [], 'volume', [], 'center', []);
@@ -70,8 +80,7 @@ end
 % add graph to jsg
 jsg.graph.nodes = nodes;
 
-% preallocate empty edge cell array
-%edges = cell(nedges, 1);
+%% store the edge data
 
 % append cell information as a cell array
 for edge = 1:nedges
@@ -87,8 +96,5 @@ for edge = 1:nedges
     % stats get appended here?
 
 end
-
-% add edges to graph
-%jsg.graph.edges = edges;
 
 end

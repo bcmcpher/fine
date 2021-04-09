@@ -333,7 +333,7 @@ edges = repmat({edget}, redges, 1);
 % create zero arrays of counts for output / debugging
 tcon = zeros(redges, 1);
 
-disp([ 'Building ' num2str(redges) ' network edges with ' num2str(sum(ept)) ' streamlines...' ]);
+disp([ 'Building ' num2str(redges) ' network edges...' ]);
 
 % build label pairs to facilitate skipping empty edges during assignment 
 labpr = [ labels(pairs(:,1)) labels(pairs(:,2)) ];
