@@ -175,47 +175,6 @@ time = toc;
 netw.edges = pconn;
 
 disp(['Computed ' num2str(vlcnt) ' vitual lesions in ' num2str(round(time)/60) ' minutes.']);
-
-% add virtual lesion to pconn object
-for ii = 1:length(pconn)
-    
-    % pull subset field
-    tmp = pconn{ii}.(label);
-    
-    % add vl output as normed or raw
-    if(norm)
-        tmp.vl_nrm = vlout{ii};
-        
-        % assign virtual lesion matrix entries
-        tmp.matrix.soe_nrm = vlout{ii}.s.mean;
-        tmp.matrix.std_nrm = vlout{ii}.s.std;
-        tmp.matrix.spv_nrm = vlout{ii}.s.pval;
-        
-        tmp.matrix.emd_nrm = vlout{ii}.em.mean;
-        tmp.matrix.kl_nrm  = mean(vlout{ii}.kl.mean);
-        tmp.matrix.jd_nrm  = mean(vlout{ii}.j.mean);
-        
-        tmp.matrix.dis_nrm = vlout{ii}.dis.mean;
-        tmp.matrix.cos_nrm = vlout{ii}.cos.mean;
-        
-    else
-        tmp.vl_raw = vlout{ii};
-        
-        % assign virtual lesion matrix entries
-        tmp.matrix.soe_raw = vlout{ii}.s.mean;
-        
-        tmp.matrix.emd_raw = vlout{ii}.em.mean;
-        tmp.matrix.kl_raw  = vlout{ii}.kl.mean;
-        tmp.matrix.jd_raw  = vlout{ii}.j.mean;
-        
-        % not present in not feComputeEvidence yet
-        %tmp.matrix.dis_raw = vlout{ii}.dis.mean;
-        %tmp.matrix.cos_raw = vlout{ii}.cos.mean;
-        
-    end
-    
-    % reassign virtual lesions to paired connection array
-    pconn{ii}.(label) = tmp;
     
 if vltry > 0
     disp(['Attempted and failed to estimate ' num2str(vltry) ' vitual lesions.']);
