@@ -12,7 +12,6 @@ function [ netw ] = fnCreateLinkNetwork(netw, meas, dtype, Phi, dict, clobber)
 %               - mi: mutual information between precomputed voxel values
 %               - angle: the average angle of intersection between the streamline nodes
 %               - tprof: a series of summary statistics between a specified tract profile
-%               - deReus: the node based link network defined by deReus et al. 2014
 %
 %     dtype - defines the microstructural label for "mi" or the profile label for "tprof"
 %
@@ -31,6 +30,7 @@ function [ netw ] = fnCreateLinkNetwork(netw, meas, dtype, Phi, dict, clobber)
 %     out  - cell array of the data used to compute edge entry in omat
 %
 % TODO:
+% - reduce the total comparisons by only looking at non-zero pairs
 % - figure out if runs can be usefully appended
 % - add other metrics?
 %   https://en.wikipedia.org/wiki/Diversity_index#Simpson_index
@@ -133,9 +133,6 @@ switch meas
     case 'tprof'
         olab = {'Norm', 'Correlation', 'Sum of Absolute Error', 'Product', 'RMSE', 'Cosine Distance'};
         prnt = [ 'tract profile similarities of ' dtype ];
-    case 'deReus'
-        olab = {'deReus'};
-        prnt = 'links with shared nodes';
     otherwise
         error('Invalid method of comparison requested. Either use: ''dice'', ''mi'', ''angle'', ''tprof'', or ''deReus''.');
 end
@@ -299,18 +296,6 @@ for link = 1:nlinks
             cosd = pdist2(tp1', tp2', 'cosine'); % cosine distance
             
             out{link} = [ edge1, edge2, nrm, corc, smae, dotp, rmse, cosd ];
-            
-        case 'deReus'
-            
-            % edges present
-            ep = [ pairs(edge1,:) pairs(edge2,:) ];
-            
-            % if either connection shares a node
-            if length(ep) ~= length(unique(ep))
-                out{link} = [ edge1, edge2, 1 ];
-            else
-                out{link} = [ edge1, edge2, 0 ];
-            end
 
         otherwise
             error('Invalid metric between edges requested.');            

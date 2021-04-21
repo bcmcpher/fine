@@ -4,13 +4,9 @@
 
 %% TODO:
 %
-% check fnModuleDensity and fnVirtualLesionEdges to make sure merging into
-% master didn't break anything
-%
 % export to json graph
-% - done?
-%
-% sparse edge storage breaks deReus link network - fix or drop?
+% - fixing...
+% - link network edges?
 %
 % better check / parse names if passed during creation
 % - will probably handle in specific app fxns - a bl problem
@@ -24,13 +20,11 @@
 %
 % add profile tube to render function
 %
-% a fxn to prune netw to only LiFE weighted streamlines
-% - just do to fg before creation?
-% - building separate netw from the beginning is easier for matching edges
-%
 % built in matlab hierarchical clustering algorithms / plots
 % linkage / cluster / dendrogram / clusterdata / cophenet / inconsistent
 % - move over from cca_aging (that may be MDS fxn, not sure if that's useful here...)
+%
+% append / clobber to link networks?
 %
 % import / store classification.mat
 % - basic crossection info on what edges make a fascicle
@@ -61,9 +55,6 @@
 % better default axes in virtual lesion measures plot 
 %
 % create a way to use surfaces as parc - new assignment works well for it
-%
-% feTractProfilePairedConnections
-% - check if the connections are too short for a reasonable profile (?)
 %
 
 %% figure out network shape stats for edges

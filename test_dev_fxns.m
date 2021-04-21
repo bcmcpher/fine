@@ -8,7 +8,7 @@ load_dev_data
 [ netw, out ] = fnCreateEdges(node, fg, nname, 4, 5, 'weights', wght);
 
 % create central tendency measures of FA for each edge
-netw = fnAveragePropertyEdges(netw, fg, fa, 'fa', true);
+netw = fnAveragePropertyEdges(netw, fg, fa, 'fa', true, true, true);
 
 % create tract profiles of FA for each edge
 netw = fnTractProfileEdges(netw, fg, fa, 'fa');
@@ -34,7 +34,10 @@ netw = fnComputeMatrixEdges(netw, 'weights', [], true);
 [ omat, olab ] = fnCreateAdjacencyMatrices(netw);
 
 % estimate modules of the network
-[ Mden, Mden_in, Mden_bw, Mden_in_lo, Mden_bw_hi ] = fnModuleDensity(squeeze(omat(:,:,1)), modules, 'mean', flag);
+[ Mden, Mden_in, Mden_bw, Mden_in_lo, Mden_bw_hi ] = fnModuleDensity(squeeze(omat(:,:,1)), modules, 'mean');
+
+% estimate the link network
+netw = fnCreateLinkNetwork(netw, 'dice');
 
 % check the count matrix
 figure; imagesc(omat(:,:,1)); title(olab{1}); colorbar;
