@@ -80,8 +80,10 @@ for node = 1:nnodes
     
     % my additions of node data
     nodes.(label).metadata.volume = num2str(netw.nodes{node}.volume);
-    nodes.(label).metadata.center = num2str(round(netw.nodes{node}.center.acpc, 3));
-
+    nodes.(label).metadata.center = regexprep(num2str(round(netw.nodes{node}.center.acpc, 3)), ' *', ',');
+    % the center of the node in world (mm) coordinates (x,y,z) 
+    % comma separated and rounded to 3 decimal places
+    
     % check how stats would be added
 
 end
@@ -106,14 +108,14 @@ for edge = 1:nedges
 
 end
 
-% write links
+% write links?
 % repeated graph objects for null?
 
 %% optionally write to disk
 
 % write the json object to disk if a filename is passed
 if ~isempty(outfile)
-    savejson('', jsg, outfile);
+    savejson('', jsg, 'FileName', outfile, 'Compact', 1);
 end
 
 end

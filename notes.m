@@ -7,16 +7,19 @@
 % export to json graph
 % - fixing...
 % - link network edges?
+% - null models?
+% - statistics?
 %
 % better check / parse names if passed during creation
 % - will probably handle in specific app fxns - a bl problem
 %
 % store network stats in object
 % - just the binary stats?
+% - I doubt the names can stay fixed
 % 
 % figure out how to store community assignments
 % - array of node length with optional labels?
-% - optionally check for stored assignments when building modules
+% - optionally check for stored assignments when building modules / plot
 %
 % add profile tube to render function
 %
