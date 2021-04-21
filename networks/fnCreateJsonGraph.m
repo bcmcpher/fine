@@ -1,10 +1,11 @@
-function [ jsg ] = fnCreateJSONGraph(netw, edgew, outfile)
-%[ jsg ] = fnCreateJSONGraph(netw, edgew);
-%   Write out a .json graph object of the network structure.
+function [ jsg ] = fnCreateJsonGraph(netw, edgew, outfile)
+%[ jsg ] = fnCreateJsonGraph(netw, edgew, outfile);
+%   Write out a .json graph object (jsg) of the network structure.
 %
 % INPUTS:
-%     netw  - the network object with matrix fields estimated
-%     edgew - the edge weight estimated in the network to store
+%     netw    - the network object with matrix fields estimated
+%     edgew   - the edge weight estimated in the network to store
+%     outfile - (optional) a string of the file name to write jsg to disk
 %
 % OUTPUTS:
 %     jsg - the json graph structure to save with:
@@ -20,17 +21,18 @@ if(~exist('edgew', 'var') || isempty(edgew))
     edgew = 'density';
 end
 
-% if the requested field doesn't exist
+% if the matrix field hasn't been estimated
 if ~isfield(netw.edges{1}, 'matrix')
     error('Matrix field must be computed with fnComputeMatrixEdges();');
 else
+    % if the requested field doesn't exist
     if ~isfield(netw.edges{1}.matrix, edgew)
         warning('The requested edge weight to write out does not exist. Returning ''density'' by default.');
         edgew = 'density';
     end
 end
 
-% set a default maximum distance in mm an endpoint can be from a node.
+% if outfile isn't passed set to empty
 if(~exist('outfile', 'var') || isempty(outfile))
     outfile = [];
 end
@@ -43,7 +45,7 @@ nedges = length(netw.edges);
 
 % the basic structure to build
 jsg.graph.label = edgew;
-jsg.graph.directed = 'false'; 
+jsg.graph.directed = false; 
 
 % the network metadata field
 jsg.graph.metadata.unit = edgew; % the unit of values in the edges
@@ -55,13 +57,13 @@ jsg.graph.metadata.desc = [ 'FiNE - ' edgew ' weighted connectivity' ];
 %jsg.graph.metadata.extra_desc = 'index(x,x) is the diagonal'; % what else can go here?
 % anything else I can add?
 
-% how would stats be added?
+% how would stats be added? need common names...
 
 %% initialize and store the node data
 
 % preallocate struct array of nodes w/ names?
-nmetad = struct('name', [], 'voxel_value', [], 'volume', [], 'center', []);
-tnode = struct('label', [], 'metadata', nmetad);
+nmeta = struct('name', [], 'voxel_value', [], 'volume', [], 'center', []);
+tnode = struct('label', [], 'metadata', nmeta);
 
 % append node information as struct array
 for node = 1:nnodes
@@ -95,7 +97,7 @@ for edge = 1:nedges
     % store the minimum data for each edge
     jsg.graph.edges{edge}.source = sprintf('node%04d', netw.parc.pairs(edge, 1)); 
     jsg.graph.edges{edge}.target = sprintf('node%04d', netw.parc.pairs(edge, 2));
-    jsg.graph.edges{edge}.metatdata.weight = num2str(netw.edges{edge}.matrix.(edgew));
+    jsg.graph.edges{edge}.metadata.weight = num2str(netw.edges{edge}.matrix.(edgew));
     % only 1 edge weight - they can't handle multiple weights
     
     % other info to store here?
@@ -103,6 +105,11 @@ for edge = 1:nedges
     % stats get appended here?
 
 end
+
+% write links
+% repeated graph objects for null?
+
+%% optionally write to disk
 
 % write the json object to disk if a filename is passed
 if ~isempty(outfile)

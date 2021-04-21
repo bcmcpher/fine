@@ -152,8 +152,6 @@ omat = fnCreateAdjacencyMatrices(netw);
 
 %% write out multiple predetermined networks
 
-% FIGURE OUT HOW TO TAG (?) WHAT INPUT WAS REQUESTED SO IT'S ARCHIVED USEFULLY
-
 % the edge weights to store
 edgew = {'volume', [ config.mname '_mn' ], [ config.mname '_sd' ]};
 edgef = {'volume', 'mean', 'sd'}; % the generic folder names
@@ -186,15 +184,14 @@ for edge = 1:edgec
     % make the new output directory for json graphs
     mkdir(fullfile(pwd, netout));
 
-    % create json graph object
-    jsg = fnCreateJSONGraph(netw, edgew{edge});
-
-    % write jsongraph to disk
+    % jsongraph filename to write to disk
     jsnout = fullfile(pwd, netout, 'network.json');
-    savejson('', jsg, jsnout);
+        
+    % write jsongraph to disk
+    fnCreateJsonGraph(netw, edgew{edge}, jsnout);
     gzip(jsnout); % gzip by defualt
     delete(jsnout); % remove the unzipped file
-
+    
 end
 
 out = 'done.';

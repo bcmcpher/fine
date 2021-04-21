@@ -172,12 +172,11 @@ for edge = 1:edgec
     % make the new output directory for json graphs
     mkdir(fullfile(pwd, netout));
 
-    % create json graph object
-    jsg = fnCreateJSONGraph(netw, edgew{edge});
-
-    % write jsongraph to disk
+    % jsongraph filename to write to disk
     jsnout = fullfile(pwd, netout, 'network.json');
-    savejson('', jsg, jsnout);
+        
+    % write jsongraph to disk
+    fnCreateJsonGraph(netw, edgew{edge}, jsnout);
     gzip(jsnout); % gzip by defualt
     delete(jsnout); % remove the unzipped file
 
