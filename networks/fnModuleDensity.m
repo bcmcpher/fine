@@ -151,7 +151,10 @@ for ii = 1:size(pairs, 1)
             Mden(m1, m2) = nansum(data(:));
             
         otherwise
-            error('Invalid method of summarizing provided.');
+            Mden(m1, m2) = mean(data(:), 'omitnan');
+            Mden(m1, m2) = mean(data(:), 'omitnan');
+            
+            %error('Invalid method of summarizing provided.');
     end
     
 end
