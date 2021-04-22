@@ -30,8 +30,6 @@ function [ netw ] = fnCreateLinkNetwork(netw, meas, dtype, Phi, dict, clobber)
 %     out  - cell array of the data used to compute edge entry in omat
 %
 % TODO:
-% - reduce the total comparisons by only looking at non-zero pairs
-% - figure out if runs can be usefully appended
 % - add other metrics?
 %   https://en.wikipedia.org/wiki/Diversity_index#Simpson_index
 %     - Simpson's Index: probability that 2 random voxels are part of intersection
@@ -68,35 +66,37 @@ if(~exist('dtype', 'var') || isempty(dtype))
     dtype = 'none';
 end
 
-% if dtype isn't passed, set as empty b/c it isn't used
+% if clobber isn't passed, set as false
 if(~exist('clobber', 'var') || isempty(clobber))
     clobber = false;
 end
 
-% check if a link network is already computed
+% if a link network is already computed and clobber is true, throw warning
 if isfield(netw, 'links') && clobber
     warning('Replacing previously computed link network with requested values.');
-else
+end
+
+% if a link network is already computed and clobber is false, throw error
+if isfield(netw, 'links') && ~clobber
     error('Link network is already computed and clobber is set to false.'); 
 end
 
-% append different runs? would probably get too big...
-
 % error if coordinates are not stored from volume averaging
-if (~isfield(netw.edges{1}.volume, 'coords'))
-    error('Edge volume coordinates must be precomputed and stored with fnFindPathVoxels().');
+if ~isfield(netw.edges{1}.volume, 'coords')
+    error('Edge volume coordinates must be precomputed and stored with fnAveragePropertyEdges()');
 end
 
 % error if MI is called to estimate w/o dtype being stored
-if ~isfield(netw.edges{1}, 'micros')
+if strcmp(meas, 'mi') && ~isfield(netw.edges{1}, 'micros')
     if ~isfield(netw.edges{1}.micros, dtype)
-        if (~isfield(netw.edges{1}.micros.(dtype), 'raw') && strcmp(meas, 'mi'))
-            error('An average edge property dtype ''%s'' must be precomputed with fnAveragePropertyEdges().', dtype);
+        if ~isfield(netw.edges{1}.micros.(dtype), 'raw')
+            error('An average edge property dtype ''%s'' must be precomputed with fnAveragePropertyEdges()', dtype);
         end
     end
 end
 
-if ~isfield(netw.edges{1}, 'profile')
+% error if tract profiles are called w/o dtype being stored
+if strcmp(meas, 'tprof') && ~isfield(netw.edges{1}, 'profile')
     if ~isfield(netw.edges{1}.profile, dtype)
         error('Tract profiles for ''%s'' must be precomputed and stored with fnTractProfileEdges().', dtype);
     end
@@ -123,69 +123,85 @@ switch meas
     case 'dice'
         olab = {'Dice Coefficient'};
         prnt = 'dice coefficient';
+        outd = 3;
     case 'mi'
         olab = {'Mutual Information', 'Joint Entropy', 'Entropy1', 'Entropy2'};
         nbin = 256; % number of bins for the individual / joint histograms
         prnt = [ 'mutual information of ' dtype ];
+        outd = 6;
     case 'angle'
-        olab = {'Product', 'Angle of Intersection', 'Cosine Distance'};
+        olab = {'Angle of Intersection', 'Product', 'Cosine Distance'};
         prnt = 'angle of intersection';
+        outd = 5;
     case 'tprof'
         olab = {'Norm', 'Correlation', 'Sum of Absolute Error', 'Product', 'RMSE', 'Cosine Distance'};
         prnt = [ 'tract profile similarities of ' dtype ];
+        outd = 7;
     otherwise
         error('Invalid method of comparison requested. Either use: ''dice'', ''mi'', ''angle'', ''tprof'', or ''deReus''.');
 end
 
+disp([ 'Computing ' prnt ' for unique edge intersections.' ]);
+
 disp('Determining output size...');
 
-% pull the number of edges
-nedges = size(netw.edges, 1);
+% pull the number of nodes to rebuild possible edge list
+nnodes = size(netw.nodes, 1);
 
-% compute indices of output size
-mask = triu(ones(nedges), 1); 
+% build the upper diagonal node indices
+nmsk = triu(ones(nnodes), 1);
+[ xnidx, ynidx ] = find(nmsk > 0);
 
-% preallocate unique indices - faster than nchoosek
-[ xind, yind ] = find(mask > 0);
-indx = sortrows([ xind, yind ]);
+% build the possible edges that could exist
+eindx = sortrows([ xnidx, ynidx ]);
 
-% number of links - the 'edges' between edges when the edges are the nodes
-nlinks = size(indx, 1);
+clear nnodes nmsk xnidx ynidx
 
-clear mask xind yind 
-
-% build an empty output array
-out = cell(nlinks, 1);
-
-% pull edges and pairs for better overhead (?)
-edges = netw.edges;
+% pull the observed (real) edge indices
 pairs = netw.parc.pairs;
 
-disp(['Computing ' prnt ' for unique edge intersections...']);
+% pull the possible comparisons to make from edges that are stored
+plnk = triu(ones(size(pairs, 1)), 1);
+[ xpidx, ypidx ] = find(plnk > 0);
+
+% build the indices into the edges so only all real comparisons are made
+tindx = sortrows([ xpidx, ypidx ]);
+
+clear plnk xpidx ypidx
+
+% pull the count of total links to test
+nlinks = size(tindx, 1);
+
+% build an empty output array of the largest possible size
+out = nan(nlinks, outd);
+
+% pull edges to index the values stored internally
+edges = netw.edges;
+
+disp([ 'Testing a possible ' num2str(nlinks) ' edge pairs for intersection...' ]);
 
 tic;
 for link = 1:nlinks
     
     % grab the edge indices for the link
-    edge1 = indx(link, 1);
-    edge2 = indx(link, 2);
+    eidx1 = tindx(link, 1);
+    eidx2 = tindx(link, 2);
 
     % grab the unique voxels of each edge
-    pv1 = edges{edge1}.volume.coords;
-    pv2 = edges{edge2}.volume.coords;
-    
-    % if either is empty its necessarily 0
-    if isempty(pv1) || isempty(pv2)
-        continue
-    end
-    
+    pv1 = edges{eidx1}.volume.coords;
+    pv2 = edges{eidx2}.volume.coords;
+
     % find the common volume of the connections
-    vind = intersect(pv1, pv2);
+    vind = intersect(pv1, pv2, 'rows');
     
     % if the intersection is empty, fill in zero
     if isempty(vind)
         continue
     end
+    
+    % recover edge index for real edges from all possible edges
+    [ ~, edge1 ] = intersect(eindx, pairs(eidx1, :), 'rows');
+    [ ~, edge2 ] = intersect(eindx, pairs(eidx2, :), 'rows');
     
     switch meas
         
@@ -199,13 +215,13 @@ for link = 1:nlinks
             den = size(pv1, 1) + size(pv2, 1);
             
             % build Dice coeff values for assignment
-            out{link} = [ edge1, edge2, ((2 * num) / den) ];
+            out(link, :) = [ edge1, edge2, ((2 * num) / den) ];
         
         case 'mi'
 
             % pull the stored values
-            imv1 = edges{edge1}.micros.(dtype).raw;
-            imv2 = edges{edge2}.micros.(dtype).raw;
+            imv1 = edges{eidx1}.micros.(dtype).raw;
+            imv2 = edges{eidx2}.micros.(dtype).raw;
             
             % grab combined voxels from both paths
             imp = union(pv1, pv2, 'rows'); 
@@ -247,14 +263,14 @@ for link = 1:nlinks
             mutualInfo = (entropy1 + entropy2) - jointEntropy;
 
             % assign to output
-            out{link} = [ edge1, edge2, mutualInfo, jointEntropy, entropy1, entropy2 ];
+            out(link, :) = [ edge1, edge2, mutualInfo, jointEntropy, entropy1, entropy2 ];
             
         % angle of intersection (subset the tensor)    
         case 'angle'
             
             % grab the streamline indices of each edge
-            pi1 = edges{edge1}.fibers.indices;
-            pi2 = edges{edge2}.fibers.indices;
+            pi1 = edges{eidx1}.fibers.indices;
+            pi2 = edges{eidx2}.fibers.indices;
             
             % reduce Phi to the shared streamlines of the connections
             sub1 = Phi(:, :, pi1);
@@ -277,13 +293,13 @@ for link = 1:nlinks
             % compute cosine distance between angle
             cosd = pdist2(matm1', matm2', 'cosine');
             
-            out{link} = [ edge1, edge2, dotp, angl, cosd ];
+            out(link, :) = [ edge1, edge2, angl, dotp, cosd ];
             
         case 'tprof'
             
             % pull tract profiles
-            tp1 = edges{edge1}.profile.(dtype);
-            tp2 = edges{edge2}.profile.(dtype);
+            tp1 = edges{eidx1}.profile.(dtype);
+            tp2 = edges{eidx2}.profile.(dtype);
             
             % compute the norm between profiles
             nrm = norm(tp1 - tp2);
@@ -295,7 +311,7 @@ for link = 1:nlinks
             rmse = sqrt(mean((tp1 - tp2) .^ 2)); % RMSE
             cosd = pdist2(tp1', tp2', 'cosine'); % cosine distance
             
-            out{link} = [ edge1, edge2, nrm, corc, smae, dotp, rmse, cosd ];
+            out(link, :) = [ edge1, edge2, nrm, corc, smae, dotp, rmse, cosd ];
 
         otherwise
             error('Invalid metric between edges requested.');            
@@ -308,14 +324,15 @@ disp(['Computed link network metrics in ' num2str(time/60) ' minutes.' ]);
 
 %% store in network object
 
-% drop the empty cells
-out = out(~cellfun(@isempty, out));
+% drop the empty observations
+out(isnan(out(:,3)),:) = [];
+
+disp([ 'Storing ' num2str(size(out, 1)) ' unique links between edges.' ]);
 
 % only store count, non-zero values and labels
 netw.links.meas = meas;
 netw.links.dtype = dtype;
 netw.links.labels = [ 'Edge1', 'Edge2', olab ];
-netw.links.values = cell2mat(out);
+netw.links.values = out;
 
 end
-

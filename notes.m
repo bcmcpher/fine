@@ -27,7 +27,8 @@
 % linkage / cluster / dendrogram / clusterdata / cophenet / inconsistent
 % - move over from cca_aging (that may be MDS fxn, not sure if that's useful here...)
 %
-% append / clobber to link networks?
+% append to link networks?
+% - I'm not sure this is worth the effort
 %
 % import / store classification.mat
 % - basic crossection info on what edges make a fascicle

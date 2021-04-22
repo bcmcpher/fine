@@ -44,6 +44,14 @@ figure; imagesc(omat(:,:,1)); title(olab{1}); colorbar;
 
 %% scratch
 
+tfg = fg.fibers(netw.edges{5}.fibers.indices);
+figure; hold on;
+for ii = 1:size(tfg, 1)
+    plot3(tfg{ii}(1,:), tfg{ii}(2,:), tfg{ii}(3,:), 'red');
+end
+hold off; axis image
+clear tfg ii
+
 % dice coefficient between orig / acpc tree assignment
 dcoeff = zeros(length(net1.edges), 1);
 for ii = 1:length(net1.edges)
