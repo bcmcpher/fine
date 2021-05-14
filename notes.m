@@ -5,7 +5,6 @@
 %% TODO:
 %
 % export to json graph
-% - fixing...
 % - link network edges?
 % - null models?
 % - statistics?

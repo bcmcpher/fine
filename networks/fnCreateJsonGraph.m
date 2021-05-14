@@ -79,8 +79,9 @@ for node = 1:nnodes
     % any additional fields?
     
     % my additions of node data
-    nodes.(label).metadata.volume = num2str(netw.nodes{node}.volume);
-    nodes.(label).metadata.center = regexprep(num2str(round(netw.nodes{node}.center.acpc, 3)), ' *', ',');
+    nodes.(label).metadata.volume = netw.nodes{node}.volume;
+    nodes.(label).metadata.center = round(netw.nodes{node}.center.acpc, 3);
+    %nodes.(label).metadata.center = regexprep(num2str(round(netw.nodes{node}.center.acpc, 3)), ' *', ',');
     % the center of the node in world (mm) coordinates (x,y,z) 
     % comma separated and rounded to 3 decimal places
     
@@ -99,7 +100,7 @@ for edge = 1:nedges
     % store the minimum data for each edge
     jsg.graph.edges{edge}.source = sprintf('node%04d', netw.parc.pairs(edge, 1)); 
     jsg.graph.edges{edge}.target = sprintf('node%04d', netw.parc.pairs(edge, 2));
-    jsg.graph.edges{edge}.metadata.weight = num2str(netw.edges{edge}.matrix.(edgew));
+    jsg.graph.edges{edge}.metadata.weight = netw.edges{edge}.matrix.(edgew);
     % only 1 edge weight - they can't handle multiple weights
     
     % other info to store here?

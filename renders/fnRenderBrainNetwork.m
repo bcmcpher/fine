@@ -11,7 +11,7 @@ function [ fh ] = fnRenderBrainNetwork(netw, nodec, nodez, edgew, thr, edgep, dt
 %               (lager value == bigger node) (optional)
 %     edgew   - a string requesting the edge weight to render between nodes
 %     thr     - the percentile threshold to apply to edges. Between 0 and
-%               100 (0 removes no streamlines, 100 removes all streamlines)
+%               1 (0 removes no edges, 1 removes all edges)
 %     edgep   - edge property; values to display along the edge (optional)
 %               M is the number of possible edges. It may be either:
 %                 - a M x 3 vector of RGB values of edge assignments
@@ -111,7 +111,13 @@ end
 
 % set threshold to the 50 percentile if they don't request something else
 if(~exist('thr', 'var') || isempty(thr))
-    thr = 50;
+    thr = 0.50;
+end
+
+% scale threshold to be between 0 and 1
+if (thr > 1) || (thr < 0)
+    warning('Threshold must be set as a positive value <= 1. Resetting to 0.50');
+    thr = 0.50;
 end
 
 %% scale the node / edge inputs
@@ -126,7 +132,8 @@ if draw_edges
     edgev = cellfun(@(x) x.matrix.(edgew), netw.edges);
     
     % compute a threshold on the matrix edge
-    edgev(edgev < prctile(edgev, thr)) = 0;
+    sthr = thr * 100; % scale for percentile to work right
+    edgev(edgev < prctile(edgev, sthr)) = 0;
     
     % subset pairs and ewgh to only non-zero values so edge objects are
     % sparse and only contain values getting plotted

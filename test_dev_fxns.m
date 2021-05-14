@@ -33,6 +33,9 @@ netw = fnComputeMatrixEdges(netw, 'weights', [], true);
 % create connectivity matrices
 [ omat, olab ] = fnCreateAdjacencyMatrices(netw);
 
+% test jsongraph out
+fnCreateJsonGraph(netw, 'density', 'test.json');
+
 % estimate modules of the network
 [ Mden, Mden_in, Mden_bw, Mden_in_lo, Mden_bw_hi ] = fnModuleDensity(squeeze(omat(:,:,1)), modules, 'mean');
 
