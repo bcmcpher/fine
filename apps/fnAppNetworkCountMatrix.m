@@ -77,10 +77,6 @@ if ~isempty(lmiss) % is there is any mismatch in parc/json
         % append the name/value combination
         names = [ names; subnm ];
 
-%         lhsub = {'lh_Thalamus'; 'lh_Caudate'; 'lh_Putamen'; 'lh_Pallidum'; 'lh_Hippocampus'; 'lh_Amygdala'; 'lh_Accumbens'};
-%         rhsub = strrep(lhsub, 'lh_', 'rh_');
-%         names = [ names; lhsub; rhsub ];
-        
         % create a fixed labels.json because the conmat type needs it
         olabel = cell(size(uparc, 1), 1);
         for ii = 1:size(uparc, 1)
@@ -103,6 +99,8 @@ else
     copyfile(config.label, '.');
     
 end
+
+clear jlabel lmiss ii lhsub rhsub
 
 %% actually build the networks after fixing labels
 
