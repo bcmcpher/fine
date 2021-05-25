@@ -17,6 +17,8 @@ function [ out ] = fnAppNetworkLiFEMatrix(config)
 % load the config.json
 config = loadjson(config);
 
+%# function sptensor
+
 % load .tck streamlines without downsampling
 disp('Loading saved LiFE model...');
 load(config.fe);
