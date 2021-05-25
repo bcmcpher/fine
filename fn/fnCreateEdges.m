@@ -82,24 +82,31 @@ dsize = size(parc.data);
 % pull all non-zero labels
 labels = unique(parc.data);
 labels = labels(labels > 0);
-nlabels = size(labels, 1);
+%nlabels = size(labels, 1);
 
 %% confirm some correspondance between labels in parc and names
 
-% check against what labels should exist in case a label is missing?
-% - that's a pain and should be caught before this point, frankly...
+% pull the names and voxel values from the passed cell array
+lbnam = cellfun(@(x) x{1}, names, 'UniformOutput', false);
+lbval = cellfun(@(x) x{2}, names);
 
-% check if names exist / make empty of they don't
-if(~exist('names', 'var') || isempty(names))
-    disp('No ROI names passed. Will fill in empty names...');
-    names = cell(size(labels));
+% check if parc has unrecognized voxel labels
+missVol = setdiff(labels, lbval);
+if ~isempty(missVol) % error b/c there's no usefully recovering
+    error('The following labels are present in the parcellation volume with no known labels: %d', missVol);
 end
 
-% sanity check if the number of names passed equals the number of labels
-if(length(names) ~= nlabels)
-    warning('The number of provided names do not match the number of labels in parc. Provided names will not be stored.');
-    names = cell(size(labels));
+% check if any labels are missing from 
+missLab = setdiff(lbval, labels);
+if ~isempty(missLab) % print a warning
+    warning('The following labels are expected but not present in the parcellation volume: %d \nThis may be expected behavior. Empty node field(s) will be created for the label(s).\nIf this is not desired, correct the input parcellation/labels.', missLab);
 end
+
+% % check if names exist / make empty of they don't
+% if(~exist('names', 'var') || isempty(names))
+%     disp('No ROI names passed. Will fill in empty names...');
+%     names = cell(size(labels));
+% end
 
 %% extract the labels for each entry in parc
 
@@ -246,25 +253,28 @@ nodet = struct('name', [], 'label', [], 'size', [], 'volume', []);
 nodet.botheps = bept;
 nodet.center = cntr;
 
+% pull the number of labels in the names object
+nlab = length(lbval);
+
 % create empty, preallocated cell array of edges
-nodes = repmat({nodet}, length(labels), 1);
+nodes = repmat({nodet}, nlab, 1);
 
 % iteratively add up what's assigned
-tfib = zeros(length(labels), 1);
-dfib = zeros(length(labels), 1);
-dcnt = zeros(length(labels), 1);
+tfib = zeros(nlab, 1);
+dfib = zeros(nlab, 1);
+dcnt = zeros(nlab, 1);
 
 % for every node, assign values volume and duplicate streamline info
-for node = 1:nlabels
+for node = 1:nlab%nlabels
     
     % catch info about the labels
-    nodes{node}.name = names(node);
-    nodes{node}.label = labels(node);
-    nodes{node}.size = sum(pval == labels(node));
+    nodes{node}.name = lbnam(node);
+    nodes{node}.label = lbval(node);
+    nodes{node}.size = sum(pval == lbval(node));
     nodes{node}.volume = nodes{node}.size * prod(dvoxmm);
     
     % find when both endpoints of a streamline are in the node
-    beps = find(epd & epv1 == labels(node));
+    beps = find(epd & epv1 == lbval(node));
     nodes{node}.botheps.indices = beps;
     nodes{node}.botheps.length = fblen(beps);
     
@@ -276,21 +286,31 @@ for node = 1:nlabels
     
     % keep track of labels with both end points of streamlines 
     if ~isempty(beps)
-        dcnt(node) = labels(node);
+        dcnt(node) = lbval(node);
     end
         
     % create ROI center in image and acpc space
-    center = mean(pijk(pval == labels(node),:));
-    nodes{node}.center.img = round(center);
-    nodes{node}.center.acpc = mrAnatXformCoords(parc_img2acpc, center);
+    center = mean(pijk(pval == lbval(node),:));
+    if size(center, 2) == 3
+        nodes{node}.center.img = round(center);
+        nodes{node}.center.acpc = mrAnatXformCoords(parc_img2acpc, center);
+    else % if there's only 1 voxel
+        try % round looks a bit different
+            nodes{node}.center.img = round(pijk(pval == labels(node),:));
+            nodes{node}.center.acpc = mrAnatXformCoords(parc_img2acpc, round(pijk(pval == labels(node),:)));
+        catch % otherwise it's empty
+            nodes{node}.center.img = nan(3,1);
+            nodes{node}.center.acpc = nan(3,1);
+        end
+    end
     
     % if there are not any endpoints in this label, throw a warning
-    if ~any(uedges(:) == labels(node))
-        warning(['Node label ' num2str(labels(node)) ' has no streamlines assigned.']);
+    if ~any(uedges(:) == lbval(node))
+        warning(['Node label ' num2str(lbval(node)) ' has no streamlines assigned.']);
     end
     
     % total fibers assigned to an endpoint
-    tfib(node) = sum(eps(:) == labels(node)) - dfib(node);
+    tfib(node) = sum(eps(:) == lbval(node)) - dfib(node);
     
 end
 
@@ -336,7 +356,7 @@ tcon = zeros(redges, 1);
 disp([ 'Building ' num2str(redges) ' network edges...' ]);
 
 % build label pairs to facilitate skipping empty edges during assignment 
-labpr = [ labels(pairs(:,1)) labels(pairs(:,2)) ];
+labpr = [ lbval(pairs(:,1)) lbval(pairs(:,2)) ];
 
 % for every pair of nodes, estimate the connection
 for edge = 1:redges

@@ -34,12 +34,15 @@ jlabel = loadjson(config.label)';
 %label = cellfun(@(x) str2num(x.label), jlabel);
 
 % pull names and remove irrelevant stems / illegal characters for fieldnames
-names = cellfun(@(x) x.name, jlabel, 'UniformOutput', false);
-names = strrep(names, '.label', '');
-names = strrep(names, '_LH_', '_');
-names = strrep(names, '_RH_', '_');
-names = strrep(names, '+', '_');
-names = strrep(names, '.', '_');
+names = cellfun(@(x) { x.name x.voxel_value }, jlabel, 'UniformOutput', false);
+names = cellfun(@(x) {strrep(x{1}, '.label', ''), x{2} }, names, 'UniformOutput', false);
+names = cellfun(@(x) {strrep(x{1}, '_LH_', '_'), x{2} }, names, 'UniformOutput', false);
+names = cellfun(@(x) {strrep(x{1}, '_RH_', '_'), x{2} }, names, 'UniformOutput', false);
+names = cellfun(@(x) {strrep(x{1}, '+', '_'), x{2} }, names, 'UniformOutput', false);
+names = cellfun(@(x) {strrep(x{1}, '.', '_'), x{2} }, names, 'UniformOutput', false);
+names = cellfun(@(x) {strrep(x{1}, '_L_', '_'), x{2} }, names, 'UniformOutput', false);
+names = cellfun(@(x) {strrep(x{1}, '_R_', '_'), x{2} }, names, 'UniformOutput', false);
+names = cellfun(@(x) {strrep(x{1}, '_ROI', ''), x{2} }, names, 'UniformOutput', false);
 % there will be more bad naming conventions to fix here I'm sure...
 
 % pull the values in voxels present in the volume
@@ -59,16 +62,31 @@ if ~isempty(lmiss) % is there is any mismatch in parc/json
     if size(lmiss, 1) == 14
         disp('The passed label.json is missing 14 observations. This is a common issue with maTT.');
         disp('Appending ''names'' with what the missing labels are assumed to be.');
+        
+        % pull the labels - assume 0-max cortical
+        mlab = max(cellfun(@(x) x{2}, names));
+        
+        % build the subcortical names
         lhsub = {'lh_Thalamus'; 'lh_Caudate'; 'lh_Putamen'; 'lh_Pallidum'; 'lh_Hippocampus'; 'lh_Amygdala'; 'lh_Accumbens'};
         rhsub = strrep(lhsub, 'lh_', 'rh_');
-        names = [ names; lhsub; rhsub ];
+        wbsub = [ lhsub; rhsub ];
+        
+        % build the subcortical name/values
+        subnm = cellfun(@(x,y) {x, y}, wbsub, num2cell([mlab+1:mlab+14]'), 'UniformOutput', false);
+        
+        % append the name/value combination
+        names = [ names; subnm ];
+
+%         lhsub = {'lh_Thalamus'; 'lh_Caudate'; 'lh_Putamen'; 'lh_Pallidum'; 'lh_Hippocampus'; 'lh_Amygdala'; 'lh_Accumbens'};
+%         rhsub = strrep(lhsub, 'lh_', 'rh_');
+%         names = [ names; lhsub; rhsub ];
         
         % create a fixed labels.json because the conmat type needs it
         olabel = cell(size(uparc, 1), 1);
         for ii = 1:size(uparc, 1)
-            olabel{ii}.name = names{ii}; % this assumes they're sorted, but they are in maTT
+            olabel{ii}.name = names{ii}{1}; % this assumes they're sorted, but they are in maTT
             olabel{ii}.label = '???';    % b/c the relabeling enforces it.
-            olabel{ii}.voxel_value = ii;
+            olabel{ii}.voxel_value = names{ii}{2};
         end
         
         % write fixed label.json to to disk
