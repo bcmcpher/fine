@@ -26,6 +26,9 @@ parc = niftiRead(config.parc);
 % load the passed labels
 jlabel = loadjson(config.label)';
 
+% pull logical for cleaning edges or not
+clean_edges = config.clean;
+
 %% fix label.json values
 
 % I don't try to parse the original labels - if you need to refer to the original 
@@ -156,6 +159,11 @@ end
 
 % create the network object
 netw = fnCreateEdges(parc, fg, names, config.maxDist, config.minStrm);
+
+% optionally clean the edges
+if clean_edges
+    netw = fnCleanEdges(netw, fg, config.minLength, config.maxVars, config.maxLengthStd, config.numNodes, config.maxIter, config.minStrm);
+end
 
 % estimate the average edge property
 netw = fnAveragePropertyEdges(netw, fg, edata, config.mname, false);

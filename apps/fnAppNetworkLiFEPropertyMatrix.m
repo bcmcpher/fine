@@ -1,13 +1,13 @@
-function [ out ] = fnAppNetworkCountMatrix(config)
-%[ out ] = fnAppNetworkCountMatrix(config);
+function [ out ] = fnAppNetworkLiFEPropertyMatrix(config)
+%[ out ] = fnAppNetworkAverageEdgeMatrix(config);
 %   The version of this tool to run on brainlife. Needs to be split up into
 %   many apps b/c the platform favors lots of little fxns over one flexible
 %   one. 
 %
 %   This loads a 'config.json' file with sufficiently valid inputs and
 %   writes a brainlife.io conmat data type and a jsongraph (json.gz) data
-%   type for each of 4 streamline count edge weights commonly estimated for 
-%   a structural network.
+%   type for the LiFE virtual lesion of the edge as the weights estimated 
+%   for a structural network.
 %
 % Brent McPherson (c) 2021, Indiana University
 %
@@ -17,10 +17,46 @@ function [ out ] = fnAppNetworkCountMatrix(config)
 % load the config.json
 config = loadjson(config);
 
+%# function sptensor
+
 % load .tck streamlines without downsampling
-fg = dtiImportFibersMrtrix(config.track, 0.5);
+disp('Loading saved LiFE model...');
+load(config.fe);
+
+% load fibers from fg
+fg = feGet(fe, 'fibers acpc');
+
+% pull the fiber weights
+weights = feGet(fe, 'fiber weights');
+
+% pull the model
+M = feGet(fe, 'model');
+
+% subset to only positively weighted fibers
+nonzero = weights > 0;
+nonzidx = find(nonzero); % because the sparse tensor can't be logically indexed
+fg.fibers = fg.fibers(nonzero);
+wght = weights(nonzero);
+M.Phi = M.Phi(:,:,nonzidx);
+
+% pull the number of directions
+nTheta = feGet(fe, 'nbvals');
+
+% pull the demeaned diffusion signal
+dsig = feGet(fe, 'dsigdemeaned by voxel');
+
+% pull the mean diffusion signal
+S0 = feGet(fe, 'b0signalimage');
+
+% pull the rmse volume for an average edge weight
+rmse = fnRmseVolume(fe);
+rmse.fname = 'rmse.nii.gz';
+
+% clear fe for memory usage
+clear fe nonzero nonzidx
 
 % load parcellation data
+disp('Loading parcellation...');
 parc = niftiRead(config.parc);
 
 % load the passed labels
@@ -80,6 +116,10 @@ if ~isempty(lmiss) % is there is any mismatch in parc/json
         % append the name/value combination
         names = [ names; subnm ];
 
+%         lhsub = {'lh_Thalamus'; 'lh_Caudate'; 'lh_Putamen'; 'lh_Pallidum'; 'lh_Hippocampus'; 'lh_Amygdala'; 'lh_Accumbens'};
+%         rhsub = strrep(lhsub, 'lh_', 'rh_');
+%         names = [ names; lhsub; rhsub ];
+        
         % create a fixed labels.json because the conmat type needs it
         olabel = cell(size(uparc, 1), 1);
         for ii = 1:size(uparc, 1)
@@ -105,35 +145,90 @@ end
 
 clear jlabel lmiss ii lhsub rhsub
 
+
+%% determine if the requested edge measure is actually passed as input
+
+% check requested name across all possible inputs for path to file to load
+switch config.mname
+    % tensor
+    case 'fa'
+        efile = config.fa;
+    case 'md'
+        efile = config.md;
+    case 'rd'
+        efile = config.rd;
+    case 'ad'
+        efile = config.ad;
+    case 'cl'
+        efile = config.cl;
+    case 'cp'
+        efile = config.cp;
+    case 'cs'
+        efile = config.cs;
+    % kurtosis
+    case 'ga'
+        efile = config.ga;
+    case 'mk'
+        efile = config.mk;
+    case 'ak'
+        efile = config.ak;
+    case 'rk' 
+        efile = config.rk;        
+    % noddi
+    case 'ndi'
+        efile = config.ndi;
+    case 'isovf'
+        efile = config.isovf;
+    case 'odi'
+        efile = config.odi;
+    % myelin map
+    case 'map'
+        efile = config.map;
+    otherwise
+        error('The requested file is not configured in this input: %s ', config.mname);
+end
+% technically, any volume in register to the input data can be sampled here
+
+% try to load the requested file
+try
+    edata = niftiRead(efile);
+catch
+    error('The requested output - %s - is not stored for this input.', config.mname);
+end
+
 %% actually build the networks after fixing labels
 
 % create the network object
-netw = fnCreateEdges(parc, fg, names, config.maxDist, config.minStrm);
+netw = fnCreateEdges(parc, fg, names, config.maxDist, config.minStrm, 'weights', wght);
 
 % optionally clean the edges
 if clean_edges
     netw = fnCleanEdges(netw, fg, config.minLength, config.maxVars, config.maxLengthStd, config.numNodes, config.maxIter, config.minStrm);
 end
 
+% estimate the average edge property
+netw = fnAveragePropertyEdges(netw, fg, edata, config.mname, false);
+
 % create matrix field for export of all computed edge weights
 netw = fnComputeMatrixEdges(netw);
 
 % create connectivity matrices
-omat = fnCreateAdjacencyMatrices(netw);
+[ omat, olab ] = fnCreateAdjacencyMatrices(netw);
 
 %% write out multiple predetermined networks
 
-% the count edge weights to store
-edgew = {'count', 'length', 'density', 'denlen'};
-edgei = [ 1 2 4 5 ];
-edgec = 4;
+% the edge weights to store
+edgew = {'volume', [ config.mname '_mn' ], [ config.mname '_sd' ]};
+edgef = {'volume', 'mean', 'sd'}; % the generic folder names
+edgei = [ 6 8 10 ];
+edgec = 3;
 
 % write out each network
 for edge = 1:edgec
     
     % create folder names for outputs b/c brainlife can't parse paths to outputs
-    conout = [ 'conmat-', edgew{edge} ];
-    netout = [ 'network-', edgew{edge} ];
+    conout = [ 'conmat-', edgef{edge} ];
+    netout = [ 'network-', edgef{edge} ];
 
     % make a folder in conmat for each modality
     mkdir(fullfile(pwd, conout));
@@ -153,15 +248,15 @@ for edge = 1:edgec
     
     % make the new output directory for json graphs
     mkdir(fullfile(pwd, netout));
-    
-    % jsongraph to filename to write to disk
-    jsnout = fullfile(pwd, netout, 'network.json');
 
-    % create json graph object
+    % jsongraph filename to write to disk
+    jsnout = fullfile(pwd, netout, 'network.json');
+        
+    % write jsongraph to disk
     fnCreateJsonGraph(netw, edgew{edge}, jsnout);
     gzip(jsnout); % gzip by defualt
     delete(jsnout); % remove the unzipped file
-
+    
 end
 
 out = 'done.';

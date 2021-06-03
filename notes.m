@@ -4,6 +4,8 @@
 
 %% TODO:
 %
+% print # of nodes / streamlines to user earlier in fnCreateEdges
+%
 % export to json graph
 % - link network edges?
 % - null models?
