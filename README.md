@@ -11,8 +11,6 @@ TODO:
 - check other atlases
 - build GLASSER w/ volume and surface
 
-- check the ssh keys are ok
-
 FiNE - Fascicle Network Evaluation / ENCODE, fn
 
 
