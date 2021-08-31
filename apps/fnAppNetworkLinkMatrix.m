@@ -201,6 +201,10 @@ lmat = fnCreateLinkMatrix(netw, 1);
 
 %% write out multiple predetermined networks
 
+% save the network .mat structure
+mkdir(fullfile(pwd, 'raw'));
+save(fullfile(pwd, 'raw', 'netw.mat'), 'netw', 'lmat', '-v7.3');
+
 % make nested folders for conmat / network json output for regular network
 mkdir(fullfile(pwd, 'conmat-network'));
 mkdir(fullfile(pwd, 'conmat-network', 'csv'));

@@ -182,6 +182,10 @@ edgef = {'volume', 'mean', 'sd'}; % the generic folder names
 edgei = [ 6 8 10 ];
 edgec = 3;
 
+% save the network .mat structure
+mkdir(fullfile(pwd, 'raw'));
+save(fullfile(pwd, 'raw', 'netw.mat'), 'netw', '-v7.3');
+
 % write out each network
 for edge = 1:edgec
     

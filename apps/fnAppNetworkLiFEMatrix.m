@@ -174,6 +174,10 @@ edgei = [ 1 2 4 5 6 7 8 9 12 14 16 ];
 edgew = olab(edgei);
 edgec = 11;
 
+% save the network .mat structure
+mkdir(fullfile(pwd, 'raw'));
+save(fullfile(pwd, 'raw', 'netw.mat'), 'netw', '-v7.3');
+
 % write out each network
 for edge = 1:edgec
     

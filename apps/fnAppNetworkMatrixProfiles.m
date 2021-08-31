@@ -178,6 +178,10 @@ netw = fnTractProfileEdges(netw, fg, edata, config.mname, config.numNodes, confi
 
 %% write out the profiles
 
+% save the network .mat structure
+mkdir(fullfile(pwd, 'raw'));
+save(fullfile(pwd, 'raw', 'netw.mat'), 'netw', '-v7.3');
+
 % pull the node labels
 nodes = cellfun(@(x) x.name, netw.nodes, 'UniformOutput', false);
 edgec = size(netw.edges, 1);
