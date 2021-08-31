@@ -128,6 +128,10 @@ edgew = {'count', 'length', 'density', 'denlen'};
 edgei = [ 1 2 4 5 ];
 edgec = 4;
 
+% save the network .mat structure
+mkdir(fullfile(pwd, 'raw'));
+save(fullfile(pwd, 'raw', 'netw.mat'), 'netw', '-v7.3');
+
 % write out each network
 for edge = 1:edgec
     

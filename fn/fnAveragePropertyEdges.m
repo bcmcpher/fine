@@ -25,11 +25,6 @@ function [ netw ] = fnAveragePropertyEdges(netw, fg, vol, dtype, keep, clobv, cl
 %
 % NOTES:
 % - allow a list of input volumes / labels? - check dimensions to do multiple at once?
-% - coords for wmvol are available but not stored - it's big and probably has no use.
-% - coords for edges are available but not stored, used for link networks.
-% - - add it back when I get to those? Or just compute as needed?
-% - vals for dtype are available but not stored, used in MI comparison?
-% - - add back when they're necessary, useful to have but maybe not needed.
 % - store more specific central tendency (standard error, etc.)
 %
 % EXAMPLE:
@@ -68,6 +63,36 @@ if(~exist('clobd', 'var') || isempty(clobd))
     clobd = false;
 end
 
+% assume only 1 input
+ninputs = 1;
+
+% pull the number of edges
+nedges = length(netw.edges);
+
+% check if there are cell array of input names / volumes
+if iscell(dtype) || iscell(vol)
+    % check if they're the same length
+    if (length(dtype) == length(vol))
+        % if they labels / volumes have the same length, check dimensions
+        dims = cellfun(@(x) size(x.data), vol, 'UniformOutput', false);
+        if isequal(dims{:})
+            disp('Array of inputs have matching dimensions.');
+        else
+            warning('Dimensions of input volumes do not match. This may cause issues.');
+        end
+        ninputs = length(dtype);
+    else
+        error('The cell array of labels and volumes are not the same length. Unable to appropriately assign inputs.');
+    end
+else
+    
+    % make the single inputs cells for indexing sanity
+    dtype = {dtype};
+    vol = {vol};
+    
+end
+
+% check for dt6, but not if an array of inputs is passed
 if(isfield(vol, 'dt6'))
     
     disp('Computing edge central tendency from dt6 structure...');
@@ -106,36 +131,60 @@ if(isfield(vol, 'dt6'))
             [ ~, ~, dat ] = dtiComputeWestinShapes(eigVal, 'lsum');
             
         otherwise
-            error('A volume summary of ''%s'' cannot be extracted from a dt6', dtype);
+            error('A volume summary of ''%s'' cannot be extracted from a dt6', dtype{1});
     end
     
     % create the "nifti" volume of the data in AC-PC space
-    vol = niftiCreate('data', dat, ...
-                      'qto_xyz', dt.xformToAcpc);
+    vol = {niftiCreate('data', dat, 'qto_xyz', dt.xformToAcpc)};
                   
     % create vol filename
-    name = [ 'dt6_' dtype ];
+    name = {[ 'dt6_' dtype{1} ]};
 
 else
-    disp('Computing edge central tendency from volume...');
-    
-    % create vol filename
-    [ ~, nam, ext ] = fileparts(vol.fname);
-    name = [ nam ext ];
+%     disp('Computing edge central tendency from volume...');
+%     
+%     % create vol filename
+%     [ ~, nam, ext ] = fileparts(vol.fname);
+%     name = [ nam ext ];
 
 end
 
-% extract relavant data from volume
-data = vol.data;
+% preallocate inputs
+name = cell(ninputs, 1);
+data = cell(ninputs, 1);
+micro_acpc2img = cell(ninputs, 1);
+volvx = cell(ninputs, 1);
+volsz = cell(ninputs, 1);
 
-% pull xforms to move b/w fibers acpc / micro image space
-micro_acpc2img = niftiGet(vol, 'qto_ijk');
+% for every input, pull data
+for input = 1:ninputs
+    
+    % create vol filename
+    [ ~, nam, ext ] = fileparts(vol{input}.fname);
+    name{input} = [ nam ext ];
+    
+    % extract relavant data from volume
+    data{input} = vol{input}.data;
+    
+    % pull xforms to move b/w fibers acpc / micro image space
+    micro_acpc2img{input} = niftiGet(vol{input}, 'qto_ijk');
+    
+    % grab volume voxel size for scaling volume
+    volvx{input} = prod(vol{input}.pixdim);
+    
+    % grab the volume size
+    volsz{input} = size(vol{input}.data);
+    
+end
 
-% grab volume voxel size for scaling volume
-volvx = prod(vol.pixdim);
+% round to "functionally" identical spaces (they should actually be...)
+% tensor / noddi are not identical, but are at 4 decimal places. close enough?
+micro_acpc2img = cellfun(@(x) round(x, 4), micro_acpc2img, 'UniformOutput', false);
 
-% grab the volume size
-volsz = size(vol.data);
+% hard exit if the inputs are not in the same space.
+if (ninputs > 1) && ~isequal(micro_acpc2img{:})
+    error('The array of inputs are in different spaces. There is no sane way to do this.');
+end
 
 % get the number of fibers passed
 nfib = size(fg.fibers, 1);
@@ -146,14 +195,14 @@ nfib = size(fg.fibers, 1);
 be_careful = false;
 
 % clearly state if this volume is sliced different than the parcellation
-if ~all(netw.parc.dsize == volsz)
-    warning('The image dimensions of the volume do not match the current dimensions.');
+if ~all(netw.parc.dsize == volsz{1})
+    warning('The image dimensions of the new volume(s) do not match the parcellations stored dimensions.');
     be_careful = true;
 end
 
 % clearly state if this volume has a different voxel size than the parcellation
-if ~all(prod(netw.parc.voxmm) == volvx)
-    warning('The voxel dimensions of the volume do not match the current dimensions.');
+if ~all(prod(netw.parc.voxmm) == volvx{1})
+    warning('The voxel dimensions of the new volume(s) do not match the parcellations stored dimensions.');
     be_careful = true;
 end
 
@@ -166,7 +215,7 @@ end
 % use data in the same resolution as the diffusion data for parcellations
 % and edge property estimates.
 if be_careful
-    warning('The volume that will be sampled is not sliced the same as the rest of the data. If this assumption is violated, edge volumes may not map exactly to all stored dtypes.');
+    warning('The new volume to be sampled is not sliced the same as the currenlty stored parcellation. If this assumption is violated, edge volumes may not map exactly to all stored dtypes.');
 end
 
 %% safety checks - exit before loop if an overwrite is expected
@@ -200,13 +249,15 @@ end
 fprintf('Estimating white matter volume from fg...\n');
 
 % transform whole brain fg into voxel space
-vfg = dtiXformFiberCoords(fg, micro_acpc2img, 'img');
+% able to use the first index b/c they all have to match or there's only 1
+vfg = dtiXformFiberCoords(fg, micro_acpc2img{1}, 'img');
 
 % vectorized call through streamlines rounding nodes to voxel indices
-ufg = cellfun(@fixVoxelBounds, vfg.fibers, repmat(mat2cell(volsz, 1, 3), [ nfib 1 ]), 'UniformOutput', false);
+ufg = cellfun(@fixVoxelBounds, vfg.fibers, repmat(mat2cell(volsz{1}, 1, 3), [ nfib 1 ]), 'UniformOutput', false);
 coords = unique(vertcat(ufg{:}), 'rows'); 
-% THIS SHOULD BE TOO BIG FOR MEMORY - SO CHUNK LIKE LiFE CODE BELOW
+% THIS COULD BE TOO BIG FOR MEMORY - SO CHUNK LIKE LiFE CODE BELOW
 % coords exactly matches the LiFE voxel ROI if the volume passed is sliced like DWI
+% this vectorized approach doesn't blow up memory or matlab updated (?)
 
 % % pull the total number of nodes
 % MAXMEM = 4000000; % max of 4gb?
@@ -245,7 +296,7 @@ coords = unique(vertcat(ufg{:}), 'rows');
 
 % estimate white matter volume in structure volume
 wmvox = size(coords, 1);
-wmvol = wmvox * volvx;
+wmvol = wmvox * volvx{1};
 netw.volume.wmvol = wmvol;
 
 % optionally store full wm ROI
@@ -255,18 +306,21 @@ end
 clear coords % it's too big otherwise...
 
 fprintf('Total white matter volume estimated at: %d mm^3.\n', wmvol);
-fprintf('Finding volume and central tendency of ''%s'' for all edges...\n', name);
 
 tic;
-for ii = 1:length(netw.edges)
+
+fprintf('Computing volume and central tendency within all edges of:\n');
+fprintf(' - %s\n', name{:});
+
+for edge = 1:nedges
     
     % pull the connection
-    conn = netw.edges{ii};
+    conn = netw.edges{edge};
     
     % if the connection is empty, fill in zeros
     if isempty(conn.fibers.indices)
         
-        warning('Edge index %d is empty. This should be impossible.', ii);
+        warning('Edge index %d is empty. This should be impossible.', edge);
         
         % fill in empty voxel coords
         conn.volume.volume = 0;
@@ -288,35 +342,45 @@ for ii = 1:length(netw.edges)
             conn.volume.coords = tcoords;
         end
         
-        % extract the micro data for the edge
-        vals = nan(size(tcoords, 1), 1);
-        for coord = 1:size(tcoords, 1)
-            vals(coord) = data(tcoords(coord, 1), tcoords(coord, 2), tcoords(coord, 3));
+        % for every input
+        for input = 1:ninputs
+        
+            % preallocate the empty values
+            vals = nan(size(tcoords, 1), 1);
+            
+            % store the input coords for this edge
+            for coord = 1:size(tcoords, 1)
+                vals(coord) = data{input}(tcoords(coord, 1), tcoords(coord, 2), tcoords(coord, 3));
+            end
+        
+            % store the volume
+            if write_vol && (input == 1) % only do this the first time
+                conn.volume.volume = size(vals, 1) * volvx{input};
+                conn.volume.prpvol = conn.volume.volume / wmvol;
+            end
+        
+            % optionally store raw values and central tendency measures
+            if keep
+                conn.micros.(dtype{input}).raw = vals;
+            end
+            
+            % write the central tendency
+            conn.micros.(dtype{input}).mn = mean(vals, 'omitnan');
+            conn.micros.(dtype{input}).md = median(vals, 'omitnan');
+            conn.micros.(dtype{input}).sd = std(vals, 'omitnan');
+            
         end
         
-        % store the volume
-        if write_vol
-            conn.volume.volume = size(vals, 1) * volvx;
-            conn.volume.prpvol = conn.volume.volume / wmvol;
-        end
-
-        % optionally store raw values and central tendency measures
-        if keep
-            conn.micros.(dtype).raw = vals;
-        end
-        conn.micros.(dtype).mn = mean(vals, 'omitnan');
-        conn.micros.(dtype).md = median(vals, 'omitnan');
-        conn.micros.(dtype).sd = std(vals, 'omitnan');
-                
     end
     
     % store connection back in output
-    netw.edges{ii} = conn;
-        
+    netw.edges{edge} = conn;
+    
 end
+
 time = toc;
 
-disp([ 'Found the volume and central tendency of ' name ' for all edges in ' num2str(time) ' seconds.' ]);
+disp([ 'Found the volume and central tendency for all edges in ' num2str(time) ' seconds.' ]);
 
 end
 
