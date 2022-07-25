@@ -2,7 +2,6 @@
 % Brent McPherson
 %
 
-
 %% TODO:
 %
 % print # of nodes / streamlines to user earlier in fnCreateEdges
