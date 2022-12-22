@@ -164,6 +164,7 @@ bval = dlmread('~/mrtrix3/dwi.bvals');
 bvn = 100;
 bv0 = 50;
 
+
 % grab unique and indices
 [ bvals.unique, ~, bvals.uindex ] = unique(bval);
 
